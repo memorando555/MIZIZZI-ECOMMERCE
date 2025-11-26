@@ -12,8 +12,6 @@ import {
   ChevronRight,
   Star,
   Check,
-  Truck,
-  Clock,
   ThumbsUp,
   Shield,
   Zap,
@@ -32,6 +30,8 @@ import {
   XCircle,
   Info,
   MessageSquare,
+  BadgeCheck,
+  Clock,
 } from "lucide-react"
 import { FaWhatsapp } from "react-icons/fa"
 import { useCart } from "@/contexts/cart/cart-context"
@@ -49,6 +49,9 @@ import { Loader } from "@/components/ui/loader"
 
 interface ProductDetailsEnhancedProps {
   product: any
+  initialReviews?: Review[]
+  similarProducts?: any[]
+  recentlyViewedProducts?: any[]
 }
 
 const appleVariants = {
@@ -78,12 +81,17 @@ const appleVariants = {
   },
 }
 
-// const DEFAULT_FEATURES = [...] - NO LONGER NEEDED
+const CHERRY_RED = "#8B0000" // Dark cherry red
+const CHERRY_RED_HOVER = "#6B0000"
+const CHERRY_RED_ACTIVE = "#5A0000"
+const ORANGE_PRIMARY = "#EA580C" // Modern orange for accents
 
-const ORANGE_PRIMARY = "#EA580C" // Modern orange
-const ORANGE_LIGHT = "orange"
-
-export default function ProductDetailsEnhanced({ product: initialProduct }: ProductDetailsEnhancedProps) {
+export default function ProductDetailsEnhanced({
+  product: initialProduct,
+  initialReviews,
+  similarProducts,
+  recentlyViewedProducts,
+}: ProductDetailsEnhancedProps) {
   const router = useRouter()
   const { isAuthenticated, user } = useAuth()
   const { toast } = useToast()
@@ -96,9 +104,9 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
   const [quantity, setQuantity] = useState(1)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
-  const [relatedProducts, setRelatedProducts] = useState<any[]>([])
+  const [relatedProducts, setRelatedProducts] = useState<any[]>(similarProducts || [])
   const [isLoadingRelated, setIsLoadingRelated] = useState(true)
-  const [recentlyViewed, setRecentlyViewed] = useState<any[]>([])
+  const [recentlyViewed, setRecentlyViewed] = useState<any[]>(recentlyViewedProducts || [])
   const [isImageZoomModalOpen, setIsImageZoomModalOpen] = useState(false)
   const [zoomSelectedImage, setZoomSelectedImage] = useState(0)
   const [showAllReviews, setShowAllReviews] = useState(false)
@@ -106,7 +114,10 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
   const [cartNotificationData, setCartNotificationData] = useState<any>(null)
   const [optimisticWishlistState, setOptimisticWishlistState] = useState<boolean | null>(null)
   const [isTogglingWishlist, setIsTogglingWishlist] = useState(false)
-  const [showSpecifications, setShowSpecifications] = useState(true) // New state for showing specifications
+  const [showSpecifications, setShowSpecifications] = useState(true)
+  const [reviewSortBy, setReviewSortBy] = useState<"recent" | "highest" | "lowest">("recent")
+  const [likedReviews, setLikedReviews] = useState<Set<number>>(new Set())
+  const [animatingReviews, setAnimatingReviews] = useState<Set<number>>(new Set())
 
   // Inventory state
   const [inventoryData, setInventoryData] = useState<{
@@ -125,7 +136,7 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
   const [isLoadingInventory, setIsLoadingInventory] = useState(true)
   const [inventoryError, setInventoryError] = useState<string | null>(null)
 
-  const [reviews, setReviews] = useState<Review[]>([])
+  const [reviews, setReviews] = useState<Review[]>(initialReviews || [])
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null)
   const [isLoadingReviews, setIsLoadingReviews] = useState(true)
   const [reviewError, setReviewError] = useState<string | null>(null)
@@ -220,9 +231,9 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
   }
 
   const productImages = useMemo(() => {
-    console.log("[v0] Computing productImages from product.image_urls:", product?.image_urls)
+    // console.log("[v0] Computing productImages from product.image_urls:", product?.image_urls)
     const images = getProductImages(product)
-    console.log("[v0] Computed productImages:", images.length, "images")
+    // console.log("[v0] Computed productImages:", images.length, "images")
     return images
   }, [product])
 
@@ -251,7 +262,7 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
     setIsLoadingInventory(true)
     setInventoryError(null)
     try {
-      console.log("[v0] Fetching inventory for product:", product.id)
+      // console.log("[v0] Fetching inventory for product:", product.id)
       const summary = await inventoryService.getProductInventorySummary(Number(product.id), selectedVariant?.id)
       const available = summary.total_available_quantity ?? 0
       const stock_status: "in_stock" | "low_stock" | "out_of_stock" =
@@ -263,16 +274,16 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
         stock_status,
         last_updated: summary.items?.[0]?.last_updated,
       })
-      console.log("[v0] Inventory data updated successfully:", {
-        available_quantity: available,
-        is_in_stock: summary.is_in_stock,
-        stock_status,
-      })
+      // console.log("[v0] Inventory data updated successfully:", {
+      //   available_quantity: available,
+      //   is_in_stock: summary.is_in_stock,
+      //   stock_status,
+      // })
     } catch (error: any) {
       console.error("[v0] Inventory fetch error:", error)
       setInventoryError(error?.message || "Failed to load inventory data")
       try {
-        console.log("[v0] Attempting direct inventory refresh...")
+        // console.log("[v0] Attempting direct inventory refresh...")
         const directCheck = await inventoryService.checkAvailability(Number(product.id), 1, selectedVariant?.id)
         setInventoryData({
           available_quantity: directCheck.available_quantity,
@@ -281,12 +292,12 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
           stock_status:
             directCheck.available_quantity === 0 ? "out_of_stock" : directCheck.is_low_stock ? "low_stock" : "in_stock",
         })
-        console.log("[v0] Direct inventory check successful:", directCheck)
+        // console.log("[v0] Direct inventory check successful:", directCheck)
         setInventoryError(null)
       } catch (directError) {
         console.error("[v0] Direct inventory check failed:", directError)
         const fallbackStock = product?.stock || 0
-        console.log("[v0] Using product.stock as fallback:", fallbackStock)
+        // console.log("[v0] Using product.stock as fallback:", fallbackStock)
         setInventoryData({
           available_quantity: fallbackStock,
           is_in_stock: fallbackStock > 0,
@@ -338,7 +349,7 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
           },
           ...recentItems,
         ].slice(0, 6)
-        localStorage.setItem("recentlyViewed", JSON.JSON.stringify(updated))
+        localStorage.setItem("recentlyViewed", JSON.stringify(updated))
         setRecentlyViewed(updated)
       } else {
         setRecentlyViewed(recentItems)
@@ -486,7 +497,7 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
     const [hoverRating, setHoverRating] = useState(0)
 
     return (
-      <div className="flex gap-1">
+      <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((star) => (
           <motion.button
             key={star}
@@ -496,12 +507,12 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
             className={cn(
               "transition",
               interactive && "cursor-pointer",
-              (hoverRating || rating) >= star ? "text-yellow-400" : "text-gray-300",
+              (hoverRating || rating) >= star ? "text-[#8B0000]" : "text-gray-200",
             )}
             disabled={!interactive}
             whileHover={interactive ? { scale: 1.1 } : undefined}
           >
-            <Star size={size} fill={(hoverRating || rating) >= star ? "currentColor" : "none"} className="transition" />
+            <Star size={size} fill={(hoverRating || rating) >= star ? "currentColor" : "none"} strokeWidth={1.5} />
           </motion.button>
         ))}
       </div>
@@ -513,22 +524,22 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
     setIsLoadingReviews(true)
     setReviewError(null)
     try {
-      console.log("[v0] Fetching reviews for product:", product.id)
+      // console.log("[v0] Fetching reviews for product:", product.id)
       const [reviewsResponse, summaryResponse] = await Promise.all([
         reviewService.getProductReviews(Number(product.id), {
           page: 1,
-          per_page: showAllReviews ? 50 : 3,
-          sort_by: "created_at",
-          sort_order: "desc",
+          per_page: showAllReviews ? 50 : 5,
+          sort_by: reviewSortBy === "recent" ? "created_at" : "rating",
+          sort_order: reviewSortBy === "lowest" ? "asc" : "desc",
         }),
         reviewService.getProductReviewSummary(Number(product.id)),
       ])
       setReviews(reviewsResponse.items)
       setReviewSummary(summaryResponse)
-      console.log("[v0] Reviews loaded successfully:", {
-        count: reviewsResponse.items.length,
-        average: summaryResponse.average_rating,
-      })
+      // console.log("[v0] Reviews loaded successfully:", {
+      //   count: reviewsResponse.items.length,
+      //   average: summaryResponse.average_rating,
+      // })
       // Removed canUserReview and related logic as reviews are read-only here
       // if (isAuthenticated && user) {
       //   try {
@@ -554,10 +565,10 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
     } finally {
       setIsLoadingReviews(false)
     }
-  }, [product?.id, showAllReviews]) // Removed isAuthenticated, user
+  }, [product?.id, showAllReviews, reviewSortBy]) // Removed isAuthenticated, user
 
   useEffect(() => {
-    console.log("[v0] Product changed, fetching reviews for:", product?.id)
+    // console.log("[v0] Product changed, fetching reviews for:", product?.id)
     if (product?.id) {
       fetchReviews()
     }
@@ -610,22 +621,112 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
   //   }
   // }
 
-  const handleMarkHelpful = async (reviewId: number) => {
-    try {
-      await reviewService.markReviewHelpful(reviewId)
-      // Removed toast message for successful helpful marking
-      // toast({
-      //   description: "Thank you for your feedback!",
-      // })
-      await fetchReviews()
-    } catch (error: any) {
-      console.error("[v0] Error marking review helpful:", error)
-      toast({
-        title: "Error",
-        description: error?.message || "Failed to mark review as helpful",
-        variant: "destructive",
+  const handleMarkHelpful = useCallback(
+    async (reviewId: number) => {
+      // Prevent double-clicking during animation
+      if (animatingReviews.has(reviewId)) return
+
+      // Start animation
+      setAnimatingReviews((prev) => new Set(prev).add(reviewId))
+
+      // Toggle liked state optimistically
+      const isCurrentlyLiked = likedReviews.has(reviewId)
+      setLikedReviews((prev) => {
+        const newSet = new Set(prev)
+        if (isCurrentlyLiked) {
+          newSet.delete(reviewId)
+        } else {
+          newSet.add(reviewId)
+        }
+        return newSet
       })
-    }
+
+      try {
+        await reviewService.markReviewHelpful(reviewId)
+        await fetchReviews() // Re-fetch to ensure like counts are accurate
+      } catch (error: any) {
+        console.error("[v0] Error marking review helpful:", error)
+        // Revert optimistic update on error
+        setLikedReviews((prev) => {
+          const newSet = new Set(prev)
+          if (isCurrentlyLiked) {
+            newSet.add(reviewId)
+          } else {
+            newSet.delete(reviewId)
+          }
+          return newSet
+        })
+        toast({
+          title: "Error",
+          description: error?.message || "Failed to mark review as helpful",
+          variant: "destructive",
+        })
+      } finally {
+        // End animation after delay
+        setTimeout(() => {
+          setAnimatingReviews((prev) => {
+            const newSet = new Set(prev)
+            newSet.delete(reviewId)
+            return newSet
+          })
+        }, 300) // Match animation duration if any
+      }
+    },
+    [animatingReviews, likedReviews, fetchReviews, toast],
+  ) // Added dependencies
+
+  const handleLikeReview = async (reviewId: number) => {
+    // This function seems to be a duplicate or alternative for handleMarkHelpful.
+    // If it's intended to be different, its logic needs to be defined.
+    // For now, it's commented out to avoid confusion.
+    console.warn(
+      "[v0] handleLikeReview is called but logic is not fully defined or might be redundant with handleMarkHelpful.",
+    )
+
+    // Optimistic UI update
+    // setLikedReviews((prev) => {
+    //   const newSet = new Set(prev)
+    //   if (newSet.has(reviewId)) {
+    //     // If already liked, remove and potentially trigger unlike animation
+    //     newSet.delete(reviewId)
+    //   } else {
+    //     // If not liked, add and trigger like animation
+    //     newSet.add(reviewId)
+    //     setAnimatingReviews((prevAnimating) => new Set(prevAnimating).add(reviewId))
+    //     setTimeout(() => {
+    //       setAnimatingReviews((prevAnimating) => {
+    //         const updatedSet = new Set(prevAnimating)
+    //         updatedSet.delete(reviewId)
+    //         return updatedSet
+    //       })
+    //     }, 500) // Animation duration
+    //   }
+    //   return newSet
+    // })
+
+    // try {
+    //   // Use markReviewHelpful for liking, assuming it's the intended API endpoint
+    //   await reviewService.markReviewHelpful(reviewId)
+    //   await fetchReviews() // Re-fetch to get updated like counts
+    // } catch (error: any) {
+    //   console.error("[v0] Error liking review:", error)
+    //   toast({
+    //     title: "Error",
+    //     description: error?.message || "Failed to like review",
+    //     variant: "destructive",
+    //   })
+    //   // Revert optimistic update on error
+    //   setLikedReviews((prev) => {
+    //     const newSet = new Set(prev)
+    //     newSet.delete(reviewId)
+    //     return newSet
+    //   })
+    //   setAnimatingReviews((prevAnimating) => {
+    //     const updatedSet = new Set(prevAnimating)
+    //     updatedSet.delete(reviewId)
+    //     return updatedSet
+    //   })
+    // }
   }
 
   const handleAddToCart = async (): Promise<boolean> => {
@@ -930,15 +1031,15 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
         return {
           icon: CheckCircle,
           text: `${inventoryData.available_quantity} in stock`,
-          cls: "text-green-600 bg-green-50 border-green-200",
-          ic: "text-green-600",
+          cls: "text-emerald-600 bg-emerald-50 border-emerald-200",
+          ic: "text-emerald-600",
         }
       case "low_stock":
         return {
           icon: AlertTriangle,
           text: `Only ${inventoryData.available_quantity} left`,
-          cls: "text-orange-600 bg-orange-50 border-orange-200",
-          ic: "text-orange-600",
+          cls: "text-amber-600 bg-amber-50 border-amber-200",
+          ic: "text-amber-600",
         }
       case "out_of_stock":
         return { icon: XCircle, text: "Out of stock", cls: "text-red-600 bg-red-50 border-red-200", ic: "text-red-600" }
@@ -953,7 +1054,12 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
   })()
 
   const LuxuryPill = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <span className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold", className)}>
+    <span
+      className={cn(
+        "inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide",
+        className,
+      )}
+    >
       {children}
     </span>
   )
@@ -963,7 +1069,10 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
       <div
         {...props}
         ref={ref}
-        className={cn("bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden", className)}
+        className={cn(
+          "bg-white rounded-2xl border border-gray-100/80 shadow-sm shadow-gray-100/50 overflow-hidden",
+          className,
+        )}
       >
         {children}
       </div>
@@ -978,22 +1087,32 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, "_blank")
   }
 
-  useEffect(() => {
-    fetchReviews()
-  }, [fetchReviews])
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInMs = now.getTime() - date.getTime()
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24))
+
+    if (diffInDays === 0) return "Today"
+    if (diffInDays === 1) return "Yesterday"
+    if (diffInDays < 7) return `${diffInDays} days ago`
+    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`
+    if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`
+    return `${Math.floor(diffInDays / 365)} years ago`
+  }
 
   if (isPageLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-gray-50/50 flex flex-col items-center justify-center">
         <Loader />
-        <p className="mt-4 text-sm text-gray-600">Loading product details...</p>
+        <p className="mt-4 text-sm text-gray-500 font-medium tracking-wide">Loading product details...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Cart Toast - updated color scheme to orange */}
+    <div className="min-h-screen bg-gray-50/30">
+      {/* Cart Toast - refined design */}
       <AnimatePresence>
         {showCartNotification && cartNotificationData && (
           <motion.div
@@ -1003,9 +1122,9 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
             role="status"
             aria-live="polite"
           >
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl shadow-black/10 border border-gray-100 p-4">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-100">
+                <div className="w-14 h-14 rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
                   <Image
                     src={cartNotificationData?.thumbnail_url || "/placeholder.svg?height=56&width=56&query=thumb"}
                     alt={cartNotificationData?.name || "Product"}
@@ -1014,26 +1133,27 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
                     className="object-cover w-full h-full"
                   />
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 text-sm line-clamp-2">{cartNotificationData?.name}</p>
-                  <div className="flex items-center gap-2 text-sm mt-1">
-                    <span className="font-semibold text-orange-600">
-                      {formatPrice(cartNotificationData?.price || 0)}
-                    </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm line-clamp-2 leading-tight">
+                    {cartNotificationData?.name}
+                  </p>
+                  <div className="flex items-center gap-2 text-sm mt-1.5">
+                    <span className="font-bold text-[#8B0000]">{formatPrice(cartNotificationData?.price || 0)}</span>
+                    <span className="text-gray-400">·</span>
                     <span className="text-gray-500">Qty: {cartNotificationData?.quantity || 1}</span>
                   </div>
                 </div>
-                <CheckCircle className="h-5 w-5 text-green-600" />
+                <CheckCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowCartNotification(false)}
-                  className="flex-1 h-10 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition"
+                  className="flex-1 h-11 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-colors"
                 >
                   Continue
                 </button>
                 <Link href="/cart" className="flex-1">
-                  <button className="w-full h-10 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition">
+                  <button className="w-full h-11 rounded-xl bg-[#8B0000] text-white text-sm font-semibold hover:bg-[#6B0000] transition-colors">
                     View Cart ({cartItems.length})
                   </button>
                 </Link>
@@ -1043,97 +1163,97 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
         )}
       </AnimatePresence>
 
-      {/* Breadcrumbs - orange color */}
-      <motion.div {...appleVariants.fadeIn} className="bg-white border-b border-gray-100">
+      {/* Breadcrumbs - refined typography */}
+      <motion.div {...appleVariants.fadeIn} className="bg-white border-b border-gray-100/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <nav className="flex items-center text-sm text-gray-500" aria-label="Breadcrumb">
-            <Link href="/" className="flex items-center hover:text-orange-600 font-medium">
+            <Link href="/" className="flex items-center hover:text-[#8B0000] font-medium transition-colors">
               <Home className="mr-1.5 h-4 w-4" />
               Home
             </Link>
-            <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
-            <Link href="/products" className="hover:text-orange-600 font-medium">
+            <ChevronRight className="mx-2 h-4 w-4 text-gray-300" />
+            <Link href="/products" className="hover:text-[#8B0000] font-medium transition-colors">
               Products
             </Link>
-            <ChevronRight className="mx-2 h-4 w-4 text-gray-400" />
+            <ChevronRight className="mx-2 h-4 w-4 text-gray-300" />
             <span className="text-gray-900 font-medium truncate">{product?.name}</span>
           </nav>
         </div>
       </motion.div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* LEFT: Gallery + Details */}
-          <motion.div {...appleVariants.fadeIn} className="lg:col-span-7 space-y-8">
+          <motion.div {...appleVariants.fadeIn} className="lg:col-span-8 space-y-5">
             <SectionCard>
-              {/* Seller header */}
-              <div className="p-6 border-b border-gray-100">
+              {/* Seller header - refined */}
+              <div className="p-4 border-b border-gray-50">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-12 h-12 rounded-xl border border-gray-100 p-2 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-10 h-10 rounded-lg border border-gray-100 p-1.5 bg-white shadow-sm">
                       <Image
                         src="/logo.png"
                         alt="Mizizzi Logo"
                         fill
-                        sizes="48px"
+                        sizes="40px"
                         className="object-contain"
                         unoptimized
                       />
                     </div>
                     <div>
-                      <div className="flex flex-wrap gap-2">
-                        <LuxuryPill className="bg-orange-50 border-orange-200 text-orange-700">
-                          <Shield className="w-4 h-4 mr-1" />
+                      <div className="flex flex-wrap gap-1.5">
+                        <LuxuryPill className="bg-[#8B0000]/5 border-[#8B0000]/20 text-[#8B0000]">
+                          <Shield className="w-3 h-3 mr-1" />
                           Official Store
                         </LuxuryPill>
                         {product?.is_luxury_deal && (
-                          <LuxuryPill className="bg-purple-50 border-purple-200 text-purple-700">
-                            <Award className="w-4 h-4 mr-1" />
+                          <LuxuryPill className="bg-violet-50 border-violet-200 text-violet-700">
+                            <Award className="w-3 h-3 mr-1" />
                             Premium
                           </LuxuryPill>
                         )}
                         {product?.is_flash_sale && (
                           <LuxuryPill className="bg-amber-50 border-amber-200 text-amber-700">
-                            <Zap className="w-4 h-4 mr-1" />
+                            <Zap className="w-3 h-3 mr-1" />
                             Flash Sale
                           </LuxuryPill>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500 mt-2 flex items-center gap-2">
-                        <span className="font-semibold">Verified Seller</span>
+                      <div className="text-xs text-gray-500 mt-1.5 flex items-center gap-2">
+                        <span className="font-medium">Verified Seller</span>
                         <span className="w-1 h-1 rounded-full bg-gray-300"></span>
                         <span className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="font-semibold">{product?.rating || 4.7}</span>
+                          <Star className="h-3 w-3 fill-[#8B0000] text-[#8B0000]" />
+                          <span className="font-semibold text-gray-700">{product?.rating || 4.7}</span>
                           <span className="text-gray-400">({product?.reviews?.length || 24})</span>
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <motion.button
                       aria-label={isProductInWishlist ? "Remove from wishlist" : "Add to wishlist"}
                       onClick={handleToggleWishlist}
                       disabled={isTogglingWishlist}
                       className={cn(
-                        "relative p-2.5 rounded-full transition-all duration-300",
+                        "relative p-2.5 rounded-full transition-all duration-200",
                         isTogglingWishlist && "opacity-50 cursor-not-allowed",
                         isProductInWishlist
-                          ? "text-orange-600 bg-orange-100/50 hover:bg-orange-100 shadow-sm"
-                          : "text-gray-400 hover:text-orange-600 hover:bg-orange-50",
+                          ? "text-[#8B0000] bg-[#8B0000]/10 hover:bg-[#8B0000]/15"
+                          : "text-gray-400 hover:text-[#8B0000] hover:bg-[#8B0000]/5",
                       )}
-                      whileHover={!isTogglingWishlist ? { scale: 1.15 } : {}}
-                      whileTap={!isTogglingWishlist ? { scale: 0.9 } : {}}
+                      whileHover={!isTogglingWishlist ? { scale: 1.05 } : {}}
+                      whileTap={!isTogglingWishlist ? { scale: 0.95 } : {}}
                     >
                       <Heart
-                        className={cn("h-5 w-5 transition-all duration-300", isProductInWishlist && "fill-orange-600")}
+                        className={cn("h-5 w-5 transition-all duration-200", isProductInWishlist && "fill-[#8B0000]")}
                       />
                     </motion.button>
                     <motion.button
                       aria-label="Share product"
                       onClick={handleShare}
-                      className="p-2 rounded-full text-gray-500 hover:text-orange-600 hover:bg-orange-50 transition"
-                      whileHover={{ scale: 1.1 }}
+                      className="p-2.5 rounded-full text-gray-400 hover:text-[#8B0000] hover:bg-[#8B0000]/5 transition-colors"
+                      whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                     >
                       <Share2 className="h-5 w-5" />
@@ -1142,29 +1262,31 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
                 </div>
               </div>
 
-              {/* Gallery */}
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Gallery - same structure but refined */}
+              <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Thumbnails */}
                   <div className="hidden md:block md:col-span-2">
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {productImages.map((img, i) => (
                         <motion.button
                           key={i}
                           className={cn(
-                            "relative w-full aspect-square rounded-xl overflow-hidden border-2 transition",
-                            selectedImage === i ? "border-orange-500" : "border-gray-200 hover:border-orange-300",
+                            "relative w-full aspect-square rounded-xl overflow-hidden border-2 transition-all duration-200",
+                            selectedImage === i
+                              ? "border-[#8B0000] shadow-sm"
+                              : "border-gray-100 hover:border-[#8B0000]/50",
                           )}
                           onClick={() => setSelectedImage(i)}
                           aria-label={`Thumbnail ${i + 1}`}
-                          whileHover={{ scale: 1.05, boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}
-                          whileTap={{ scale: 0.95 }}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                         >
                           <Image
-                            src={img || "/placeholder.svg?height=100&width=100&query=thumb"}
+                            src={img || "/placeholder.svg?height=80&width=80&query=thumb"}
                             alt={`${product?.name} thumbnail ${i + 1}`}
                             fill
-                            sizes="100px"
+                            sizes="80px"
                             className="object-cover w-full h-full"
                           />
                         </motion.button>
@@ -1177,7 +1299,7 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
                     <motion.div
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5 }}
+                      transition={{ duration: 0.4 }}
                       className="relative border border-gray-100 rounded-2xl overflow-hidden bg-white group cursor-zoom-in aspect-[4/3]"
                       ref={imageRef}
                       onClick={handleImageClick}
@@ -1191,34 +1313,19 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
                           "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt={product?.name || "Product image"}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 65vw, 60vw"
-                        className="object-contain w-full h-full transition-transform duration-300 group-hover:scale-[1.02]"
+                        className="object-contain w-full h-full transition-transform duration-500 group-hover:scale-[1.02]"
                         priority
                       />
                       {productImages.length > 1 && (
                         <>
                           <motion.button
                             aria-label="Previous image"
-                            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 border border-gray-200 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/95 border border-gray-100 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedImage((prev) => (prev === 0 ? productImages.length - 1 : prev - 1))
@@ -1226,11 +1333,11 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.95 }}
                           >
-                            <ArrowLeft className="h-5 w-5 text-gray-700" />
+                            <ArrowLeft className="h-4 w-4 text-gray-700" />
                           </motion.button>
                           <motion.button
                             aria-label="Next image"
-                            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 border border-gray-200 flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/95 border border-gray-100 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={(e) => {
                               e.stopPropagation()
                               setSelectedImage((prev) => (prev === productImages.length - 1 ? 0 : prev + 1))
@@ -1238,30 +1345,30 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.95 }}
                           >
-                            <ArrowRight className="h-5 w-5 text-gray-700" />
+                            <ArrowRight className="h-4 w-4 text-gray-700" />
                           </motion.button>
                         </>
                       )}
                       {discountPercentage > 0 && (
-                        <div className="absolute top-4 left-4 bg-orange-600 text-white text-sm font-semibold px-3 py-1 rounded-full">
+                        <div className="absolute top-3 left-3 bg-[#8B0000] text-white text-xs font-bold px-2.5 py-1 rounded-lg">
                           -{discountPercentage}%
                         </div>
                       )}
-                      <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition bg-black/70 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1">
-                        <Maximize2 className="h-4 w-4" />
-                        Zoom
+                      <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/70 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
+                        <Maximize2 className="h-3.5 w-3.5" />
+                        <span className="font-medium">Zoom</span>
                       </div>
                     </motion.div>
 
                     {/* Mobile thumbnails */}
-                    <div className="md:hidden mt-4">
-                      <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
+                    <div className="md:hidden mt-3">
+                      <div className="flex gap-2 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide">
                         {productImages.map((img, i) => (
                           <motion.button
                             key={i}
                             className={cn(
-                              "relative w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden border-2 transition snap-start",
-                              selectedImage === i ? "border-orange-500" : "border-gray-200 hover:border-orange-300",
+                              "relative w-16 h-16 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all snap-start",
+                              selectedImage === i ? "border-[#8B0000]" : "border-gray-100 hover:border-[#8B0000]/50",
                             )}
                             onClick={() => setSelectedImage(i)}
                             aria-label={`Thumbnail ${i + 1}`}
@@ -1269,10 +1376,10 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
                             whileTap={{ scale: 0.95 }}
                           >
                             <Image
-                              src={img || "/placeholder.svg?height=80&width=80&query=thumb"}
+                              src={img || "/placeholder.svg?height=64&width=64&query=thumb"}
                               alt={`Thumbnail ${i + 1}`}
                               fill
-                              sizes="80px"
+                              sizes="64px"
                               className="object-cover w-full h-full"
                             />
                           </motion.button>
@@ -1284,25 +1391,24 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
               </div>
             </SectionCard>
 
-            {/* Product Highlights - improved with real features and better formatting */}
+            {/* Product Highlights */}
             {product?.features && product.features.length > 0 && (
               <SectionCard>
-                <div className="p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="h-1 w-1.5 bg-orange-600 rounded-full"></div>
-                    <h2 className="text-xl font-semibold text-gray-900">Key Highlights</h2>
-                  </div>
-                  <ul className="space-y-3">
+                <div className="p-5">
+                  <h2 className="text-base font-bold text-gray-900 mb-4 tracking-tight">Key Highlights</h2>
+                  <ul className="space-y-2.5">
                     {product.features.map((f: string, i: number) => (
                       <motion.li
                         key={i}
-                        className="flex items-start gap-3 p-2 rounded-lg hover:bg-orange-50/50 transition"
-                        initial={{ opacity: 0, x: -20 }}
+                        className="flex items-start gap-3 text-sm"
+                        initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
+                        transition={{ delay: i * 0.03 }}
                       >
-                        <Check className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm font-medium text-gray-700">{f}</span>
+                        <div className="w-5 h-5 rounded-full bg-[#8B0000]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check className="h-3 w-3 text-[#8B0000]" />
+                        </div>
+                        <span className="text-gray-700 leading-relaxed">{f}</span>
                       </motion.li>
                     ))}
                   </ul>
@@ -1312,41 +1418,38 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
 
             {/* Product Details */}
             <SectionCard>
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Product Details</h2>
+              <div className="p-5">
+                <h2 className="text-base font-bold text-gray-900 mb-4 tracking-tight">Product Details</h2>
                 <div
-                  className="rich-product-description space-y-6"
+                  className="rich-product-description prose prose-sm max-w-none text-gray-600 prose-headings:text-gray-900 prose-headings:font-semibold prose-p:leading-relaxed prose-li:text-gray-600"
                   dangerouslySetInnerHTML={{
                     __html:
                       product?.description ||
-                      '<p class="text-gray-500 italic">No description available for this product.</p>',
+                      '<p class="text-gray-400 italic">No description available for this product.</p>',
                   }}
                 />
               </div>
             </SectionCard>
 
             {/* Specifications */}
-            {showSpecifications && (
+            {showSpecifications && specifications.length > 0 && (
               <SectionCard>
-                <div className="p-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">Product Details</h2>
-                  <div className="space-y-6">
+                <div className="p-5">
+                  <h2 className="text-base font-bold text-gray-900 mb-4 tracking-tight">Specifications</h2>
+                  <div className="space-y-5">
                     {specifications.map((spec, i) => (
-                      <div
-                        key={i}
-                        className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-sm transition-shadow"
-                      >
-                        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-3">
-                          <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">{spec.category}</h3>
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                          {spec.items.map((it, idx) => (
+                      <div key={i}>
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+                          {spec.category}
+                        </h3>
+                        <div className="border border-gray-100 rounded-xl divide-y divide-gray-50 overflow-hidden">
+                          {spec.items.map((it: { label: string; value: string }, idx: number) => (
                             <div
                               key={idx}
-                              className="px-6 py-3 flex justify-between items-center hover:bg-gray-50 transition-colors"
+                              className="px-4 py-3 flex justify-between items-center text-sm bg-gray-50/30 hover:bg-gray-50/70 transition-colors"
                             >
-                              <span className="text-sm font-semibold text-gray-700 min-w-[40%]">{it.label}</span>
-                              <span className="text-sm text-gray-600 text-right flex-1 ml-4">{String(it.value)}</span>
+                              <span className="text-gray-500">{it.label}</span>
+                              <span className="text-gray-900 font-medium">{String(it.value)}</span>
                             </div>
                           ))}
                         </div>
@@ -1357,269 +1460,267 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
               </SectionCard>
             )}
 
-            {/* Reviews */}
             <SectionCard id="reviews" ref={reviewSectionRef}>
-              <div className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Customer Reviews</h2>
-                    <div className="p-4 border border-gray-100 rounded-2xl bg-gray-50">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="text-3xl font-bold text-gray-900">
-                          {isLoadingReviews ? "..." : reviewSummary?.average_rating?.toFixed(1) || "0.0"}
-                        </div>
-                        <div className="flex-1">
-                          <StarRating rating={calculateAverageRating()} size={16} />
-                          <p className="text-sm text-gray-500 mt-1">
-                            Based on {isLoadingReviews ? "..." : reviewSummary?.total_reviews || 0} reviews
-                          </p>
-                        </div>
-                      </div>
-                      {/* Removed write review button */}
-                      {/* {isAuthenticated && canUserReview ? (
-                        <motion.button
-                          onClick={handleToggleReviewForm}
-                          className="w-full h-10 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition"
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          Write a Review
-                        </motion.button>
-                      ) : (
-                        <p className="text-sm text-gray-500 text-center">
-                          {!isAuthenticated ? "Sign in to write a review" : "You cannot review this product"}
-                        </p>
-                      )} */}
-                    </div>
-                  </motion.div>
-
-                  <div className="lg:col-span-2">
-                    {isLoadingReviews ? (
-                      <div className="text-center py-12">
-                        <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                          <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
-                        </div>
-                        <p className="text-sm text-gray-500">Loading reviews...</p>
-                      </div>
-                    ) : reviewError ? (
-                      <div className="text-center py-12">
-                        <div className="w-12 h-12 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
-                          <AlertTriangle className="h-6 w-6 text-red-600" />
-                        </div>
-                        <h3 className="text-base font-semibold text-gray-900 mb-2">Failed to load reviews</h3>
-                        <p className="text-sm text-gray-500 mb-4">{reviewError}</p>
-                        <button
-                          onClick={fetchReviews}
-                          className="px-4 h-10 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition"
-                        >
-                          Try Again
-                        </button>
-                      </div>
-                    ) : reviews.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="w-12 h-12 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-                          <MessageSquare className="h-6 w-6 text-gray-400" />
-                        </div>
-                        <h3 className="text-base font-semibold text-gray-900 mb-2">No reviews yet</h3>
-                        <p className="text-sm text-gray-500">
-                          Be the first to review this product in your account reviews section!
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                          {reviews.slice(0, showAllReviews ? undefined : 6).map((review, idx) => (
-                            <motion.div
-                              key={review.id}
-                              className="border border-gray-200 p-5 rounded-xl bg-white hover:border-rose-200 hover:shadow-sm transition-all"
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: idx * 0.08 }}
-                            >
-                              {/* Reviewer Info Header */}
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-100 to-rose-50 flex items-center justify-center flex-shrink-0">
-                                    <span className="font-semibold text-rose-600 text-sm">
-                                      {review.user?.name
-                                        ? review.user.name.charAt(0).toUpperCase()
-                                        : review.user?.first_name
-                                          ? review.user.first_name.charAt(0).toUpperCase()
-                                          : "U"}
-                                    </span>
-                                  </div>
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-gray-900 text-sm truncate">
-                                        {review.user?.name || review.user?.first_name || "Anonymous User"}
-                                      </span>
-                                      {review.is_verified_purchase && (
-                                        <span className="inline-flex items-center px-2 py-0.5 text-green-600 border border-green-200 bg-green-50 text-xs font-semibold rounded-full flex-shrink-0">
-                                          <Check className="h-3 w-3 mr-1" />
-                                          Verified
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="text-xs text-gray-500 mt-0.5">
-                                      {review.created_at
-                                        ? new Date(review.created_at).toLocaleDateString("en-US", {
-                                            year: "numeric",
-                                            month: "short",
-                                            day: "numeric",
-                                          })
-                                        : ""}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Star Rating */}
-                              <div className="mb-3">
-                                <StarRating rating={review.rating} size={16} />
-                              </div>
-
-                              {/* Review Title */}
-                              {review.title && (
-                                <h4 className="font-semibold text-gray-900 mb-2 text-sm line-clamp-2">
-                                  {review.title}
-                                </h4>
-                              )}
-
-                              {/* Review Comment */}
-                              <p className="text-sm text-gray-700 mb-4 line-clamp-3 leading-relaxed">
-                                {review.comment}
-                              </p>
-
-                              {/* Helpful Button */}
-                              <motion.button
-                                onClick={() => handleMarkHelpful(review.id)}
-                                className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-rose-600 font-medium transition"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <ThumbsUp className="h-4 w-4" />
-                                <span>Helpful ({review.likes_count || 0})</span>
-                              </motion.button>
-                            </motion.div>
-                          ))}
-                        </div>
-
-                        {reviews.length > 6 && (
-                          <div className="flex justify-center mb-6">
-                            <motion.button
-                              className="px-6 h-10 rounded-lg border border-rose-600 text-rose-600 text-sm font-semibold hover:bg-rose-50 transition"
-                              onClick={() => setShowAllReviews((s) => !s)}
-                              whileHover={{ scale: 1.02 }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              {showAllReviews ? "Show Less" : `Show All ${reviews.length} Reviews`}
-                            </motion.button>
-                          </div>
-                        )}
-
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <p className="text-sm text-blue-900 font-medium">
-                            Want to share your experience? Write a review in your{" "}
-                            <Link href="/account/reviews" className="underline font-semibold hover:text-blue-700">
-                              account reviews section
-                            </Link>
-                          </p>
-                        </div>
-                      </div>
-                    )}
+              <div className="p-5">
+                {/* Header with title and summary */}
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Customer Reviews</h2>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {isLoadingReviews ? "Loading..." : `${reviewSummary?.verified_reviews || 0} verified reviews`}
+                    </p>
                   </div>
                 </div>
+
+                {/* Rating Overview - Jumia style horizontal layout */}
+                <div className="bg-gray-50/70 rounded-xl p-5 mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                    {/* Average rating display */}
+                    <div className="flex items-center gap-4">
+                      <div className="text-center">
+                        <div className="text-5xl font-black text-gray-900 tracking-tight">
+                          {isLoadingReviews ? "-" : reviewSummary?.average_rating?.toFixed(1) || "0.0"}
+                        </div>
+                        <div className="flex justify-center mt-1.5">
+                          <StarRating rating={calculateAverageRating()} size={16} />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1.5 font-medium">
+                          {isLoadingReviews ? "..." : `${reviewSummary?.total_reviews || 0} ratings`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Rating distribution bars - Jumia style */}
+                    <div className="flex-1 space-y-1.5">
+                      {[5, 4, 3, 2, 1].map((star: number) => {
+                        const starKey = String(star) as "5" | "4" | "3" | "2" | "1"
+                        const count = reviewSummary?.rating_distribution?.[starKey] || 0
+                        const total = reviewSummary?.total_reviews || 1
+                        const percentage = Math.round((count / total) * 100)
+                        return (
+                          <div key={star} className="flex items-center gap-3 text-sm group cursor-pointer">
+                            <div className="flex items-center gap-1 w-12">
+                              <span className="text-gray-700 font-semibold">{star}</span>
+                              <Star className="h-3.5 w-3.5 text-[#8B0000] fill-[#8B0000]" />
+                            </div>
+                            <div className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                              <motion.div
+                                className="h-full bg-[#8B0000] rounded-full"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${percentage}%` }}
+                                transition={{ duration: 0.5, delay: star * 0.05 }}
+                              />
+                            </div>
+                            <span className="w-10 text-right text-xs text-gray-500 font-medium">{count}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sort/Filter options - Jumia style */}
+                <div className="flex items-center justify-between mb-5 pb-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Sort by:</span>
+                    <div className="flex gap-1">
+                      {[
+                        { key: "created_at", label: "Most Recent" },
+                        { key: "rating", label: "Highest" },
+                        { key: "lowest", label: "Lowest" },
+                      ].map((option) => (
+                        <button
+                          key={option.key}
+                          onClick={() => setReviewSortBy(option.key as any)}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-lg transition-all",
+                            reviewSortBy === option.key
+                              ? "bg-[#8B0000] text-white"
+                              : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reviews list - Jumia style with usernames prominent */}
+                {isLoadingReviews ? (
+                  <div className="py-12 flex flex-col items-center justify-center">
+                    <div className="w-8 h-8 border-3 border-[#8B0000] border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm text-gray-500 mt-3">Loading reviews...</p>
+                  </div>
+                ) : reviewError ? (
+                  <div className="py-8 text-center">
+                    <p className="text-sm text-red-500">{reviewError}</p>
+                  </div>
+                ) : reviews.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                      <MessageSquare className="h-8 w-8 text-gray-300" />
+                    </div>
+                    <p className="text-base font-semibold text-gray-900 mb-1">No reviews yet</p>
+                    <p className="text-sm text-gray-500">Be the first to share your experience!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {(showAllReviews ? reviews : reviews.slice(0, 5)).map((review, index) => {
+                      const isLiked = likedReviews.has(review.id)
+                      const isAnimating = animatingReviews.has(review.id)
+                      // Calculate the effective like count for display
+                      const effectiveLikes = (review.likes_count || 0) + (likedReviews.has(review.id) ? 1 : 0)
+                      return (
+                        <motion.div
+                          key={review.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className={cn("py-5", index !== 0 && "border-t border-gray-100")}
+                        >
+                          {/* Reviewer info - Jumia style with prominent username */}
+                          <div className="flex items-start gap-3 mb-3">
+                            {/* Avatar */}
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8B0000]/20 to-[#8B0000]/5 flex items-center justify-center flex-shrink-0 border border-[#8B0000]/10">
+                              <span className="text-sm font-bold text-[#8B0000]">
+                                {review.user?.name?.charAt(0)?.toUpperCase() || "U"}
+                              </span>
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              {/* Name and verified badge */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-gray-900 text-sm">
+                                  {review.user?.name || "Anonymous User"}
+                                </span>
+                                {review.is_verified_purchase && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-semibold rounded-md border border-emerald-200">
+                                    <BadgeCheck className="w-3 h-3" />
+                                    Verified Purchase
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Rating and date */}
+                              <div className="flex items-center gap-3 mt-1">
+                                <StarRating rating={review.rating} size={14} />
+                                <span className="flex items-center gap-1 text-xs text-gray-400">
+                                  <Clock className="w-3 h-3" />
+                                  {getTimeAgo(review.created_at)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Review content */}
+                          <div className="ml-13 pl-0.5">
+                            {review.title && (
+                              <h4 className="font-semibold text-gray-900 text-sm mb-1.5">{review.title}</h4>
+                            )}
+                            <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
+
+                            {/* Helpful button - Jumia style with Apple-like animation */}
+                            <div className="flex items-center gap-4 mt-4">
+                              <button
+                                onClick={() => handleMarkHelpful(review.id)}
+                                disabled={animatingReviews.has(review.id)}
+                                className={`
+                                  group inline-flex items-center gap-2 text-xs transition-all duration-200 ease-out
+                                  ${
+                                    likedReviews.has(review.id)
+                                      ? "text-[#8B0000]"
+                                      : "text-gray-500 hover:text-[#8B0000]"
+                                  }
+                                `}
+                              >
+                                <div
+                                  className={`
+                                    relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all duration-200 ease-out
+                                    ${
+                                      likedReviews.has(review.id)
+                                        ? "bg-[#8B0000]/15 shadow-sm"
+                                        : "bg-gray-100 group-hover:bg-[#8B0000]/10"
+                                    }
+                                    ${animatingReviews.has(review.id) ? "scale-90" : "scale-100 active:scale-95"}
+                                  `}
+                                >
+                                  {/* Animated ripple effect */}
+                                  {animatingReviews.has(review.id) && (
+                                    <span className="absolute inset-0 rounded-lg bg-[#8B0000]/20 animate-ping" />
+                                  )}
+                                  <ThumbsUp
+                                    className={`
+                                      h-3.5 w-3.5 transition-all duration-300 ease-out
+                                      ${likedReviews.has(review.id) ? "fill-[#8B0000] stroke-[#8B0000]" : ""}
+                                      ${animatingReviews.has(review.id) ? "scale-125 rotate-[-10deg]" : "scale-100 rotate-0"}
+                                    `}
+                                  />
+                                  <span className="font-medium">
+                                    {likedReviews.has(review.id) ? "Helpful!" : "Helpful"}
+                                  </span>
+                                  {effectiveLikes > 0 && (
+                                    <span
+                                      className={`
+                                        transition-all duration-200
+                                        ${likedReviews.has(review.id) ? "text-[#8B0000]/70" : "text-gray-400"}
+                                      `}
+                                    >
+                                      ({effectiveLikes})
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {/* Show more/less button */}
+                {reviews.length > 5 && (
+                  <motion.button
+                    className="mt-6 w-full py-3 text-sm font-semibold text-[#8B0000] hover:text-[#6B0000] border-2 border-[#8B0000]/20 hover:border-[#8B0000]/40 rounded-xl hover:bg-[#8B0000]/5 transition-all"
+                    onClick={() => setShowAllReviews((s) => !s)}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {showAllReviews ? "Show Less Reviews" : `View All ${reviews.length} Reviews`}
+                  </motion.button>
+                )}
               </div>
             </SectionCard>
 
             {/* Recently Viewed */}
             {!!recentlyViewed.length && (
               <SectionCard>
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Recently Viewed</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div className="p-5">
+                  <h3 className="text-base font-bold text-gray-900 mb-4 tracking-tight">Recently Viewed</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                     {recentlyViewed.map((item, i) => (
                       <motion.div
                         key={item.id || i}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.1 }}
+                        transition={{ delay: i * 0.05 }}
                       >
-                        <Link href={`/product/${item.slug || item.id}`} className="group">
-                          <div className="relative aspect-square rounded-xl overflow-hidden border border-gray-100">
+                        <Link href={`/product/${item.slug || item.id}`} className="group block">
+                          <div className="relative aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
                             <Image
                               src={
-                                item.image || item.thumbnail_url || "/placeholder.svg?height=200&width=200&query=recent"
+                                item.image || item.thumbnail_url || "/placeholder.svg?height=120&width=120&query=recent"
                               }
                               alt={item.name}
                               fill
-                              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                              sizes="80px"
                               className="object-cover w-full h-full group-hover:scale-105 transition duration-300"
                             />
                           </div>
-                          <h4 className="text-sm font-semibold text-gray-900 mt-2 line-clamp-2 group-hover:text-rose-600 transition">
+                          <h4 className="text-xs font-medium text-gray-900 mt-2 line-clamp-2 group-hover:text-[#8B0000] transition-colors leading-tight">
                             {item.name}
                           </h4>
-                          <p className="text-sm font-semibold text-rose-600 mt-1">{formatPrice(item.price)}</p>
-                        </Link>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              </SectionCard>
-            )}
-
-            {/* Related Products */}
-            {!!relatedProducts.length && (
-              <SectionCard>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-gray-900">You Might Also Like</h3>
-                    <Link
-                      href="/products"
-                      className="text-sm font-semibold text-rose-600 hover:text-rose-700 transition"
-                    >
-                      View All →
-                    </Link>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {relatedProducts.slice(0, 6).map((rp, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.1 }}
-                      >
-                        <Link href={`/product/${rp.id}`} className="group">
-                          <div className="relative aspect-square rounded-xl overflow-hidden border border-gray-100">
-                            <Image
-                              src={getProductImageUrl(rp) || "/placeholder.svg?height=200&width=200&query=related"}
-                              alt={rp.name}
-                              fill
-                              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                              className="object-cover w-full h-full group-hover:scale-105 transition duration-300"
-                            />
-                            {rp.sale_price && rp.sale_price < rp.price && (
-                              <div className="absolute top-2 left-2 bg-rose-600 text-white text-xs font-semibold px-2 py-1 rounded-full">
-                                -{Math.round(((rp.price - rp.sale_price) / rp.price) * 100)}%
-                              </div>
-                            )}
-                          </div>
-                          <h4 className="text-sm font-semibold text-gray-900 mt-2 line-clamp-2 group-hover:text-rose-600 transition">
-                            {rp.name}
-                          </h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <p className="text-sm font-semibold text-rose-600">
-                              {formatPrice(rp.sale_price || rp.price)}
-                            </p>
-                            {rp.sale_price && rp.sale_price < rp.price && (
-                              <p className="text-xs text-gray-400 line-through">{formatPrice(rp.price)}</p>
-                            )}
-                          </div>
+                          <p className="text-xs font-bold text-[#8B0000] mt-1">{formatPrice(item.price)}</p>
                         </Link>
                       </motion.div>
                     ))}
@@ -1629,320 +1730,293 @@ export default function ProductDetailsEnhanced({ product: initialProduct }: Prod
             )}
           </motion.div>
 
-          {/* RIGHT: Price + Purchase - major UI improvements and orange color scheme */}
-          <motion.div {...appleVariants.fadeIn} className="lg:col-span-5">
-            <div className="sticky top-6 space-y-6">
-              <SectionCard>
-                <div className="p-6">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4 lg:block hidden">{product?.name}</h1>
+          {/* RIGHT: Pricing + Actions */}
+          <motion.div {...appleVariants.slideUp} className="lg:col-span-4 space-y-5">
+            {/* Mobile product title */}
+            <h1 className="text-xl font-bold text-gray-900 leading-tight lg:hidden px-1">{product?.name}</h1>
 
-                  {/* Pricing Section - Better organized */}
-                  <div className="mb-6 pb-6 border-b border-gray-100">
-                    <div className="flex items-end gap-3 mb-4">
-                      <span className="text-4xl font-bold text-gray-900">{formatPrice(currentPrice)}</span>
-                      {currentPrice < originalPrice && (
-                        <span className="text-gray-500 line-through text-lg font-medium">
-                          {formatPrice(originalPrice)}
-                        </span>
-                      )}
-                      {discountPercentage > 0 && (
-                        <span className="text-sm font-bold bg-orange-600 text-white px-3 py-1 rounded-full">
-                          Save {discountPercentage}%
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      className={cn(
-                        "inline-flex items-center px-4 py-2 text-sm font-semibold rounded-full border",
-                        stockDisplay.cls,
-                      )}
-                      aria-live="polite"
-                    >
-                      <stockDisplay.icon className={cn("h-5 w-5 mr-2", stockDisplay.ic)} />
-                      {stockDisplay.text}
-                      {inventoryData?.last_updated && (
-                        <span className="ml-2 text-xs text-gray-500">
-                          • Updated {new Date(inventoryData.last_updated).toLocaleTimeString()}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+            <SectionCard className="lg:sticky lg:top-6">
+              <div className="p-5">
+                <h1 className="text-lg font-bold text-gray-900 mb-4 leading-tight hidden lg:block">{product?.name}</h1>
 
-                  {/* Delivery Benefits - Better organized grid */}
-                  <div className="mb-6 grid grid-cols-1 gap-3">
-                    {[
-                      { icon: Truck, title: "Fast Delivery", desc: "From KSh 150 | Free over KSh 3,000" },
-                      { icon: Clock, title: "Express Dispatch", desc: "Same-day for orders before 2pm" },
-                      { icon: RefreshCw, title: "Easy Returns", desc: "14-day hassle-free returns" },
-                    ].map((it, i) => (
-                      <motion.div
-                        key={i}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-orange-50/40 border border-orange-100/50 hover:border-orange-200 transition"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                      >
-                        <it.icon className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-gray-900">{it.title}</p>
-                          <p className="text-xs text-gray-600 mt-0.5">{it.desc}</p>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Variants Section */}
-                  {product?.variants?.length > 0 && (
-                    <div className="mb-6 pb-6 border-b border-gray-100 space-y-4">
-                      {Array.from(new Set(product.variants.map((v: any) => v.color))).filter(Boolean).length > 0 && (
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-900 mb-2">Color</label>
-                          <div className="flex flex-wrap gap-2">
-                            {(Array.from(new Set(product.variants.map((v: any) => v.color))) as string[])
-                              .filter(Boolean)
-                              .map((color, i) => {
-                                const active = selectedVariant?.color === color
-                                return (
-                                  <motion.button
-                                    key={i}
-                                    onClick={() => {
-                                      const v = product.variants.find((x: any) => x.color === color)
-                                      if (v) handleVariantSelection(v)
-                                    }}
-                                    className={cn(
-                                      "px-4 h-10 rounded-lg text-sm font-semibold transition",
-                                      active
-                                        ? "bg-orange-600 text-white shadow-md"
-                                        : "bg-white border border-gray-200 hover:border-orange-300 hover:bg-orange-50",
-                                    )}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                  >
-                                    {color}
-                                  </motion.button>
-                                )
-                              })}
-                          </div>
-                        </div>
-                      )}
-                      {Array.from(new Set(product.variants.map((v: any) => v.size))).filter(Boolean).length > 0 && (
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-900 mb-2">Size</label>
-                          <div className="flex flex-wrap gap-2">
-                            {(Array.from(new Set(product.variants.map((v: any) => v.size))) as string[])
-                              .filter(Boolean)
-                              .map((size, i) => {
-                                const active = selectedVariant?.size === size
-                                return (
-                                  <motion.button
-                                    key={i}
-                                    onClick={() => {
-                                      const v = product.variants.find((x: any) => x.size === size)
-                                      if (v) handleVariantSelection(v)
-                                    }}
-                                    className={cn(
-                                      "px-4 h-10 rounded-lg text-sm font-semibold transition",
-                                      active
-                                        ? "bg-orange-600 text-white shadow-md"
-                                        : "bg-white border border-gray-200 hover:border-orange-300 hover:bg-orange-50",
-                                    )}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                  >
-                                    {size}
-                                  </motion.button>
-                                )
-                              })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Quantity Selector */}
-                  <div className="mb-6 pb-6 border-b border-gray-100">
-                    <label className="block text-sm font-semibold text-gray-900 mb-3">Quantity</label>
-                    <div className="inline-flex items-center border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-                      <motion.button
-                        aria-label="Decrease quantity"
-                        className="w-12 h-12 flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition"
-                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        disabled={quantity <= 1}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Minus className="h-5 w-5" />
-                      </motion.button>
-                      <div className="w-16 h-12 flex items-center justify-center bg-white border-l border-r border-gray-200">
-                        <span className="font-semibold text-gray-900">{quantity}</span>
-                      </div>
-                      <motion.button
-                        aria-label="Increase quantity"
-                        className="w-12 h-12 flex items-center justify-center text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition"
-                        onClick={() => setQuantity((q) => Math.min(inventoryData?.available_quantity || 0, q + 1))}
-                        disabled={!inventoryData?.is_in_stock || quantity >= (inventoryData?.available_quantity || 0)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Plus className="h-5 w-5" />
-                      </motion.button>
-                    </div>
-                    {inventoryData && inventoryData.available_quantity > 0 && (
-                      <p className="text-xs text-gray-500 mt-2">Max available: {inventoryData.available_quantity}</p>
+                {/* Pricing Section - refined */}
+                <div className="mb-5 pb-5 border-b border-gray-100">
+                  <div className="flex items-baseline gap-2.5 mb-2.5">
+                    <span className="text-3xl font-black text-gray-900 tracking-tight">
+                      {formatPrice(currentPrice)}
+                    </span>
+                    {currentPrice < originalPrice && (
+                      <span className="text-gray-400 line-through text-base">{formatPrice(originalPrice)}</span>
+                    )}
+                    {discountPercentage > 0 && (
+                      <span className="text-xs font-bold bg-[#8B0000]/10 text-[#8B0000] px-2 py-1 rounded-md">
+                        -{discountPercentage}%
+                      </span>
                     )}
                   </div>
-
-                  {/* Call-to-Action Buttons */}
-                  <div className="space-y-3 mb-6">
-                    <motion.button
-                      onClick={handleAddToCart}
-                      disabled={isAddingToCart || !inventoryData?.is_in_stock}
-                      className={cn(
-                        "group relative w-full h-12 rounded-xl text-white text-base font-bold transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden",
-                        isAddingToCart || !inventoryData?.is_in_stock
-                          ? "bg-gray-300 cursor-not-allowed"
-                          : "bg-[#FF4500] hover:bg-[#E63E00] active:bg-[#CC3700] shadow-[0_4px_14px_0_rgba(255,69,0,0.39)] hover:shadow-[0_6px_20px_rgba(255,69,0,0.5)] active:shadow-[0_2px_8px_rgba(255,69,0,0.3)]",
-                      )}
-                      whileHover={inventoryData?.is_in_stock ? { scale: 1.01 } : {}}
-                      whileTap={inventoryData?.is_in_stock ? { scale: 0.98 } : {}}
-                    >
-                      {/* Subtle inner highlight for realistic depth */}
-                      <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                      {isAddingToCart ? (
-                        <>
-                          <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                          <span>Adding to Cart...</span>
-                        </>
-                      ) : (
-                        <>
-                          <ShoppingCart
-                            className="h-5 w-5 transition-transform group-hover:scale-110"
-                            strokeWidth={2.5}
-                          />
-                          <span>{inventoryData?.is_in_stock ? "Add to Cart" : "Out of Stock"}</span>
-                        </>
-                      )}
-                    </motion.button>
-
-                    <motion.button
-                      className={cn(
-                        "w-full h-12 rounded-xl text-white text-base font-bold transition-all flex items-center justify-center gap-2",
-                        isAddingToCart || !inventoryData?.is_in_stock
-                          ? "bg-gray-300 cursor-not-allowed"
-                          : "bg-gradient-to-r from-[#25D366] to-[#1ebe57] hover:from-[#20BA58] hover:to-[#1aa34a] shadow-lg hover:shadow-xl active:shadow-md",
-                      )}
-                      onClick={handleBuyViaWhatsApp}
-                      disabled={isAddingToCart || !inventoryData?.is_in_stock}
-                      whileHover={inventoryData?.is_in_stock ? { scale: 1.02, y: -2 } : {}}
-                      whileTap={inventoryData?.is_in_stock ? { scale: 0.98, y: 0 } : {}}
-                    >
-                      <FaWhatsapp className="h-6 w-6" />
-                      <span>Buy via WhatsApp</span>
-                    </motion.button>
-                  </div>
-
-                  {/* Payment Options */}
-                  <div className="p-4 rounded-lg bg-orange-50/50 border border-orange-100">
-                    <p className="text-sm font-semibold text-gray-900 mb-2">Secure Payment Options</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <CreditCard className="h-4 w-4 flex-shrink-0" />
-                      <span>Visa • Mastercard • M-Pesa • Airtel Money</span>
-                    </div>
+                  <div
+                    className={cn(
+                      "inline-flex items-center px-2.5 py-1.5 text-xs font-semibold rounded-lg border",
+                      stockDisplay.cls,
+                    )}
+                    aria-live="polite"
+                  >
+                    <stockDisplay.icon className={cn("h-3.5 w-3.5 mr-1.5", stockDisplay.ic)} />
+                    {stockDisplay.text}
                   </div>
                 </div>
-              </SectionCard>
 
-              {/* Trust Signals */}
-              <SectionCard>
-                <div className="p-6 grid grid-cols-2 gap-4">
-                  <motion.div
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-orange-50/50 transition"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <Shield className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">100% Genuine</p>
-                      <p className="text-xs text-gray-500 mt-0.5">Verified quality</p>
+                {/* Variants Section */}
+                {product?.variants?.length > 0 && (
+                  <div className="mb-5 pb-5 border-b border-gray-100 space-y-4">
+                    {Array.from(new Set(product.variants.map((v: any) => v.color))).filter(Boolean).length > 0 && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                          Color
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {(Array.from(new Set(product.variants.map((v: any) => v.color))) as string[])
+                            .filter(Boolean)
+                            .map((color, i) => {
+                              const active = selectedVariant?.color === color
+                              return (
+                                <motion.button
+                                  key={i}
+                                  onClick={() => {
+                                    const v = product.variants.find((x: any) => x.color === color)
+                                    if (v) handleVariantSelection(v)
+                                  }}
+                                  className={cn(
+                                    "px-4 h-9 rounded-lg text-xs font-semibold transition-all",
+                                    active
+                                      ? "bg-[#8B0000] text-white shadow-sm"
+                                      : "bg-gray-50 border border-gray-200 text-gray-700 hover:border-[#8B0000]/50",
+                                  )}
+                                  whileTap={{ scale: 0.97 }}
+                                >
+                                  {color}
+                                </motion.button>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    )}
+                    {Array.from(new Set(product.variants.map((v: any) => v.size))).filter(Boolean).length > 0 && (
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-2 uppercase tracking-wider">
+                          Size
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {(Array.from(new Set(product.variants.map((v: any) => v.size))) as string[])
+                            .filter(Boolean)
+                            .map((size, i) => {
+                              const active = selectedVariant?.size === size
+                              return (
+                                <motion.button
+                                  key={i}
+                                  onClick={() => {
+                                    const v = product.variants.find((x: any) => x.size === size)
+                                    if (v) handleVariantSelection(v)
+                                  }}
+                                  className={cn(
+                                    "px-4 h-9 rounded-lg text-xs font-semibold transition-all",
+                                    active
+                                      ? "bg-[#8B0000] text-white shadow-sm"
+                                      : "bg-gray-50 border border-gray-200 text-gray-700 hover:border-[#8B0000]/50",
+                                  )}
+                                  whileTap={{ scale: 0.97 }}
+                                >
+                                  {size}
+                                </motion.button>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Quantity Selector - refined */}
+                <div className="mb-5 pb-5 border-b border-gray-100">
+                  <label className="block text-xs font-bold text-gray-700 mb-2.5 uppercase tracking-wider">
+                    Quantity
+                  </label>
+                  <div className="inline-flex items-center border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                    <motion.button
+                      aria-label="Decrease quantity"
+                      className="w-11 h-11 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-40 transition-colors"
+                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                      disabled={quantity <= 1}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </motion.button>
+                    <div className="w-14 h-11 flex items-center justify-center bg-white border-l border-r border-gray-200">
+                      <span className="text-sm font-bold text-gray-900">{quantity}</span>
                     </div>
-                  </motion.div>
-                  <motion.div
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-orange-50/50 transition"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5 }}
-                  >
-                    <RefreshCw className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Easy Returns</p>
-                      <p className="text-xs text-gray-500 mt-0.5">14-day guarantee</p>
-                    </div>
-                  </motion.div>
+                    <motion.button
+                      aria-label="Increase quantity"
+                      className="w-11 h-11 flex items-center justify-center text-gray-600 hover:bg-gray-100 disabled:opacity-40 transition-colors"
+                      onClick={() => setQuantity((q) => Math.min(inventoryData?.available_quantity || 0, q + 1))}
+                      disabled={!inventoryData?.is_in_stock || quantity >= (inventoryData?.available_quantity || 0)}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </motion.button>
+                  </div>
+                  {inventoryData && inventoryData.available_quantity > 0 && (
+                    <p className="text-[11px] text-gray-400 mt-2 font-medium">
+                      {inventoryData.available_quantity} available
+                    </p>
+                  )}
                 </div>
-              </SectionCard>
-            </div>
+
+                <div className="space-y-3">
+                  <motion.button
+                    onClick={handleAddToCart}
+                    disabled={isAddingToCart || !inventoryData?.is_in_stock}
+                    className={cn(
+                      "w-full h-12 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2.5",
+                      isAddingToCart || !inventoryData?.is_in_stock
+                        ? "bg-gray-300 cursor-not-allowed"
+                        : "bg-[#8B0000] hover:bg-[#6B0000] active:bg-[#5A0000] shadow-lg shadow-[#8B0000]/25 hover:shadow-xl hover:shadow-[#8B0000]/30",
+                    )}
+                    whileTap={inventoryData?.is_in_stock ? { scale: 0.98 } : {}}
+                  >
+                    {isAddingToCart ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        <span>Adding...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="h-5 w-5" />
+                        <span>{inventoryData?.is_in_stock ? "Add to Cart" : "Out of Stock"}</span>
+                      </>
+                    )}
+                  </motion.button>
+
+                  <motion.button
+                    className={cn(
+                      "w-full h-12 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2.5",
+                      isAddingToCart || !inventoryData?.is_in_stock
+                        ? "bg-gray-300 cursor-not-allowed"
+                        : "bg-[#25D366] hover:bg-[#20BA58] active:bg-[#1aa34a] shadow-lg shadow-[#25D366]/25",
+                    )}
+                    onClick={handleBuyViaWhatsApp}
+                    disabled={isAddingToCart || !inventoryData?.is_in_stock}
+                    whileTap={inventoryData?.is_in_stock ? { scale: 0.98 } : {}}
+                  >
+                    <FaWhatsapp className="h-5 w-5" />
+                    <span>Buy via WhatsApp</span>
+                  </motion.button>
+                </div>
+
+                {/* Payment Options - refined */}
+                <div className="mt-4 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <CreditCard className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                    <span className="font-medium">Visa, Mastercard, M-Pesa, Airtel Money</span>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Trust Signals - refined */}
+            <SectionCard>
+              <div className="p-5 grid grid-cols-2 gap-3">
+                <motion.div
+                  className="flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 hover:bg-[#8B0000]/5 transition-colors"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#8B0000]/10 flex items-center justify-center flex-shrink-0">
+                    <Shield className="h-5 w-5 text-[#8B0000]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">100% Genuine</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Verified quality</p>
+                  </div>
+                </motion.div>
+                <motion.div
+                  className="flex items-start gap-3 p-3 rounded-xl bg-gray-50/50 hover:bg-[#8B0000]/5 transition-colors"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#8B0000]/10 flex items-center justify-center flex-shrink-0">
+                    <RefreshCw className="h-5 w-5 text-[#8B0000]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">Easy Returns</p>
+                    <p className="text-xs text-gray-500 mt-0.5">14-day guarantee</p>
+                  </div>
+                </motion.div>
+              </div>
+            </SectionCard>
           </motion.div>
         </div>
 
-        {/* Low Stock Warning - Better visibility */}
+        {/* Low Stock Warning - refined */}
         {inventoryData && inventoryData.available_quantity > 0 && inventoryData.available_quantity <= 10 && (
-          <motion.div {...appleVariants.fadeIn} className="mt-6 p-4 bg-amber-50 rounded-lg border-l-4 border-amber-500">
+          <motion.div {...appleVariants.fadeIn} className="mt-6 p-4 bg-amber-50 rounded-xl border-l-4 border-amber-500">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
               <p className="text-sm font-semibold text-amber-800">
-                ⚡ Only {inventoryData.available_quantity} left in stock — order soon!
+                Only {inventoryData.available_quantity} left in stock — order soon!
               </p>
             </div>
           </motion.div>
         )}
+
+        <div className="h-28 lg:hidden" />
       </div>
 
-      {/* Mobile Sticky Footer */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg lg:hidden z-40">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <motion.button
-            onClick={handleAddToCart}
-            disabled={isAddingToCart || !inventoryData?.is_in_stock}
-            className={cn(
-              "group relative flex-1 h-12 rounded-xl text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden",
-              isAddingToCart || !inventoryData?.is_in_stock
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-[#FF4500] hover:bg-[#E63E00] active:bg-[#CC3700] shadow-[0_4px_14px_0_rgba(255,69,0,0.39)] hover:shadow-[0_6px_20px_rgba(255,69,0,0.5)] active:shadow-[0_2px_8px_rgba(255,69,0,0.3)]",
-            )}
-            whileTap={inventoryData?.is_in_stock ? { scale: 0.95 } : {}}
-          >
-            {/* Subtle inner highlight for realistic depth */}
-            <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-            {isAddingToCart ? (
-              <>
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                <span>Adding...</span>
-              </>
-            ) : (
-              <>
-                <ShoppingCart className="h-5 w-5 transition-transform group-hover:scale-110" strokeWidth={2.5} />
-                <span>{inventoryData?.is_in_stock ? "Add to Cart" : "Out of Stock"}</span>
-              </>
-            )}
-          </motion.button>
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 lg:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="max-w-7xl mx-auto px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]">
+          <div className="flex items-stretch gap-2.5">
+            <motion.button
+              onClick={handleAddToCart}
+              disabled={isAddingToCart || !inventoryData?.is_in_stock}
+              className={cn(
+                "group relative flex-1 h-12 rounded-xl text-white text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 overflow-hidden",
+                isAddingToCart || !inventoryData?.is_in_stock
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-[#8B0000] hover:bg-[#6B0000] active:bg-[#5A0000] shadow-md shadow-[#8B0000]/25",
+              )}
+              whileTap={inventoryData?.is_in_stock ? { scale: 0.97 } : {}}
+            >
+              <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+              {isAddingToCart ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Adding...</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="h-4.5 w-4.5 transition-transform group-hover:scale-110" strokeWidth={2.5} />
+                  <span>{inventoryData?.is_in_stock ? "Add to Cart" : "Out of Stock"}</span>
+                </>
+              )}
+            </motion.button>
 
-          <motion.button
-            className={cn(
-              "flex-1 h-12 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2",
-              isAddingToCart || !inventoryData?.is_in_stock
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-gradient-to-r from-[#25D366] to-[#1ebe57] hover:from-[#20BA58] hover:to-[#1aa34a] shadow-lg active:shadow-md",
-            )}
-            onClick={handleBuyViaWhatsApp}
-            disabled={isAddingToCart || !inventoryData?.is_in_stock}
-            whileTap={inventoryData?.is_in_stock ? { scale: 0.95 } : {}}
-          >
-            <FaWhatsapp className="h-5 w-5" />
-            <span>WhatsApp</span>
-          </motion.button>
+            <motion.button
+              className={cn(
+                "flex-1 h-12 rounded-xl text-white text-sm font-bold transition-all flex items-center justify-center gap-2",
+                isAddingToCart || !inventoryData?.is_in_stock
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-[#25D366] hover:bg-[#1ebe5d] active:bg-[#1aa34a] shadow-md shadow-[#25D366]/25",
+              )}
+              onClick={handleBuyViaWhatsApp}
+              disabled={isAddingToCart || !inventoryData?.is_in_stock}
+              whileTap={inventoryData?.is_in_stock ? { scale: 0.97 } : {}}
+            >
+              <FaWhatsapp className="h-5 w-5" />
+              <span>WhatsApp</span>
+            </motion.button>
+          </div>
         </div>
-        <div className="h-[env(safe-area-inset-bottom)]" />
       </div>
 
       <ImageZoomModal
