@@ -1,15 +1,15 @@
 "use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
-import { useRouter } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { useRouter } from "next/navigation"
+import { Search, X, Grid3X3 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Input } from "@/components/ui/input"
 import { Loader } from "@/components/ui/loader"
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import { categoryService, type Category } from "@/services/category"
 import { websocketService } from "@/services/websocket"
 import { CategoryBanner } from "@/components/categories/category-banner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface CategoriesPageClientProps {
   allCategories: Category[]
@@ -20,13 +20,7 @@ export default function CategoriesPageClient({ allCategories: initialCategories 
   const [categories, setCategories] = useState<Category[]>(initialCategories)
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--color-primary')
-    const textOnPrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-text-on-primary')
-    console.log('[v0] Categories page - Primary color:', primaryColor)
-    console.log('[v0] Categories page - Text on primary:', textOnPrimary)
-  }, [])
+  const [sortBy, setSortBy] = useState("name")
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -42,7 +36,6 @@ export default function CategoriesPageClient({ allCategories: initialCategories 
         }
       }
     }
-
     fetchCategories()
   }, [categories.length])
 
@@ -69,18 +62,20 @@ export default function CategoriesPageClient({ allCategories: initialCategories 
     }
   }, [])
 
-  const filteredCategories = categories.filter(
-    (category) =>
-      category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (category.description && category.description.toLowerCase().includes(searchQuery.toLowerCase())),
-  )
+  const filteredCategories = categories
+    .filter(
+      (category) =>
+        category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (category.description && category.description.toLowerCase().includes(searchQuery.toLowerCase())),
+    )
+    .sort((a, b) => {
+      if (sortBy === "name") return a.name.localeCompare(b.name)
+      if (sortBy === "products") return (b.products_count || 0) - (a.products_count || 0)
+      return 0
+    })
 
   const handleCategoryClick = (category: Category) => {
     router.push(`/category/${category.slug}`)
-  }
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
   }
 
   if (isLoading && categories.length === 0) {
@@ -92,108 +87,129 @@ export default function CategoriesPageClient({ allCategories: initialCategories 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 md:px-6 py-4">
-        <CategoryBanner />
-      </div>
-
-      <section className="bg-white border-b border-gray-100 py-6 md:py-8">
-        <div className="container mx-auto px-4 md:px-6">
-          <form onSubmit={handleSearch} className="max-w-md mx-auto">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <Input
-                type="search"
-                placeholder="Search categories..."
-                className="pl-12 h-12 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-0 text-base"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+    <div className="min-h-screen bg-neutral-50">
+      <div className="container py-6 px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900 tracking-tight">Categories</h1>
+              <Grid3X3 className="h-6 w-6 text-neutral-600" />
             </div>
-          </form>
-        </div>
-      </section>
 
-      <div className="container mx-auto px-4 md:px-6 py-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Category Header - Uses dynamic theme color via CSS variables */}
-          <div 
-            className="rounded-t-sm mb-0"
-            style={{ 
-              backgroundColor: 'var(--color-primary)',
-            }}
-          >
-            <div className="px-4 py-3">
-              <h2 
-                className="text-base md:text-lg font-semibold"
-                style={{ 
-                  color: 'var(--color-text-on-primary)',
-                }}
-              >
-                Shop By Category
-              </h2>
+            <div className="hidden sm:flex items-center gap-2 bg-neutral-200 text-neutral-700 px-4 py-2 rounded-full">
+              <span className="text-sm font-medium">Browse All</span>
             </div>
           </div>
 
-          {/* Categories Grid - White background */}
-          <div className="bg-white rounded-b-sm border border-gray-200 border-t-0 p-4 md:p-6">
-            {filteredCategories.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-gray-600 text-base">
-                  {searchQuery ? "No categories found matching your search" : "No categories available"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 md:gap-6 lg:grid-cols-5 lg:gap-6 xl:grid-cols-6 xl:gap-6">
-                {filteredCategories.map((category) => (
+          {/* Search */}
+          <div className="relative w-full sm:w-auto sm:max-w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <Input
+              type="text"
+              placeholder="Search categories..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10 pl-10 pr-4 w-full rounded-full border-neutral-200 bg-white focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
+            />
+            {searchQuery && (
+              <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearchQuery("")}>
+                <X className="h-4 w-4 text-neutral-400 hover:text-neutral-600" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <CategoryBanner />
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-neutral-500">
+            <span className="font-medium text-neutral-900">{filteredCategories.length}</span> categories available
+          </p>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="h-9 w-[160px] text-sm rounded-full border-neutral-200">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Alphabetical</SelectItem>
+              <SelectItem value="products">Most Products</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {filteredCategories.length === 0 ? (
+          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+            <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Grid3X3 className="h-8 w-8 text-neutral-300" />
+            </div>
+            <p className="text-neutral-600 mb-4">
+              {searchQuery ? "No categories match your search." : "No categories available."}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="text-sm text-neutral-900 underline hover:no-underline"
+              >
+                Clear search
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+            <AnimatePresence mode="popLayout">
+              {filteredCategories.map((category, index) => (
+                <motion.div
+                  key={category.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  transition={{ duration: 0.3, delay: index * 0.015 }}
+                >
                   <div
-                    key={category.id}
-                    className="flex flex-col items-center cursor-pointer group"
                     onClick={() => handleCategoryClick(category)}
+                    className="group cursor-pointer h-full overflow-hidden bg-white border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 rounded-lg"
                   >
-                    <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-gray-50 border border-gray-100 mb-3 transition-all duration-300 group-hover:shadow-lg group-hover:border-gray-200">
+                    <div className="relative aspect-square overflow-hidden bg-[#f5f5f7]">
                       {category.image_url ? (
                         <OptimizedImage
                           src={category.image_url}
                           alt={category.name}
-                          width={150}
-                          height={150}
+                          width={200}
+                          height={200}
                           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-50">
-                          <svg
-                            className="w-10 h-10 text-gray-300"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                            />
-                          </svg>
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neutral-100 to-neutral-50">
+                          <Grid3X3 className="w-8 h-8 text-neutral-300" />
+                        </div>
+                      )}
+                      {category.products_count && category.products_count > 0 && (
+                        <div className="absolute left-0 top-1.5 bg-neutral-900 text-white text-[9px] font-semibold px-1.5 py-0.5">
+                          {category.products_count}
                         </div>
                       )}
                     </div>
-
-                    <h3 className="text-center font-medium text-gray-900 text-sm md:text-base leading-snug px-1 mb-1 line-clamp-2 group-hover:text-orange-600 transition-colors duration-200">
-                      {category.name}
-                    </h3>
-
-                    {category.products_count && category.products_count > 0 && (
-                      <span className="text-xs text-gray-500 mt-1">
-                        {category.products_count.toLocaleString()}
+                    <div className="p-1.5 sm:p-2 space-y-0.5">
+                      <span className="inline-block rounded-sm bg-neutral-100 px-1 py-0.5 text-[8px] sm:text-[9px] font-medium text-neutral-600">
+                        CATEGORY
                       </span>
-                    )}
+                      <h3 className="line-clamp-2 text-[10px] sm:text-xs font-medium text-gray-900 leading-tight group-hover:text-neutral-600 transition-colors">
+                        {category.name}
+                      </h3>
+                      {category.products_count && category.products_count > 0 && (
+                        <p className="text-[9px] sm:text-[10px] text-neutral-400">
+                          {category.products_count.toLocaleString()} items
+                        </p>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
