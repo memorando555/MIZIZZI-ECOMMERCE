@@ -22,7 +22,7 @@ const LogoPlaceholder = () => (
       className="relative h-12 w-12 sm:h-16 sm:w-16"
     >
       <Image
-        src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
+        src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
         alt="Loading"
         fill
         className="object-contain"
@@ -368,7 +368,23 @@ export function FlashSales() {
         }))
         setFlashSales(processedProducts.slice(0, 12)) // Limit to 12 products max
       } else {
-        setFlashSales([])
+        // Fallback to regular products if no flash sales
+        const regularProducts = await productService.getProducts({
+          limit: 12,
+          sort_by: "price",
+          sort_order: "asc",
+        })
+        const processedProducts = regularProducts.map((product) => ({
+          ...product,
+          image_urls: (product.image_urls || []).map((url) => {
+            // If it's a Cloudinary public ID, generate URL:
+            if (typeof url === "string" && !url.startsWith("http")) {
+              return cloudinaryService.generateOptimizedUrl(url)
+            }
+            return url
+          }),
+        }))
+        setFlashSales(processedProducts || [])
       }
     } catch (error) {
       console.error("Error fetching flash sales:", error)
@@ -622,10 +638,6 @@ export function FlashSales() {
 
   if (loading) {
     return <FlashSalesSkeleton isMobile={isMobile} />
-  }
-
-  if (!loading && flashSales.length === 0) {
-    return null
   }
 
   if (error) {

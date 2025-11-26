@@ -24,7 +24,7 @@ const LogoPlaceholder = () => (
       className="relative h-12 w-12 sm:h-16 sm:w-16"
     >
       <Image
-        src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
+        src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
         alt="Loading"
         fill
         className="object-contain"
@@ -297,7 +297,7 @@ const LuxuryDealsSkeleton = ({ isMobile }: { isMobile: boolean }) => (
                 >
                   <div className={`relative ${isMobile ? "h-6 w-6" : "h-8 w-8"}`}>
                     <Image
-                      src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
+                      src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
                       alt="Loading"
                       fill
                       className="object-contain opacity-60"
@@ -375,7 +375,23 @@ export function LuxuryDeals() {
         }))
         setLuxuryDeals(processedProducts.slice(0, 12)) // Limit to 12 products max
       } else {
-        setLuxuryDeals([])
+        // Fallback to regular products if no luxury deals
+        const regularProducts = await productService.getProducts({
+          limit: 12,
+          sort_by: "price",
+          sort_order: "desc",
+        })
+        const processedProducts = regularProducts.map((product) => ({
+          ...product,
+          image_urls: (product.image_urls || []).map((url) => {
+            // If it's a Cloudinary public ID, generate URL:
+            if (typeof url === "string" && !url.startsWith("http")) {
+              return cloudinaryService.generateOptimizedUrl(url)
+            }
+            return url
+          }),
+        }))
+        setLuxuryDeals(processedProducts || [])
       }
     } catch (error) {
       console.error("Error fetching luxury deals:", error)
@@ -614,10 +630,6 @@ export function LuxuryDeals() {
     return <LuxuryDealsSkeleton isMobile={isMobile} />
   }
 
-  if (!loading && luxuryDeals.length === 0) {
-    return null
-  }
-
   if (error) {
     return (
       <section className="w-full mb-4 sm:mb-8">
@@ -640,6 +652,10 @@ export function LuxuryDeals() {
         </div>
       </section>
     )
+  }
+
+  if (!luxuryDeals || luxuryDeals.length === 0) {
+    return null
   }
 
   return (
