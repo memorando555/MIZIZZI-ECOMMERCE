@@ -391,7 +391,7 @@ export function TopPicks() {
 
   const handleViewAll = (e: React.MouseEvent) => {
     e.preventDefault()
-    router.push("/products?sort=rating")
+    router.push("/top-picks")
   }
 
   const maxIndex = Math.max(0, topPicks.length - itemsPerView)

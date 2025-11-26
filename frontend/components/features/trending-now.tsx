@@ -389,7 +389,7 @@ export function TrendingNow() {
 
   const handleViewAll = (e: React.MouseEvent) => {
     e.preventDefault()
-    router.push("/products?sort=popularity")
+    router.push("/trending")
   }
 
   // Carousel navigation functions

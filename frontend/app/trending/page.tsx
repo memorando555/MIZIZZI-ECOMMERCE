@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
-import { Crown, Search, X, Sparkles, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, X, TrendingUp, Flame, ChevronLeft, ChevronRight } from "lucide-react"
 import Image from "next/image"
 import type { Product } from "@/types"
 import { productService } from "@/services/product"
@@ -11,65 +11,59 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+// Carousel items with trending theme images
 const carouselItems = [
   {
-    image: "https://images.unsplash.com/photo-1617038260897-41a1f14a8ca0?w=1200&q=80",
-    title: "Luxury Collection",
-    subtitle: "Timeless Elegance",
-    description: "Discover our curated selection of premium pieces",
+    image: "https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&q=80",
+    title: "Trending Now",
+    subtitle: "Hot Right Now",
+    description: "See what everyone is buying this week",
   },
   {
-    image: "https://images.unsplash.com/photo-1600003014755-ba31aa59c4b6?w=1200&q=80",
-    title: "Exclusive Deals",
-    subtitle: "Up to 50% Off",
-    description: "Handcrafted luxury at exceptional prices",
+    image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1200&q=80",
+    title: "Most Popular",
+    subtitle: "Best Sellers",
+    description: "Products flying off the shelves",
   },
   {
-    image: "https://images.unsplash.com/photo-1490114538077-0a7f8cb49891?w=1200&q=80",
-    title: "Premium Selection",
-    subtitle: "Designer Favorites",
-    description: "The finest products for discerning tastes",
+    image: "https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=1200&q=80",
+    title: "On Fire",
+    subtitle: "Viral Products",
+    description: "The most talked-about items right now",
   },
 ]
 
-export default function LuxuryPage() {
-  const [luxuryProducts, setLuxuryProducts] = useState<Product[]>([])
+export default function TrendingPage() {
+  const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState("popularity")
   const [searchQuery, setSearchQuery] = useState("")
-  const [sortBy, setSortBy] = useState("discount")
-  const [currentSlide, setCurrentSlide] = useState(0)
-  const [isTransitioning, setIsTransitioning] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const [currentSlide, setCurrentSlide] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
-  // Fetch luxury products
+  // Fetch trending products
   useEffect(() => {
-    const fetchLuxuryProducts = async () => {
+    const fetchProducts = async () => {
       try {
         setLoading(true)
         setError(null)
-
-        if (typeof productService.getLuxuryDealProducts === "function") {
-          const products = await productService.getLuxuryDealProducts()
-          setLuxuryProducts(products || [])
-          setHasMore((products || []).length >= 20)
-        } else {
-          const products = await productService.getLuxuryDeals(24)
-          setLuxuryProducts(products.items || [])
-          setHasMore((products.items || []).length >= 20)
-        }
+        const result = await productService.getTrendingProducts(50)
+        setProducts(result)
+        setHasMore(result.length >= 20)
       } catch (error) {
-        console.error("Error fetching luxury products:", error)
-        setError("Failed to load luxury collection. Please try again.")
+        console.error("Error fetching trending products:", error)
+        setError("Failed to load trending products. Please try again.")
       } finally {
         setLoading(false)
       }
     }
-
-    fetchLuxuryProducts()
+    fetchProducts()
   }, [])
 
+  // Smooth carousel transition
   const goToSlide = useCallback(
     (index: number) => {
       if (isTransitioning) return
@@ -88,6 +82,7 @@ export default function LuxuryPage() {
     goToSlide((currentSlide - 1 + carouselItems.length) % carouselItems.length)
   }, [currentSlide, goToSlide])
 
+  // Carousel auto-rotation with smooth transitions
   useEffect(() => {
     const interval = setInterval(() => {
       if (!isTransitioning) {
@@ -97,23 +92,16 @@ export default function LuxuryPage() {
     return () => clearInterval(interval)
   }, [nextSlide, isTransitioning])
 
+  // Load more products
   const loadMore = async () => {
     try {
       setLoading(true)
       const nextPage = page + 1
-      let moreProducts: Product[] = []
-
-      if (typeof productService.getLuxuryDealProducts === "function") {
-        moreProducts = await productService.getLuxuryDealProducts()
-      } else {
-        const result = await productService.getLuxuryDeals(24)
-        moreProducts = result.items || []
-      }
-
+      const moreProducts = await productService.getTrendingProducts(50)
       if (moreProducts.length === 0) {
         setHasMore(false)
       } else {
-        setLuxuryProducts((prev) => [...prev, ...moreProducts])
+        setProducts((prev) => [...prev, ...moreProducts])
         setPage(nextPage)
       }
     } catch (error) {
@@ -123,7 +111,8 @@ export default function LuxuryPage() {
     }
   }
 
-  const filteredProducts = luxuryProducts
+  // Filter and sort products
+  const filteredProducts = products
     .filter((product) => {
       if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false
@@ -135,23 +124,23 @@ export default function LuxuryPage() {
         return (a.sale_price || a.price) - (b.sale_price || b.price)
       } else if (sortBy === "price-desc") {
         return (b.sale_price || b.price) - (a.sale_price || a.price)
-      } else if (sortBy === "discount") {
-        const discountA = a.sale_price ? (a.price - a.sale_price) / a.price : 0
-        const discountB = b.sale_price ? (b.price - b.sale_price) / b.price : 0
-        return discountB - discountA
+      } else if (sortBy === "popularity") {
+        return (b.rating || 0) - (a.rating || 0)
       }
       return 0
     })
 
+  // Calculate discount percentage
   const calculateDiscount = (price: number, salePrice: number | null) => {
     if (!salePrice || salePrice >= price) return 0
     return Math.round(((price - salePrice) / price) * 100)
   }
 
-  if (loading && luxuryProducts.length === 0) {
+  // Render loading state
+  if (loading && products.length === 0) {
     return (
       <div className="min-h-screen bg-neutral-50">
-        <div className="container py-6 px-4 sm:px-6 lg:px-8">
+        <div className="container py-8 px-4 sm:px-6 lg:px-8">
           <div className="h-[180px] sm:h-[220px] bg-neutral-200 animate-pulse mb-8 rounded-2xl"></div>
           <div className="grid grid-cols-3 gap-1 sm:gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
             {[...Array(14)].map((_, index) => (
@@ -159,7 +148,7 @@ export default function LuxuryPage() {
                 <div className="aspect-square bg-neutral-100 animate-pulse rounded mb-1.5"></div>
                 <div className="h-2 w-10 bg-neutral-100 rounded animate-pulse mb-1"></div>
                 <div className="h-3 w-full bg-neutral-100 rounded animate-pulse mb-1"></div>
-                <div className="h-3 w-14 bg-neutral-100 rounded animate-pulse"></div>
+                <div className="h-3 w-12 bg-neutral-100 rounded animate-pulse"></div>
               </div>
             ))}
           </div>
@@ -168,13 +157,14 @@ export default function LuxuryPage() {
     )
   }
 
-  if (error && luxuryProducts.length === 0) {
+  // Render error state
+  if (error && products.length === 0) {
     return (
       <div className="min-h-screen bg-neutral-50">
-        <div className="container py-6 px-4 sm:px-6 lg:px-8">
+        <div className="container py-8 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 mb-8">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900">Luxury Collection</h1>
-            <Crown className="h-6 w-6 text-amber-500" />
+            <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900">Trending Now</h1>
+            <TrendingUp className="h-6 w-6 text-orange-500" />
           </div>
           <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
             <p className="text-red-600 mb-4">{error}</p>
@@ -197,13 +187,13 @@ export default function LuxuryPage() {
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900 tracking-tight">Luxury Collection</h1>
-              <Crown className="h-6 w-6 text-amber-500" />
+              <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900 tracking-tight">Trending Now</h1>
+              <TrendingUp className="h-6 w-6 text-orange-500" />
             </div>
 
-            <div className="flex items-center gap-2 bg-amber-500 text-white px-3 py-1.5 rounded-full">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium">Exclusive</span>
+            <div className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1.5 rounded-full">
+              <Flame className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Hot</span>
             </div>
           </div>
 
@@ -212,7 +202,7 @@ export default function LuxuryPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
             <Input
               type="text"
-              placeholder="Search collection..."
+              placeholder="Search trending..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-10 pl-10 pr-4 w-full rounded-full border-neutral-200 bg-white focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
@@ -225,6 +215,7 @@ export default function LuxuryPage() {
           </div>
         </div>
 
+        {/* Carousel */}
         <div className="mb-8 relative overflow-hidden rounded-2xl bg-neutral-900">
           <div className="relative h-[180px] sm:h-[220px] w-full">
             {carouselItems.map((item, index) => (
@@ -263,8 +254,8 @@ export default function LuxuryPage() {
                       }}
                       transition={{ duration: 0.6, delay: 0.2, ease: [0.4, 0, 0.2, 1] }}
                     >
-                      <div className="inline-flex items-center gap-1.5 bg-amber-500 px-2.5 py-0.5 rounded-full mb-2">
-                        <Crown className="h-3 w-3 text-white" />
+                      <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-red-500 px-2.5 py-0.5 rounded-full mb-2">
+                        <Flame className="h-3 w-3 text-white" />
                         <span className="text-[10px] font-semibold text-white tracking-wide uppercase">
                           {item.title}
                         </span>
@@ -277,6 +268,7 @@ export default function LuxuryPage() {
               </motion.div>
             ))}
 
+            {/* Navigation arrows */}
             <button
               onClick={prevSlide}
               className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors z-10"
@@ -292,6 +284,7 @@ export default function LuxuryPage() {
               <ChevronRight className="h-4 w-4" />
             </button>
 
+            {/* Indicators */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
               {carouselItems.map((_, index) => (
                 <button
@@ -310,14 +303,14 @@ export default function LuxuryPage() {
         {/* Filters */}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-neutral-500">
-            <span className="font-medium text-neutral-900">{filteredProducts.length}</span> luxury items
+            <span className="font-medium text-neutral-900">{filteredProducts.length}</span> trending products
           </p>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="h-9 w-[160px] text-sm rounded-full border-neutral-200">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="discount">Highest Discount</SelectItem>
+              <SelectItem value="popularity">Most Popular</SelectItem>
               <SelectItem value="price-asc">Price: Low to High</SelectItem>
               <SelectItem value="price-desc">Price: High to Low</SelectItem>
             </SelectContent>
@@ -345,15 +338,19 @@ export default function LuxuryPage() {
                         sizes="(max-width: 640px) 33vw, (max-width: 768px) 25vw, (max-width: 1024px) 20vw, 14vw"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
+                      <div className="absolute left-0 top-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5 flex items-center gap-0.5">
+                        <TrendingUp className="h-2.5 w-2.5" />
+                        HOT
+                      </div>
                       {product.sale_price && product.sale_price < product.price && (
-                        <div className="absolute left-0 top-1.5 bg-amber-500 text-white text-[9px] font-semibold px-1.5 py-0.5">
+                        <div className="absolute right-0 top-1.5 bg-neutral-900 text-white text-[9px] font-semibold px-1.5 py-0.5">
                           -{calculateDiscount(product.price, product.sale_price)}%
                         </div>
                       )}
                     </div>
                     <div className="p-1.5 sm:p-2 space-y-0.5">
-                      <span className="inline-block rounded-sm bg-amber-50 px-1 py-0.5 text-[8px] sm:text-[9px] font-medium text-amber-600">
-                        LUXURY
+                      <span className="inline-block rounded-sm bg-orange-50 px-1 py-0.5 text-[8px] sm:text-[9px] font-medium text-orange-600">
+                        TRENDING
                       </span>
                       <h3 className="line-clamp-2 text-[10px] sm:text-xs font-medium text-gray-900 leading-tight">
                         {product.name}
@@ -376,6 +373,7 @@ export default function LuxuryPage() {
           </AnimatePresence>
         </div>
 
+        {/* Load more */}
         {hasMore && (
           <div className="mt-10 text-center">
             <Button
@@ -389,18 +387,19 @@ export default function LuxuryPage() {
                   Loading...
                 </>
               ) : (
-                "Load More Items"
+                "Load More"
               )}
             </Button>
           </div>
         )}
 
+        {/* Empty state */}
         {filteredProducts.length === 0 && !loading && (
           <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
             <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Crown className="h-8 w-8 text-neutral-300" />
+              <TrendingUp className="h-8 w-8 text-neutral-300" />
             </div>
-            <p className="text-neutral-600 mb-4">No luxury items match your search.</p>
+            <p className="text-neutral-600 mb-4">No products match your search.</p>
             <Button onClick={() => setSearchQuery("")} variant="outline" className="rounded-full px-6">
               Clear Search
             </Button>

@@ -373,7 +373,7 @@ export function NewArrivals() {
 
   const handleViewAll = (e: React.MouseEvent) => {
     e.preventDefault()
-    router.push("/products?sort=newest")
+    router.push("/new-arrivals")
   }
 
   const maxIndex = Math.max(0, newArrivals.length - itemsPerView)
