@@ -421,7 +421,7 @@ export function ProductGrid({ categorySlug, limit = 24 }: ProductGridProps) {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full overflow-hidden">
       <motion.div
         role="list"
         initial={{ opacity: 0 }}

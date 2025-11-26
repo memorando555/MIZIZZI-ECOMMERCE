@@ -316,9 +316,8 @@ export function TrendingNow() {
   const isSmallMobile = useMediaQuery("(max-width: 480px)")
   const isTablet = useMediaQuery("(max-width: 1024px)")
 
-  // Reduce item width for mobile to fit more naturally and avoid overflow
-  const itemsPerView = isSmallMobile ? 2 : isMobile ? 2.2 : isTablet ? 5 : 6
-  const itemWidthPx = isSmallMobile ? 140 : isMobile ? 150 : 180
+  const itemsPerView = isSmallMobile ? 3 : isMobile ? 3 : isTablet ? 5 : 6
+  const itemWidthPx = isSmallMobile ? "calc(33.333% - 6px)" : isMobile ? "calc(33.333% - 6px)" : 180
 
   // Track scroll position for mobile indicator
   const [mobileScrollIndex, setMobileScrollIndex] = useState(0)
@@ -326,12 +325,14 @@ export function TrendingNow() {
     if (!isMobile || !carouselRef.current) return
     const handleScroll = () => {
       const scrollLeft = carouselRef.current!.scrollLeft
-      setMobileScrollIndex(Math.round(scrollLeft / itemWidthPx))
+      const containerWidth = carouselRef.current!.clientWidth
+      const itemWidth = containerWidth / 3
+      setMobileScrollIndex(Math.round(scrollLeft / itemWidth))
     }
     const el = carouselRef.current
     el.addEventListener("scroll", handleScroll)
     return () => el.removeEventListener("scroll", handleScroll)
-  }, [isMobile, itemWidthPx])
+  }, [isMobile])
 
   const fetchTrending = useCallback(async () => {
     try {
@@ -627,10 +628,10 @@ export function TrendingNow() {
         <div className={isMobile ? "p-1" : "p-2"}>
           <div
             ref={carouselRef}
-            className={`relative bg-gray-100 ${isMobile ? "overflow-hidden" : "overflow-hidden"}`}
+            className={`relative bg-gray-100 ${isMobile ? "overflow-x-auto overflow-y-hidden scrollbar-hide" : "overflow-hidden"}`}
             style={{
-              maxWidth: isMobile ? "100vw" : undefined,
-              width: isMobile ? "100vw" : undefined,
+              maxWidth: "100%",
+              width: "100%",
             }}
             onMouseMove={handleMouseMove}
             onMouseEnter={handleMouseEnter}
@@ -642,12 +643,10 @@ export function TrendingNow() {
             {/* Carousel Track */}
             {isMobile ? (
               <div
-                className="flex gap-2 w-full overflow-x-auto scrollbar-hide"
+                className="flex gap-2 w-max px-2"
                 style={{
                   scrollSnapType: "x mandatory",
                   WebkitOverflowScrolling: "touch",
-                  maxWidth: "100vw",
-                  width: "100vw",
                   paddingBottom: "8px",
                 }}
               >
@@ -656,9 +655,9 @@ export function TrendingNow() {
                     key={product.id}
                     className="flex-shrink-0 pointer-events-auto"
                     style={{
-                      width: itemWidthPx,
-                      minWidth: itemWidthPx,
-                      maxWidth: itemWidthPx,
+                      width: "calc((100vw - 32px) / 3)",
+                      minWidth: "calc((100vw - 32px) / 3)",
+                      maxWidth: "calc((100vw - 32px) / 3)",
                       scrollSnapAlign: "start",
                     }}
                   >

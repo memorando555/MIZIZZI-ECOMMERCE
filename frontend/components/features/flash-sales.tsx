@@ -22,7 +22,7 @@ const LogoPlaceholder = () => (
       className="relative h-12 w-12 sm:h-16 sm:w-16"
     >
       <Image
-        src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
+        src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
         alt="Loading"
         fill
         className="object-contain"
@@ -330,9 +330,10 @@ export function FlashSales() {
   const isSmallMobile = useMediaQuery("(max-width: 480px)")
   const isTablet = useMediaQuery("(max-width: 1024px)")
 
-  // Reduce item width for mobile to fit more naturally and avoid overflow
-  const itemsPerView = isSmallMobile ? 2 : isMobile ? 2.2 : isTablet ? 5 : 6
-  const itemWidthPx = isSmallMobile ? 140 : isMobile ? 150 : 180
+  const itemsPerView = isSmallMobile ? 3 : isMobile ? 3 : isTablet ? 5 : 6
+  // Use calc to fit 3 items with gaps on mobile
+  const mobileItemWidth = "calc((100vw - 32px) / 3)"
+  const itemWidthPx = isSmallMobile ? 110 : isMobile ? 120 : 180
 
   // Track scroll position for mobile indicator
   const [mobileScrollIndex, setMobileScrollIndex] = useState(0)
@@ -711,8 +712,8 @@ export function FlashSales() {
             ref={carouselRef}
             className={`relative bg-gray-100 ${isMobile ? "overflow-hidden" : "overflow-hidden"}`}
             style={{
-              maxWidth: isMobile ? "100vw" : undefined,
-              width: isMobile ? "100vw" : undefined,
+              maxWidth: isMobile ? "100%" : undefined,
+              width: isMobile ? "100%" : undefined,
             }}
             onMouseMove={handleMouseMove}
             onMouseEnter={handleMouseEnter}
@@ -724,12 +725,10 @@ export function FlashSales() {
             {/* Carousel Track */}
             {isMobile ? (
               <div
-                className="flex gap-2 w-full overflow-x-auto scrollbar-hide"
+                className="flex gap-1 w-full overflow-x-auto scrollbar-hide px-2"
                 style={{
                   scrollSnapType: "x mandatory",
                   WebkitOverflowScrolling: "touch",
-                  maxWidth: "100vw",
-                  width: "100vw",
                   paddingBottom: "8px",
                 }}
               >
@@ -738,9 +737,9 @@ export function FlashSales() {
                     key={product.id}
                     className="flex-shrink-0 pointer-events-auto"
                     style={{
-                      width: itemWidthPx,
-                      minWidth: itemWidthPx,
-                      maxWidth: itemWidthPx,
+                      width: mobileItemWidth,
+                      minWidth: isSmallMobile ? "100px" : "110px",
+                      maxWidth: "130px",
                       scrollSnapAlign: "start",
                     }}
                   >
