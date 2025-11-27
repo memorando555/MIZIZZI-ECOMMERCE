@@ -198,3 +198,5 @@ pytz==2023.3
 # Cloudinary Image Hosting
 # --------------------------------------
 cloudinary==1.41.0
+
+gunicorn==21.2.0
