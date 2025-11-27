@@ -183,14 +183,19 @@ pluggy==1.5.0
 # --------------------------------------
 # Machine Learning & Text Processing
 # --------------------------------------
+# NOTE: Heavy ML packages that often need local compilation (scikit-learn,
+# sentence-transformers, faiss, python-Levenshtein, etc.) have been moved to
+# requirements-ml.txt to avoid build failures on hosts without prebuilt wheels.
+# Install them separately in an environment that supports building/wheels:
+#   pip install -r backend/requirements-ml.txt
+#
+# (This prevents deployment failures on platforms like Render where compiling
+# scikit-learn from source can fail.)
+# --------------------------------------
 numpy==1.26.4
-scikit-learn==1.3.0
 pandas==2.0.3
 nltk==3.8.1
 fuzzywuzzy==0.18.0
-python-Levenshtein>=0.21.0
-sentence-transformers==2.2.2
-faiss-cpu==1.8.0
 Pillow==10.0.1
 pytz==2023.3
 
@@ -199,4 +204,14 @@ pytz==2023.3
 # --------------------------------------
 cloudinary==1.41.0
 
-gunicorn==21.2.0
+gunicorn==23.0.0
+
+# Optional ML / heavy packages (install separately):
+scikit-learn==1.3.0
+sentence-transformers==2.2.2
+faiss-cpu==1.8.0
+python-Levenshtein>=0.21.0
+fuzzywuzzy==0.18.0
+# Add other heavy/optional packages below if needed:
+# nltk==3.8.1
+# pandas==2.0.3
