@@ -753,40 +753,78 @@ def create_app(config_name=None, enable_socketio=True):
     # Import blueprints with clean logging
     imported_blueprints = {}
     
+    import inspect
+    from flask import Blueprint as _Blueprint
+
     for blueprint_name, import_attempts in blueprint_imports.items():
+        found = False
+        tried = set()
         for module_path, attr_name in import_attempts:
             if not module_path or not module_path.strip():
-                app.logger.warning(f"Skipping empty module path for {blueprint_name}")
+                app.logger.debug(f"Skipping empty module path for {blueprint_name}")
                 continue
-            
-            if not attr_name or not attr_name.strip():
-                app.logger.warning(f"Skipping empty attribute name for {blueprint_name}")
+
+            key = (module_path, attr_name)
+            if key in tried:
                 continue
-            
+            tried.add(key)
+
             try:
-                app.logger.debug(f"Attempting to import {attr_name} from {module_path}")
-                module = __import__(module_path, fromlist=[attr_name])
-                
-                if not hasattr(module, attr_name):
-                    app.logger.debug(f"Module {module_path} does not have attribute {attr_name}")
+                app.logger.debug(f"Attempting to import '{attr_name}' from '{module_path}' for '{blueprint_name}'")
+                module = __import__(module_path, fromlist=['*'])
+
+                candidate = None
+                # Direct attribute match
+                if attr_name and hasattr(module, attr_name):
+                    candidate = getattr(module, attr_name)
+
+                # Try common alternative attribute names
+                if candidate is None:
+                    alt_names = [
+                        'bp', 'bp_routes', 'blueprint', 'blueprint_routes',
+                        blueprint_name, f"{blueprint_name}_bp", f"{blueprint_name}_routes",
+                        attr_name, f"{attr_name}_bp", f"{attr_name}_routes"
+                    ]
+                    for alt in alt_names:
+                        if alt and hasattr(module, alt):
+                            candidate = getattr(module, alt)
+                            app.logger.debug(f"Found alternate attribute '{alt}' in {module_path} for {blueprint_name}")
+                            break
+
+                # If still none, scan module for any Blueprint instance
+                if candidate is None:
+                    for name, obj in inspect.getmembers(module):
+                        try:
+                            if isinstance(obj, _Blueprint):
+                                candidate = obj
+                                app.logger.debug(f"Found Blueprint instance '{name}' in {module_path} for {blueprint_name}")
+                                break
+                        except Exception:
+                            continue
+
+                if candidate is None:
+                    app.logger.debug(f"No blueprint candidate found in {module_path} for {blueprint_name}")
                     continue
-                
-                blueprint = getattr(module, attr_name)
-                
-                if not hasattr(blueprint, 'name'):
-                    app.logger.debug(f"Object {attr_name} from {module_path} is not a Blueprint")
+
+                # Ensure candidate is a Blueprint
+                if not isinstance(candidate, _Blueprint):
+                    app.logger.debug(f"Candidate from {module_path} for {blueprint_name} is not a Blueprint: {type(candidate)}")
                     continue
-                
-                imported_blueprints[blueprint_name] = blueprint
-                app.logger.info(f"✅ Imported {blueprint_name} from {module_path}")
+
+                imported_blueprints[blueprint_name] = candidate
+                app.logger.info(f"✅ Imported {blueprint_name} from {module_path} (blueprint name: {getattr(candidate, 'name', 'unknown')})")
+                found = True
                 break
-                
+
             except (ImportError, AttributeError, ValueError) as e:
-                app.logger.debug(f"Failed to import {attr_name} from {module_path}: {str(e)}")
+                app.logger.debug(f"Failed to import from {module_path} for {blueprint_name}: {e}")
                 continue
             except Exception as e:
-                app.logger.warning(f"Unexpected error importing {attr_name} from {module_path}: {str(e)}")
+                app.logger.warning(f"Unexpected error importing for {blueprint_name} from {module_path}: {e}")
                 continue
+
+        if not found:
+            app.logger.debug(f"Could not import a blueprint for {blueprint_name}; fallback will be used if provided.")
     
     # Import admin shop categories routes
     try:
