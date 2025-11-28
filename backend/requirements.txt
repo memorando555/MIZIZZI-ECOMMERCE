@@ -202,3 +202,7 @@ cloudinary
 
 # Meilisearch dependencies for scripts
 meilisearch
+
+google-auth
+google-auth-oauthlib
+google-api-python-client
