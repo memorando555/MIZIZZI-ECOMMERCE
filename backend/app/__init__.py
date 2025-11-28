@@ -1050,7 +1050,7 @@ def create_app(config_name=None, enable_socketio=True):
             app.logger.info("🔔 NOTIFICATION SYSTEM ENDPOINTS")
             app.logger.info("-" * 30)
             app.logger.info("User Notifications: /api/notifications")
-            app.logger.info(f"Notification System: {'✅' if 'notification_routes' in imported_blueprints else '⚠️'}")
+            app.logger.info(f"Notification System: {'✅' if 'notification_routes' in imported_blueprints else '❌'}")
             
             # Carousel System Endpoints
             app.logger.info("🎠 CAROUSEL SYSTEM ENDPOINTS")
@@ -1191,97 +1191,122 @@ def create_app(config_name=None, enable_socketio=True):
         app.logger.error(f"Error registering blueprints: {str(e)}")
     
     # Create database tables and initialize admin auth tables
+    def can_connect_to_db(app, timeout_seconds=3):
+        """
+        Return True if a DB connection can be established using the app's SQLAlchemy engine.
+        This is a lightweight check to avoid raising during app startup when the database is not yet available.
+        """
+        try:
+            with app.app_context():
+                # Use SQLAlchemy engine connect; this will raise if DB unreachable
+                conn = db.engine.connect()
+                conn.close()
+            return True
+        except Exception as e:
+            app.logger.warning(f"Database connectivity check failed: {str(e)}")
+            return False
+
     try:
         with app.app_context():
-            db.create_all()
-            
-            try:
-                from .routes.admin.admin_auth import init_admin_auth_tables
-                init_admin_auth_tables()
-                app.logger.info("Admin authentication tables initialized successfully")
-            except ImportError:
+            if can_connect_to_db(app):
                 try:
-                    from routes.admin.admin_auth import init_admin_auth_tables
-                    init_admin_auth_tables()
-                    app.logger.info("Admin authentication tables initialized successfully")
-                except ImportError:
-                    app.logger.warning("Admin authentication tables initialization skipped - module not found")
-            
-            try:
-                from .routes.admin.admin_google_auth import init_admin_google_auth_tables
-                init_admin_google_auth_tables()
-                app.logger.info("Admin Google authentication tables initialized successfully")
-            except ImportError:
-                try:
-                    from routes.admin.admin_google_auth import init_admin_google_auth_tables
-                    init_admin_google_auth_tables()
-                    app.logger.info("Admin Google authentication tables initialized successfully")
-                except ImportError:
-                    app.logger.warning("Admin Google authentication tables initialization skipped - module not found")
+                    db.create_all()
 
-            try:
-                from .routes.admin.admin_email_routes import init_admin_email_tables
-                init_admin_email_tables()
-                app.logger.info("Admin email tables initialized successfully")
-            except ImportError:
-                try:
-                    from routes.admin.admin_email_routes import init_admin_email_tables
-                    init_admin_email_tables()
-                    app.logger.info("Admin email tables initialized successfully")
-                except ImportError:
-                    app.logger.warning("Admin email tables initialization skipped - module not found")
+                    try:
+                        from .routes.admin.admin_auth import init_admin_auth_tables
+                        init_admin_auth_tables()
+                        app.logger.info("Admin authentication tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.admin.admin_auth import init_admin_auth_tables
+                            init_admin_auth_tables()
+                            app.logger.info("Admin authentication tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Admin authentication tables initialization skipped - module not found")
 
-            try:
-                from .routes.footer.footer_routes import init_footer_tables
-                init_footer_tables()
-                app.logger.info("Footer tables initialized successfully")
-            except ImportError:
-                try:
-                    from routes.footer.footer_routes import init_footer_tables
-                    init_footer_tables()
-                    app.logger.info("Footer tables initialized successfully")
-                except ImportError:
-                    app.logger.warning("Footer tables initialization skipped - module not found")
+                    try:
+                        from .routes.admin.admin_google_auth import init_admin_google_auth_tables
+                        init_admin_google_auth_tables()
+                        app.logger.info("Admin Google authentication tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.admin.admin_google_auth import init_admin_google_auth_tables
+                            init_admin_google_auth_tables()
+                            app.logger.info("Admin Google authentication tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Admin Google authentication tables initialization skipped - module not found")
 
-            try:
-                from .models.side_panel_model import SidePanel
-                app.logger.info("Side panel model imported successfully")
-            except ImportError:
-                try:
-                    from models.side_panel_model import SidePanel
-                    app.logger.info("Side panel model imported successfully")
-                except ImportError:
-                    app.logger.warning("Side panel model not found - side panel system will not be available")
+                    try:
+                        from .routes.admin.admin_email_routes import init_admin_email_tables
+                        init_admin_email_tables()
+                        app.logger.info("Admin email tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.admin.admin_email_routes import init_admin_email_tables
+                            init_admin_email_tables()
+                            app.logger.info("Admin email tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Admin email tables initialization skipped - module not found")
 
-            try:
-                from .routes.contact_cta.contact_cta_routes import init_contact_cta_tables
-                init_contact_cta_tables()
-                app.logger.info("Contact CTA tables initialized successfully")
-            except ImportError:
-                try:
-                    from routes.contact_cta.contact_cta_routes import init_contact_cta_tables
-                    init_contact_cta_tables()
-                    app.logger.info("Contact CTA tables initialized successfully")
-                except ImportError:
-                    app.logger.warning("Contact CTA tables initialization skipped - module not found")
+                    try:
+                        from .routes.footer.footer_routes import init_footer_tables
+                        init_footer_tables()
+                        app.logger.info("Footer tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.footer.footer_routes import init_footer_tables
+                            init_footer_tables()
+                            app.logger.info("Footer tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Footer tables initialization skipped - module not found")
 
-            try:
-                from .routes.products.featured_routes import init_featured_routes_tables
-                init_featured_routes_tables()
-                app.logger.info("Featured routes tables initialized successfully")
-            except ImportError:
-                app.logger.warning("Featured routes tables initialization skipped - module not found")
-                
-            try:
-                from .routes.meilisearch.meilisearch_routes import init_meilisearch_tables
-                init_meilisearch_tables()
-                app.logger.info("Meilisearch tables initialized successfully")
-            except ImportError:
-                app.logger.warning("Meilisearch tables initialization skipped - module not found")
+                    try:
+                        from .models.side_panel_model import SidePanel
+                        app.logger.info("Side panel model imported successfully")
+                    except ImportError:
+                        try:
+                            from models.side_panel_model import SidePanel
+                            app.logger.info("Side panel model imported successfully")
+                        except ImportError:
+                            app.logger.warning("Side panel model not found - side panel system will not be available")
 
-            app.logger.info("Database tables created successfully")
+                    try:
+                        from .routes.contact_cta.contact_cta_routes import init_contact_cta_tables
+                        init_contact_cta_tables()
+                        app.logger.info("Contact CTA tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.contact_cta.contact_cta_routes import init_contact_cta_tables
+                            init_contact_cta_tables()
+                            app.logger.info("Contact CTA tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Contact CTA tables initialization skipped - module not found")
+
+                    try:
+                        from .routes.products.featured_routes import init_featured_routes_tables
+                        init_featured_routes_tables()
+                        app.logger.info("Featured routes tables initialized successfully")
+                    except ImportError:
+                        app.logger.warning("Featured routes tables initialization skipped - module not found")
+                        
+                    try:
+                        from .routes.meilisearch.meilisearch_routes import init_meilisearch_tables
+                        init_meilisearch_tables()
+                        app.logger.info("Meilisearch tables initialized successfully")
+                    except ImportError:
+                        app.logger.warning("Meilisearch tables initialization skipped - module not found")
+
+                    app.logger.info("Database tables created successfully")
+                except Exception as e:
+                    app.logger.error(f"Error creating database tables or initializing admin tables: {str(e)}")
+            else:
+                app.logger.warning(
+                    "Database is not reachable - skipping db.create_all() and admin table initializations.\n"
+                    "If you intend the app to manage DB schema at startup, ensure DATABASE_URL/SQLALCHEMY_DATABASE_URI is set\n"
+                    "and the database is reachable from this host. Otherwise this is expected (DB provision happens separately)."
+                )
     except Exception as e:
-        app.logger.error(f"Error creating database tables: {str(e)}")
+        app.logger.error(f"Unexpected error during DB initialization check: {str(e)}")
     
     # Set up order completion hooks
     try:
