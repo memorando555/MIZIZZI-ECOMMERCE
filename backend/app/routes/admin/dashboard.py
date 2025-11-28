@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 # Import models with fallback handling
 try:
-    from ...models.models import (
+    from app.models.models import (
         User, UserRole, Category, Product, Brand, Review,
         Order, OrderItem, OrderStatus, PaymentStatus, Newsletter,
         Cart, CartItem, WishlistItem, Coupon, Payment, Inventory,
         ProductVariant, ProductImage, Address, ShippingMethod,
         PaymentMethod, Promotion, PaymentTransaction
     )
-    from ...configuration.extensions import db
+    from app.configuration.extensions import db
     print("✅ Dashboard routes: Successfully imported models")
 except ImportError as e:
     print(f"❌ Dashboard routes: Failed to import models: {str(e)}")

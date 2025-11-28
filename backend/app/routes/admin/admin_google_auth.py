@@ -11,8 +11,8 @@ from flask_jwt_extended import create_access_token, create_refresh_token
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
-from ...configuration.extensions import db, limiter
-from ...models.models import User, UserRole
+from app.configuration.extensions import db, limiter
+from app.models.models import User, UserRole
 from .admin_auth import log_admin_activity
 
 # Setup logging

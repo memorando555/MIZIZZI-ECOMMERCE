@@ -4,7 +4,7 @@ Admin Product Routes for Mizizzi E-Commerce Backend
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
-from ...models.models import Product, Category, Brand, db, User, UserRole, ProductImage
+from app.models.models import Product, Category, Brand, db, User, UserRole, ProductImage
 import json
 from datetime import datetime
 import werkzeug

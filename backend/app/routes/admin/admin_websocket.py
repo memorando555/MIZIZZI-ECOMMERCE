@@ -1,5 +1,5 @@
 from flask import current_app
-from ...websocket import broadcast_product_update, broadcast_order_update, broadcast_to_user, broadcast_to_admins
+from app.websocket import broadcast_product_update, broadcast_order_update, broadcast_to_user, broadcast_to_admins
 
 def notify_product_update(product_id, product_data):
     """Notify clients about product updates"""

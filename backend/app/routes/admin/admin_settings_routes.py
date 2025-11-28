@@ -12,7 +12,7 @@ import logging
 import os
 from datetime import datetime
 import json
-from ...models.models import User, UserRole
+from app.models.models import User, UserRole
 
 # Create the admin settings blueprint
 admin_settings_routes = Blueprint('admin_settings_routes', __name__)
