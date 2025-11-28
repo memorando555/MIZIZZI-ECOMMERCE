@@ -6,34 +6,28 @@
 # Use a lightweight Python base image
 FROM python:3.12-slim
 
-# Environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV FLASK_ENV=production
-ENV PORT=8080
-
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (PostgreSQL, build tools)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     gcc \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Copy requirements and install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir gunicorn psycopg2-binary
 
-# Copy project files
-COPY run.py .
-COPY cors_middleware.py .
-COPY app ./app
+# Copy application code
+COPY . .
 
-# Expose Flask/Gunicorn port
 EXPOSE 8080
 
-# Start with Gunicorn
-CMD ["gunicorn", "run:app", "--bind", "0.0.0.0:8080", "--workers", "4", "--timeout", "120"]
+CMD exec gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 0
