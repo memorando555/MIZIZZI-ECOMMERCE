@@ -1250,35 +1250,39 @@ export const removeFromWishlist = wishlistApi.removeFromWishlist
 
 // Search API functions
 export const searchApi = {
-  // Semantic search for products
-  searchProducts: async (
+  // Semantic search for products using Meilisearch
+  search: async (
     query: string,
     options: {
       limit?: number
-      category?: string
-      brand?: string
+      offset?: number
+      category_id?: number
+      brand_id?: number
       minPrice?: number
       maxPrice?: number
+      sort?: string
     } = {},
   ): Promise<AxiosResponse<any>> => {
-    const params = {
-      q: query.trim(),
-      limit: options.limit || 10,
-      ...(options.category && { category: options.category }),
-      ...(options.brand && { brand: options.brand }),
-      ...(options.minPrice && { min_price: options.minPrice }),
-      ...(options.maxPrice && { max_price: options.maxPrice }),
-    }
+    const params = new URLSearchParams()
+    params.append("q", query.trim())
+    if (options.limit) params.append("limit", options.limit.toString())
+    if (options.offset) params.append("offset", options.offset.toString())
+    if (options.category_id) params.append("category_id", options.category_id.toString())
+    if (options.brand_id) params.append("brand_id", options.brand_id.toString())
+    if (options.minPrice) params.append("min_price", options.minPrice.toString())
+    if (options.maxPrice) params.append("max_price", options.maxPrice.toString())
+    if (options.sort) params.append("sort", options.sort)
 
     try {
-      console.log("[v0] Performing semantic search with params:", params)
-      return await api.get("/api/search", { params })
+      console.log("[v0] Performing Meilisearch with params:", params.toString())
+      return await api.get(`/api/meilisearch?${params.toString()}`)
     } catch (error: any) {
-      console.error("[v0] Search API error:", error)
+      console.error("[v0] Meilisearch API error:", error)
       throw error
     }
   },
 
+  // Category search using Meilisearch
   searchCategories: async (
     query: string,
     options: {
@@ -1287,84 +1291,79 @@ export const searchApi = {
       parent_id?: number
     } = {},
   ): Promise<AxiosResponse<any>> => {
-    const params = {
-      q: query.trim(),
-      per_page: options.limit || 10,
-      ...(options.featured !== undefined && { featured: options.featured }),
-      ...(options.parent_id && { parent_id: options.parent_id }),
-    }
+    const params = new URLSearchParams()
+    params.append("q", query.trim())
+    params.append("includeCategories", "true")
+    if (options.limit) params.append("limit", options.limit.toString())
 
     try {
-      console.log("[v0] Performing category search with params:", params)
-      return await api.get("/api/categories/search", { params })
+      console.log("[v0] Performing Meilisearch category search with params:", params.toString())
+      const response = await api.get(`/api/meilisearch?${params.toString()}`)
+      // Return just the categories portion
+      return {
+        ...response,
+        data: response.data?.categories || { results: [], total: 0 },
+      }
     } catch (error: any) {
-      console.error("[v0] Category search API error:", error)
+      console.error("[v0] Meilisearch category search API error:", error)
       throw error
     }
   },
 
-  searchAll: async (query: string): Promise<AxiosResponse<any>> => {
+  // Combined search for products and categories using Meilisearch
+  searchAll: async (
+    query: string,
+    options: {
+      limit?: number
+      includeCategories?: boolean
+    } = {},
+  ): Promise<AxiosResponse<any>> => {
     const requestKey = `search-all-${query}`
 
     return deduplicateRequest(requestKey, async () => {
       try {
-        console.log(`[v0] Starting comprehensive search for: "${query}"`)
+        console.log(`[v0] Starting Meilisearch comprehensive search for: "${query}"`)
 
-        // Use shorter timeout for individual requests to prevent overall timeout
-        const searchConfig = {
-          timeout: 10000, // 10 seconds per request
-          withCredentials: true,
-        }
+        const params = new URLSearchParams()
+        params.append("q", query.trim())
+        params.append("limit", (options.limit || 50).toString())
+        params.append("includeCategories", (options.includeCategories !== false).toString())
 
-        // Make requests sequentially to reduce server load
-        const [productsResponse, categoriesResponse] = await Promise.allSettled([
-          api.get(`/api/products/search?q=${encodeURIComponent(query)}`, searchConfig),
-          api.get(`/api/categories/search?q=${encodeURIComponent(query)}`, searchConfig),
-        ])
+        const response = await api.get(`/api/meilisearch?${params.toString()}`, {
+          timeout: 10000,
+        })
 
-        // Handle products response
-        const products =
-          productsResponse.status === "fulfilled" ? productsResponse.value.data : { results: [], total: 0 }
+        console.log(`[v0] Meilisearch search completed`)
 
-        // Handle categories response
-        const categories =
-          categoriesResponse.status === "fulfilled" ? categoriesResponse.value.data : { results: [], total: 0 }
-
-        console.log(`[v0] Search completed - Products: ${products.total}, Categories: ${categories.total}`)
-
-        const combinedResults = {
+        const data = response.data
+        const transformedData = {
           products: {
-            results: products.results || [],
-            total: products.total || 0,
+            results: data.results || data.items || [],
+            total: data.total || 0,
           },
           categories: {
-            results: categories.results || [],
-            total: categories.total || 0,
+            results: data.categories || [],
+            total: data.categories?.length || 0,
           },
-          query,
-          search_time: Date.now(),
-          suggestions: products.suggestions || [],
-          total_results: (products.total || 0) + (categories.total || 0),
+          query: data.query || query,
+          search_time: data.search_time || 0,
+          suggestions: data.suggestions || [],
+          total_results: (data.total || 0) + (data.categories?.length || 0),
         }
 
-        // Return proper AxiosResponse structure
         return {
-          data: combinedResults,
-          status: 200,
-          statusText: "OK",
-          headers: {},
-          config: searchConfig,
-          request: {},
-        } as AxiosResponse<any>
+          ...response,
+          data: transformedData,
+        }
       } catch (error) {
-        console.error(`[v0] Search error for "${query}":`, error)
+        console.error(`[v0] Meilisearch search error for "${query}":`, error)
 
         // Return empty results on error instead of throwing
         const emptyResults = {
           products: { results: [], total: 0 },
           categories: { results: [], total: 0 },
           query,
-          search_time: Date.now(),
+          search_time: 0,
           suggestions: [],
           total_results: 0,
         }

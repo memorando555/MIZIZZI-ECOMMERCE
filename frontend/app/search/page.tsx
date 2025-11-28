@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useState, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { ProductFilters } from "@/components/products/product-filters"
 import {
@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Clock, TrendingUp, Filter, Grid, List } from "lucide-react"
-import { searchApi } from "@/lib/api"
+import { Clock, TrendingUp, Filter, Grid, List, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { SearchProductImage } from "@/components/products/search-product-image"
 import { imageBatchService } from "@/services/image-batch-service"
@@ -225,48 +224,83 @@ function SearchContent() {
   const [priceRange] = useState<[number, number]>([0, 100000])
   const [selectedPriceRange, setSelectedPriceRange] = useState<[number, number]>([0, 100000])
 
-  useEffect(() => {
-    const performSearch = async () => {
-      if (!query.trim()) {
-        setResults([])
-        setCategories([])
-        return
-      }
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-      setIsLoading(true)
-      setError(null)
-
-      try {
-        console.log("[v0] Performing unified search for:", query)
-
-        const response = await searchApi.searchProducts(query, {
-          limit: 50,
-        })
-
-        const searchData = response.data
-        console.log("[v0] Search products results:", searchData)
-
-        setResults(searchData.results || [])
-        setTotalProducts(searchData.total || 0)
-        setTotalResults(searchData.total || 0)
-        setSearchTime(searchData.search_time || 0)
-        setSuggestions(searchData.suggestions || [])
-        setCategories([]) // No categories returned from searchProducts
-        setTotalCategories(0)
-      } catch (error: any) {
-        console.error("[v0] Unified search error:", error)
-        setError("Failed to search. Please try again.")
-        setResults([])
-        setCategories([])
-      } finally {
-        setIsLoading(false)
-      }
+  const performSearch = useCallback(async () => {
+    if (!query.trim()) {
+      setResults([])
+      setCategories([])
+      return
     }
 
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      console.log("[v0] Performing Meilisearch search for:", query)
+
+      let response = await fetch(`${BACKEND_URL}/api/meilisearch/search?q=${encodeURIComponent(query.trim())}&limit=50`)
+
+      if (!response.ok) {
+        console.log("[v0] Main search endpoint failed, trying fallback")
+        response = await fetch(
+          `${BACKEND_URL}/api/meilisearch?q=${encodeURIComponent(query.trim())}&limit=50&includeCategories=true`,
+        )
+      }
+
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`)
+      }
+
+      const searchData = await response.json()
+      console.log("[v0] Meilisearch results:", searchData)
+
+      const productsResults =
+        searchData.hits ||
+        searchData.results ||
+        searchData.items ||
+        searchData.products?.results ||
+        searchData.products ||
+        []
+
+      const categoriesResults = searchData.categories?.results || searchData.categories || []
+
+      const transformedProducts = productsResults.map((product: any) => ({
+        id: product.id || product.product_id,
+        name: product.name || product.title,
+        description: product.description || product.short_description || "",
+        price: product.price || 0,
+        image: product.image || product.thumbnail_url || product.image_url,
+        category: typeof product.category === "object" ? product.category?.name : product.category,
+        brand: typeof product.brand === "object" ? product.brand?.name : product.brand,
+        score: product.score || product._rankingScore || 1,
+      }))
+
+      setResults(transformedProducts)
+      setCategories(categoriesResults)
+      setTotalProducts(searchData.total || searchData.estimatedTotalHits || transformedProducts.length)
+      setTotalCategories(categoriesResults.length)
+      setTotalResults(
+        (searchData.total || searchData.estimatedTotalHits || transformedProducts.length) + categoriesResults.length,
+      )
+      setSearchTime(searchData.search_time || searchData.processingTimeMs / 1000 || 0)
+      setSuggestions(searchData.suggestions || [])
+    } catch (error: any) {
+      console.error("[v0] Meilisearch error:", error)
+      setError("Failed to search. Please try again.")
+      setResults([])
+      setCategories([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [query, BACKEND_URL])
+
+  useEffect(() => {
     performSearch()
-  }, [query])
+  }, [performSearch])
 
   const formatSearchTime = (time: number) => {
+    if (typeof time !== "number" || isNaN(time)) return "0ms"
     return time < 1 ? `${Math.round(time * 1000)}ms` : `${time.toFixed(2)}s`
   }
 
@@ -324,10 +358,18 @@ function SearchContent() {
             </div>
           </div>
 
-          <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filters
-          </Button>
+          <div className="flex items-center gap-2">
+            {error && (
+              <Button variant="outline" onClick={performSearch} className="flex items-center gap-2 bg-transparent">
+                <RefreshCw className="h-4 w-4" />
+                Retry
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              Filters
+            </Button>
+          </div>
         </div>
 
         {/* Search Suggestions */}
@@ -373,7 +415,7 @@ function SearchContent() {
           {error ? (
             <div className="text-center py-12">
               <p className="text-red-600 mb-4">{error}</p>
-              <Button onClick={() => window.location.reload()} variant="outline">
+              <Button onClick={performSearch} variant="outline">
                 Try Again
               </Button>
             </div>

@@ -3,12 +3,10 @@
 import type React from "react"
 import { useCallback, useEffect, useRef, useState, memo } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { Search, Clock, TrendingUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ProductSearchResults } from "@/components/products/product-search-results"
+import { Search } from "lucide-react"
 import { useSearch } from "@/hooks/use-search"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 
 interface EnhancedSearchBarProps {
   isMobile?: boolean
@@ -17,8 +15,9 @@ interface EnhancedSearchBarProps {
   containerClassName?: string
 }
 
-// Memoized search input component - NO CLEAR BUTTON (Jumia-inspired)
-const EnhancedSearchInput = memo(
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+
+const JumiaSearchInput = memo(
   ({
     inputRef,
     value,
@@ -27,7 +26,6 @@ const EnhancedSearchInput = memo(
     onBlur,
     onKeyDown,
     placeholder,
-    className,
   }: {
     inputRef: React.RefObject<HTMLInputElement>
     value: string
@@ -36,279 +34,169 @@ const EnhancedSearchInput = memo(
     onBlur: () => void
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
     placeholder: string
-    className: string
   }) => (
     <div className="relative flex-1">
       <div className="absolute left-0 top-0 h-full flex items-center pl-4 pointer-events-none">
-        <Search className="h-4 w-4 text-gray-400" />
+        <Search className="h-5 w-5 text-gray-400" />
       </div>
-      <Input
+      <input
         ref={inputRef}
-        type="search"
+        type="text"
         value={value}
         onChange={onChange}
         onFocus={onFocus}
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        className={className}
-        style={{ boxShadow: "none", outline: "none" }}
-        aria-label={placeholder}
+        className="w-full h-[42px] pl-11 pr-4 text-sm bg-white border border-gray-300 rounded-[4px] focus:outline-none focus:ring-0 placeholder:text-gray-400 text-gray-900"
         autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
         spellCheck="false"
+        aria-label={placeholder}
       />
     </div>
   ),
 )
 
-EnhancedSearchInput.displayName = "EnhancedSearchInput"
+JumiaSearchInput.displayName = "JumiaSearchInput"
 
-// Enhanced suggestions component with smoother animations
-const EnhancedSearchSuggestions = memo(
+const ProductResultItem = memo(
   ({
-    query,
-    onSelect,
-    searchHook,
+    product,
+    onClick,
+    index,
   }: {
-    query: string
-    onSelect: (suggestion: string | any) => void
-    searchHook: any
+    product: any
+    onClick: () => void
+    index: number
   }) => {
-    const [suggestions, setSuggestions] = useState<string[]>([])
-    const router = useRouter()
-
-    useEffect(() => {
-      if (query.length > 0) {
-        const allSuggestions = searchHook.suggestions || []
-        const queryLower = query.toLowerCase()
-
-        // Filter: Keep suggestions that actually contain or start with the query
-        const realSuggestions = allSuggestions.filter((suggestion: string) => {
-          const suggestionLower = suggestion.toLowerCase()
-          return suggestionLower.includes(queryLower)
-        })
-
-        // Sort: Start-with matches first, then contains
-        realSuggestions.sort((a: string, b: string) => {
-          const aLower = a.toLowerCase()
-          const bLower = b.toLowerCase()
-
-          const aStarts = aLower.startsWith(queryLower)
-          const bStarts = bLower.startsWith(queryLower)
-
-          if (aStarts !== bStarts) {
-            return aStarts ? -1 : 1
-          }
-          return a.localeCompare(b)
-        })
-
-        setSuggestions(realSuggestions.slice(0, 8))
-      } else {
-        setSuggestions([])
-      }
-    }, [query, searchHook.suggestions])
-
-    const handleSuggestionClick = (suggestion: string | any) => {
-      const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]")
-      const searchTerm = typeof suggestion === "string" ? suggestion : suggestion.name
-      const updated = [searchTerm, ...recent.filter((s: string) => s !== searchTerm)].slice(0, 10)
-      localStorage.setItem("recentSearches", JSON.stringify(updated))
-
-      if (typeof suggestion === "object" && suggestion.id) {
-        router.push(`/product/${suggestion.id}`)
-      } else {
-        onSelect(searchTerm)
-      }
-    }
-
-    if (query.length === 0) {
-      const recentSearches = searchHook.getRecentSearches()
-      const trendingProducts = searchHook.getTrendingProducts()
-      const categories = searchHook.getCategories()
-
-      return (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="p-4 space-y-4 max-h-[400px] overflow-y-auto"
-        >
-          {recentSearches.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-4 w-4 text-gray-400" />
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recent Searches</span>
-              </div>
-              <div className="space-y-1">
-                {recentSearches.slice(0, 5).map((search, index) => {
-                  const searchTerm = typeof search === "string" ? search : search.search_term || search.name
-                  const isProduct = typeof search === "object" && search.type === "product"
-
-                  return (
-                    <motion.button
-                      key={index}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.05 + index * 0.03 }}
-                      onClick={() => handleSuggestionClick(search)}
-                      className="block w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200 group"
-                      whileHover={{ x: 4 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      {isProduct ? (
-                        <div className="flex items-center gap-2">
-                          {search.image && (
-                            <img
-                              src={
-                                search.image?.startsWith("http")
-                                  ? search.image
-                                  : `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/api/uploads/product_images/${search.image.split("/").pop()}`
-                              }
-                              alt={search.name}
-                              className="w-6 h-6 object-cover rounded"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.src = "/diverse-products-still-life.png"
-                              }}
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate font-medium text-gray-900">{search.name}</div>
-                            {search.price && (
-                              <div className="text-xs text-gray-500">KSh {search.price.toLocaleString()}</div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                          <span>{searchTerm}</span>
-                        </div>
-                      )}
-                    </motion.button>
-                  )
-                })}
-              </div>
-            </motion.div>
-          )}
-
-          {categories.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="h-4 w-4 text-gray-400" />
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Popular Categories</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {categories.slice(0, 6).map((category, index) => (
-                  <motion.button
-                    key={index}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 + index * 0.03 }}
-                    onClick={() => handleSuggestionClick(category.name)}
-                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-orange-100 hover:text-orange-700 rounded-full transition-all duration-200"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    {category.name}
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {trendingProducts.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="h-4 w-4 text-gray-400" />
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Trending Products</span>
-              </div>
-              <div className="space-y-1">
-                {trendingProducts.slice(0, 5).map((product, index) => (
-                  <motion.button
-                    key={index}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.15 + index * 0.03 }}
-                    onClick={() => handleSuggestionClick(product)}
-                    className="block w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200"
-                    whileHover={{ x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="flex items-center gap-2">
-                      {product.image && (
-                        <img
-                          src={
-                            product.image?.startsWith("http")
-                              ? product.image
-                              : `${process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"}/api/uploads/product_images/${product.image.split("/").pop()}`
-                          }
-                          alt={product.name}
-                          className="w-6 h-6 object-cover rounded"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.src = "/diverse-products-still-life.png"
-                          }}
-                        />
-                      )}
-                      <span className="truncate">{product.name}</span>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
-      )
-    }
+    const imageUrl = product.image?.startsWith("http")
+      ? product.image
+      : product.image
+        ? `${BACKEND_URL}/api/uploads/product_images/${product.image.split("/").pop()}`
+        : "/diverse-products-still-life.png"
 
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="p-2"
+      <motion.button
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.03 }}
+        onClick={onClick}
+        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left group"
       >
-        {suggestions.slice(0, 8).map((suggestion, index) => (
-          <motion.button
-            key={index}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.02 }}
-            onClick={() => handleSuggestionClick(suggestion)}
-            className="block w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-orange-50 rounded-lg transition-all duration-200"
-            whileHover={{ x: 4, backgroundColor: "rgb(255, 245, 230)" }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <span className="font-medium text-gray-900">{suggestion}</span>
-          </motion.button>
-        ))}
-      </motion.div>
+        <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 flex-shrink-0">
+          <Image
+            src={imageUrl || "/placeholder.svg"}
+            alt={product.name}
+            width={40}
+            height={40}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement
+              target.src = "/diverse-products-still-life.png"
+            }}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-800 truncate group-hover:text-[#8B0A1A] transition-colors">{product.name}</p>
+          {product.price && (
+            <p className="text-sm font-bold text-[#8B0A1A]">KSh {Number(product.price).toLocaleString()}</p>
+          )}
+        </div>
+      </motion.button>
     )
   },
 )
 
-EnhancedSearchSuggestions.displayName = "EnhancedSearchSuggestions"
+ProductResultItem.displayName = "ProductResultItem"
+
+const SuggestionItem = memo(
+  ({
+    suggestion,
+    query,
+    onClick,
+    index,
+  }: {
+    suggestion: string
+    query: string
+    onClick: () => void
+    index: number
+  }) => {
+    const highlightMatch = (text: string, searchQuery: string) => {
+      if (!searchQuery.trim()) return text
+      const regex = new RegExp(`(${searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi")
+      const parts = text.split(regex)
+      return parts.map((part, i) =>
+        regex.test(part) ? (
+          <span key={i} className="font-semibold text-[#8B0A1A]">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )
+    }
+
+    return (
+      <motion.button
+        initial={{ opacity: 0, x: -5 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: index * 0.02 }}
+        onClick={onClick}
+        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+      >
+        <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
+        <span className="text-sm text-gray-700">{highlightMatch(suggestion, query)}</span>
+      </motion.button>
+    )
+  },
+)
+
+SuggestionItem.displayName = "SuggestionItem"
+
+const AppleSpinner = memo(() => (
+  <div className="relative w-5 h-5">
+    {[...Array(8)].map((_, i) => (
+      <motion.div
+        key={i}
+        className="absolute w-1 h-2 bg-[#8B0A1A] rounded-full left-1/2 top-0 origin-[50%_250%]"
+        style={{
+          transform: `rotate(${i * 45}deg) translateX(-50%)`,
+        }}
+        animate={{
+          opacity: [0.2, 1, 0.2],
+        }}
+        transition={{
+          duration: 0.8,
+          repeat: Number.POSITIVE_INFINITY,
+          delay: i * 0.1,
+          ease: "linear",
+        }}
+      />
+    ))}
+  </div>
+))
+
+AppleSpinner.displayName = "AppleSpinner"
 
 export function EnhancedSearchBar({
   isMobile = false,
-  placeholder = "Search for products, brands and categories...",
+  placeholder = "Search products, brands and categories",
   onSearch,
   containerClassName = "",
 }: EnhancedSearchBarProps) {
   const router = useRouter()
   const [query, setQuery] = useState("")
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const searchResultsRef = useRef<HTMLDivElement>(null)
-  const [selectedResultIndex, setSelectedResultIndex] = useState(-1)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const shouldReduceMotion = useReducedMotion()
+  const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const searchHook = useSearch({
     initialQuery: query,
-    delay: 300,
+    delay: 200,
     onSearch: (searchQuery) => {
       if (onSearch) {
         onSearch(searchQuery)
@@ -316,105 +204,244 @@ export function EnhancedSearchBar({
     },
   })
 
-  const { results, isLoading, error, searchTime, suggestions, handleSearch: updateSearchQuery } = searchHook
+  const { results, isLoading, error, suggestions, handleSearch: updateSearchQuery } = searchHook
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Enter") {
         e.preventDefault()
-        if (query.trim().length >= 2) {
+        if (query.trim().length >= 1) {
           router.push(`/search?q=${encodeURIComponent(query.trim())}`)
-          setIsSearchFocused(false)
+          setIsOpen(false)
+          searchInputRef.current?.blur()
         }
       } else if (e.key === "Escape") {
         e.preventDefault()
-        setIsSearchFocused(false)
+        setIsOpen(false)
+        searchInputRef.current?.blur()
       }
-      // Space and all other keys are allowed to pass through normally
     },
     [query, router],
   )
 
-  const handleSearchInputChange = useCallback(
+  const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value
       setQuery(value)
       updateSearchQuery(value)
+      if (value.length >= 1) {
+        setIsOpen(true)
+      }
     },
     [updateSearchQuery],
   )
 
-  const handleSearch = useCallback(() => {
-    if (query.trim().length >= 2) {
+  const handleSearchClick = useCallback(() => {
+    if (query.trim().length >= 1) {
       router.push(`/search?q=${encodeURIComponent(query.trim())}`)
-      setIsSearchFocused(false)
+      setIsOpen(false)
     }
   }, [query, router])
 
-  useEffect(() => {
-    setSelectedResultIndex(-1)
-  }, [results])
+  const handleSelect = useCallback(
+    (item: string | any) => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current)
+      }
 
-  const shouldShowDropdown = isSearchFocused && query.length >= 2
+      if (typeof item === "object" && item.id) {
+        router.push(`/product/${item.id}`)
+      } else {
+        const searchTerm = typeof item === "string" ? item : item.name
+        setQuery(searchTerm)
+        router.push(`/search?q=${encodeURIComponent(searchTerm)}`)
+      }
+      setIsOpen(false)
+    },
+    [router],
+  )
+
+  const handleFocus = useCallback(() => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current)
+    }
+    setIsOpen(true)
+  }, [])
+
+  const handleBlur = useCallback(() => {
+    blurTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false)
+    }, 200)
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const trendingProducts = searchHook.getTrendingProducts()
+  const categories = searchHook.getCategories()
+
+  const showDropdown = isOpen && query.length >= 1
+
+  const searchSuggestions =
+    query.length >= 1
+      ? [
+          ...suggestions.filter((s: string) => s.toLowerCase().includes(query.toLowerCase())),
+          ...results.slice(0, 3).map((r) => r.name),
+        ]
+          .filter((value, index, self) => self.indexOf(value) === index)
+          .slice(0, 6)
+      : []
 
   return (
     <div className={`w-full ${containerClassName}`}>
       <div className="relative">
-        <div className="flex items-center gap-2">
-          <EnhancedSearchInput
+        <div className="flex items-stretch gap-2">
+          <JumiaSearchInput
             inputRef={searchInputRef}
             value={query}
-            onChange={handleSearchInputChange}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+            onChange={handleInputChange}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="w-full pl-10 pr-4 h-11 rounded-lg border-2 border-gray-200 text-sm font-medium transition-all duration-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 placeholder:text-gray-400"
           />
-
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+          <button
+            onClick={handleSearchClick}
+            className="h-[42px] px-5 rounded-[4px] bg-[#8B0A1A] hover:bg-[#6D0814] text-white font-medium text-sm transition-colors flex-shrink-0 flex items-center justify-center"
+            aria-label="Search"
           >
-            <Button
-              className="h-11 px-5 rounded-lg bg-cherry-600 hover:bg-cherry-700 text-white font-semibold border-0 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 flex-shrink-0"
-              onClick={handleSearch}
-              disabled={!query.trim() || query.trim().length < 2}
-              aria-label="Search products"
-            >
-              <Search className="h-4 w-4" />
-              <span className="hidden sm:inline">Search</span>
-            </Button>
-          </motion.div>
+            Search
+          </button>
         </div>
 
         <AnimatePresence>
-          {shouldShowDropdown && (
+          {showDropdown && (
             <motion.div
-              initial={{ opacity: 0, y: -10, scale: 0.98 }}
+              ref={dropdownRef}
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
               transition={{
                 type: "spring",
-                stiffness: 300,
+                stiffness: 400,
                 damping: 30,
-                duration: shouldReduceMotion ? 0.1 : 0.3,
+                mass: 0.8,
               }}
-              className="absolute left-0 top-full z-50 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden"
-              style={{ width: "100%", minWidth: "fit-content" }}
+              className="absolute left-0 right-0 top-full mt-2 bg-white/95 backdrop-blur-xl border border-gray-200/80 rounded-xl shadow-2xl shadow-black/10 z-50 overflow-hidden"
+              onMouseDown={(e) => e.preventDefault()}
             >
-              <div className="w-full max-h-[500px] overflow-y-auto scrollbar-hide">
-                <ProductSearchResults
-                  ref={searchResultsRef}
-                  results={results}
-                  isLoading={isLoading}
-                  selectedIndex={selectedResultIndex}
-                  onClose={() => setQuery("")}
-                  searchTime={searchTime}
-                  suggestions={suggestions}
-                  error={error}
-                />
+              <div className="max-h-[70vh] overflow-y-auto">
+                {isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex flex-col items-center justify-center gap-3 py-8"
+                  >
+                    <AppleSpinner />
+                    <span className="text-sm text-gray-500 font-medium">Searching...</span>
+                  </motion.div>
+                )}
+
+                {/* Error state */}
+                {error && !isLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-6 text-center text-red-600 text-sm"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+
+                {/* Search suggestions */}
+                {!isLoading && !error && searchSuggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.05 }}
+                    className="border-b border-gray-100/80 py-1"
+                  >
+                    {searchSuggestions.map((suggestion, index) => (
+                      <SuggestionItem
+                        key={`suggestion-${index}`}
+                        suggestion={suggestion}
+                        query={query}
+                        onClick={() => handleSelect(suggestion)}
+                        index={index}
+                      />
+                    ))}
+                  </motion.div>
+                )}
+
+                {/* Product results */}
+                {!isLoading && !error && results.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.08 }}
+                    className="py-1"
+                  >
+                    {results.slice(0, 8).map((product, index) => (
+                      <ProductResultItem
+                        key={`product-${product.id}`}
+                        product={product}
+                        onClick={() => handleSelect(product)}
+                        index={index}
+                      />
+                    ))}
+                    {results.length > 8 && (
+                      <motion.button
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.15 }}
+                        onClick={handleSearchClick}
+                        className="w-full px-4 py-3.5 text-sm font-semibold text-[#8B0A1A] hover:bg-gray-50/80 active:bg-gray-100 transition-all text-center border-t border-gray-100/80"
+                      >
+                        View all {results.length} results
+                      </motion.button>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* No results */}
+                {!isLoading &&
+                  !error &&
+                  results.length === 0 &&
+                  searchSuggestions.length === 0 &&
+                  query.length >= 2 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="py-10 text-center"
+                    >
+                      <div className="text-gray-400 mb-2">
+                        <Search className="w-8 h-8 mx-auto" />
+                      </div>
+                      <p className="text-gray-500 text-sm font-medium">No products found for "{query}"</p>
+                    </motion.div>
+                  )}
               </div>
             </motion.div>
           )}

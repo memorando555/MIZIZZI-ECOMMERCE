@@ -627,6 +627,7 @@ export default function ProductDetailsEnhanced({
     console.warn(
       "[v0] handleLikeReview is called but logic is not fully defined or might be redundant with handleMarkHelpful.",
     )
+  }
 
   const handleAddToCart = async (): Promise<boolean> => {
     if (!inventoryData?.is_in_stock) {
