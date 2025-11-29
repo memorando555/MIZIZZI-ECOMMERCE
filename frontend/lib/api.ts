@@ -2,12 +2,14 @@ import axios, { AxiosResponse, AxiosRequestConfig, InternalAxiosRequestConfig } 
 
 // Use Render deployment by default to avoid localhost in production
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
+const DEFAULT_TIMEOUT_MS = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS) || 30000 // default 30s
 
 // Axios instance with shared baseURL
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000, // 15 second timeout
+  timeout: DEFAULT_TIMEOUT_MS,
   headers: {
+    Accept: "application/json, text/plain, */*",
     "Content-Type": "application/json",
   },
   withCredentials: false, // Set to false by default for public endpoints
@@ -498,17 +500,15 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   headers: any // Add headers property (required)
 }
 
-// Add request timeout
-api.defaults.timeout = 30000 // 30 seconds timeout
+// Ensure axios instance default timeout is used consistently
+api.defaults.timeout = DEFAULT_TIMEOUT_MS
 
 // Add interceptor for request
 // Store original axios methods before overriding
 const originalGet = api.get.bind(api)
 const originalDelete = api.delete.bind(api)
 
-// Add request timeout
-api.defaults.timeout = 30 // 30 seconds timeout
-
+// Add interceptor for request
 api.interceptors.request.use(
   (config: CustomAxiosRequestConfig) => {
     if (config.url?.includes("/api/refresh")) {
