@@ -1,4 +1,38 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosResponse } from "axios"
+import axios, { AxiosResponse, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios"
+
+// Use Render deployment by default to avoid localhost in production
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
+
+// Axios instance with shared baseURL
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000, // 15 second timeout
+  headers: {
+    "Content-Type": "application/json",
+  },
+  withCredentials: false, // Set to false by default for public endpoints
+})
+
+export { API_BASE_URL }
+
+// Helper for other modules that previously used process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+export function getBackendUrl() {
+  return API_BASE_URL
+}
+
+// Simple prefetch helper used in product service (keeps previous behavior but uses the shared base)
+async function prefetchDataHelper(path: string, params: Record<string, any> = {}) {
+  try {
+    const url = path.startsWith("http") ? path : `${API_BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`
+    await api.get(url, { params })
+    return true
+  } catch (e) {
+    console.warn("prefetchData failed:", e)
+    return false
+  }
+}
+
+export default api
 
 // Runtime patch: rewrite any runtime calls from localhost to the Render host.
 // This helps when some modules still use hard-coded "http://localhost:5000" or "ws://localhost:5000".
@@ -47,12 +81,6 @@ if (typeof window !== "undefined") {
     console.warn("[v0] runtime localhost -> Render patch failed:", e)
   }
 }
-
-// Default to Render backend (fall back to env values)
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "https://mizizzi-ecommerce-1.onrender.com"
 
 // Add request deduplication for product requests to prevent excessive API calls
 // Add this near the top of the file with other helper functions
@@ -466,28 +494,23 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   skipDeduplication?: boolean // Add the missing property
   _retry?: boolean // Add property to track retry attempts
   _retryCount?: number // Track number of retries
+  url?: string // Add url property
+  headers: any // Add headers property (required)
 }
-
-// Create the axios instance
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000, // 15 second timeout
-  headers: {
-    "Content-Type": "application/json",
-  },
-  withCredentials: false, // Set to false by default for public endpoints
-})
 
 // Add request timeout
 api.defaults.timeout = 30000 // 30 seconds timeout
 
-// Store original methods to be able to call them later
-const originalGet = api.get
-const originalDelete = api.delete
-
 // Add interceptor for request
+// Store original axios methods before overriding
+const originalGet = api.get.bind(api)
+const originalDelete = api.delete.bind(api)
+
+// Add request timeout
+api.defaults.timeout = 30 // 30 seconds timeout
+
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  (config: CustomAxiosRequestConfig) => {
     if (config.url?.includes("/api/refresh")) {
       console.log("[v0] Skipping token validation for refresh request")
       return config
@@ -564,7 +587,7 @@ api.interceptors.request.use(
     console.log(logMessage)
     return config
   },
-  (error) => {
+  (error: any) => {
     console.error("API request error:", error)
     return Promise.reject(error)
   },
@@ -981,31 +1004,7 @@ export const apiWithCancel = (endpoint: string, config = {}) => {
 
 // Add a function to invalidate cache for specific endpoints
 export const prefetchData = async (url: string, params = {}): Promise<boolean> => {
-  try {
-    await api.get(url, {
-      params,
-      headers: {},
-    })
-    return true
-  } catch (error) {
-    console.error(`Failed to prefetch ${url}:`, error)
-    return false
-  }
-}
-
-// Add a function to help with CORS preflight requests
-export const handlePreflightRequest = async (url: string): Promise<boolean> => {
-  try {
-    // Use fetch with minimal headers for preflight
-    const response = await fetch(url, {
-      method: "OPTIONS",
-      credentials: "include",
-    })
-    return response.ok
-  } catch (error) {
-    console.error("Preflight request failed:", error)
-    return false
-  }
+  return prefetchDataHelper(url, params)
 }
 
 // Add this function to handle CORS preflight requests more effectively

@@ -552,7 +552,7 @@ export const productService = {
         return cachedItem.data[0] // Return the first product from the array
       }
 
-      const response = await api.get(`/api/products/${slug}`)
+      const response = await api.get(`${API_BASE_URL}/api/products/${slug}`)
       let product = response.data
 
       // Ensure the product has valid data
@@ -759,9 +759,9 @@ export const productService = {
 
       // Make the API request for missing products
       console.log(`Fetching ${missingIds.length} products from API: ${missingIds.join(", ")}`)
-      const response = await api.get("/api/products", {
-        params: { ids: missingIds.join(",") },
-      })
+      const response = await api.get(`${API_BASE_URL}/api/products`, {
+         params: { ids: missingIds.join(",") },
+       })
 
       console.log("API response for products by IDs:", response.data)
 
@@ -870,7 +870,7 @@ export const productService = {
         return cachedItem.data[0] // Return the first product from the array
       }
 
-      const response = await api.get(`/api/products/${productId}?include=details,variants,images,stock`)
+      const response = await api.get(`${API_BASE_URL}/api/products/${productId}?include=details,variants,images,stock`)
       return response.data
     } catch (error) {
       console.error(`Error fetching product ${productId} for cart:`, error)
@@ -995,7 +995,7 @@ export const productService = {
    * @returns Promise resolving to a boolean
    */
   async prefetchProductsByCategory(categoryId: string): Promise<boolean> {
-    return prefetchData("/api/products", { category_id: categoryId, limit: 12 })
+    return prefetchData(`${API_BASE_URL}/api/products`, { category_id: categoryId, limit: 12 })
   },
 
   /**
@@ -1005,9 +1005,9 @@ export const productService = {
     try {
       await Promise.allSettled([
         this.prefetchProductsByCategory("featured"),
-        prefetchData("/api/products", { flash_sale: true }),
-        prefetchData("/api/products", { luxury_deal: true }),
-        prefetchData("/api/products", { limit: 12 }),
+        prefetchData(`${API_BASE_URL}/api/products`, { flash_sale: true }),
+        prefetchData(`${API_BASE_URL}/api/products`, { luxury_deal: true }),
+        prefetchData(`${API_BASE_URL}/api/products`, { limit: 12 }),
       ])
     } catch (error) {
       console.error("Error prefetching homepage products:", error)
@@ -1241,7 +1241,7 @@ export const productService = {
         return cachedItem.data
       }
 
-      const response = await api.get("/api/categories")
+      const response = await api.get(`${API_BASE_URL}/api/categories`)
       const categories = response.data.items || response.data || []
 
       // Cache the categories
@@ -1273,7 +1273,7 @@ export const productService = {
         return cachedItem.data
       }
 
-      const response = await api.get("/api/brands")
+      const response = await api.get(`${API_BASE_URL}/api/brands`)
       const brands = response.data.items || response.data || []
 
       // Cache the brands
