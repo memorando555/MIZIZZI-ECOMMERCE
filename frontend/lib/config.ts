@@ -5,7 +5,8 @@ export const API_BASE_URL =
 
 export const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "wss://mizizzi-ecommerce-1.onrender.com"
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mizizzi-ecommerce-87pr-ffh57x9o6-jons-projects-a41f528c.vercel.app"
 
 // Helper to construct API endpoints
 export const getApiEndpoint = (path: string): string => {

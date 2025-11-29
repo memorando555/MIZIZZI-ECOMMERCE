@@ -9,7 +9,7 @@ export const config = {
   // Site Configuration
   site: {
     name: "Mizizzi",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://mizizzi-ecommerce-87pr-ffh57x9o6-jons-projects-a41f528c.vercel.app",
     description: "Premium E-commerce Platform",
   },
 
