@@ -13,7 +13,7 @@ class Config:
 
     # Database configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL', 'postgresql://mizizzi:junior2020@localhost:5432/mizizzi'
+        'DATABASE_URL', 'postgresql://neondb_owner:npg_0gMwASZYo9pJ@ep-shiny-term-adlossxs-pooler.c-2.us-east-1.aws.neon.tech/mizizzi_project?sslmode=require&channel_binding=require'
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

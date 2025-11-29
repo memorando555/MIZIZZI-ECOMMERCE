@@ -13,6 +13,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import logging
+import os  # added
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -34,6 +35,18 @@ limiter = Limiter(
 
 def init_extensions(app):
     """Initialize all Flask extensions."""
+    # Ensure SQLALCHEMY_DATABASE_URI is set (use DATABASE_URL if provided)
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        db_url = app.config.get('DATABASE_URL') or os.environ.get('DATABASE_URL')
+        if db_url:
+            app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+            logger.info("SQLALCHEMY_DATABASE_URI set from DATABASE_URL")
+        else:
+            logger.warning("No DATABASE_URL found; SQLALCHEMY_DATABASE_URI not set — database init may fail")
+
+    # Set sensible defaults
+    app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+
     # Database
     db.init_app(app)
     

@@ -5,6 +5,8 @@ import json
 class FooterSettings(db.Model):
     """Model for managing footer content and styling"""
     __tablename__ = 'footer_settings'
+    # allow re-definition when modules are imported multiple ways (backend.app vs app)
+    __table_args__ = {"extend_existing": True}
 
     id = db.Column(db.Integer, primary_key=True)
     
