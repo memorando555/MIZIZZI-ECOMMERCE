@@ -122,11 +122,20 @@ export const productService = {
         return cachedItem.data
       }
 
-      // Fetch from API if not cached or cache expired
-      // const response = await api.get("/api/products", { params: queryParams })
       const backendParams = mapFrontendParamsToBackend(params)
       const url = `${API_BASE_URL}/api/products/` // trailing slash avoids 308
-      const response = await api.get(url, { params: backendParams })
+
+      let response: any
+      try {
+        response = await api.get(url, { params: backendParams })
+      } catch (error: any) {
+        if (error.message === "Network Error" || error.code === "ERR_NETWORK") {
+          console.warn("[v0] Products fetch failed due to network error, returning empty array")
+          return []
+        }
+        throw error
+      }
+
       console.log("API response:", (response as any)?.data ?? response)
       let products: Product[] = extractProducts(response)
 

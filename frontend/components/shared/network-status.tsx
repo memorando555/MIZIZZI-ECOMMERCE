@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, RefreshCw, Server } from "lucide-react"
+import { AlertTriangle, RefreshCw, Server, Loader2 } from "lucide-react"
+import { ensureBackendReady, resetWarmupState } from "@/lib/backend-warmup"
 
 interface NetworkStatusProps {
   className?: string
@@ -12,10 +13,12 @@ interface NetworkStatusProps {
 export function NetworkStatus({ className }: NetworkStatusProps) {
   const [isOffline, setIsOffline] = useState(false)
   const [backendDown, setBackendDown] = useState(false)
+  const [isBackendWakingUp, setIsBackendWakingUp] = useState(false)
   const [showAlert, setShowAlert] = useState(false)
   const [lastErrorTime, setLastErrorTime] = useState(0)
   const [retryCount, setRetryCount] = useState(0)
   const [isRetrying, setIsRetrying] = useState(false)
+  const [warmupMessage, setWarmupMessage] = useState("")
 
   const onlineDebounceRef = useRef<NodeJS.Timeout | null>(null)
   const offlineDebounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -114,14 +117,39 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
       }
 
       setBackendDown(false)
+      setIsBackendWakingUp(false)
       setShowAlert(false)
       setRetryCount(0)
+      setWarmupMessage("")
+    }
+
+    const handleBackendStatusChange = (event: CustomEvent) => {
+      const { status, message } = event.detail
+      console.log("[v0] NetworkStatus: Backend status change:", status, message)
+
+      if (status === "waking-up") {
+        setIsBackendWakingUp(true)
+        setBackendDown(false)
+        setShowAlert(true)
+        setWarmupMessage(message || "Backend server is waking up...")
+      } else if (status === "available") {
+        setIsBackendWakingUp(false)
+        setBackendDown(false)
+        setShowAlert(false)
+        setWarmupMessage("")
+      } else if (status === "unavailable") {
+        setIsBackendWakingUp(false)
+        setBackendDown(true)
+        setShowAlert(true)
+        setWarmupMessage("")
+      }
     }
 
     window.addEventListener("online", handleOnline)
     window.addEventListener("offline", handleOffline)
     document.addEventListener("network-error", handleNetworkError as EventListener)
     document.addEventListener("api-success", handleApiSuccess)
+    document.addEventListener("backend-status-change", handleBackendStatusChange as EventListener)
 
     // Check initial network status
     setIsOffline(!navigator.onLine)
@@ -131,6 +159,7 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
       window.removeEventListener("offline", handleOffline)
       document.removeEventListener("network-error", handleNetworkError as EventListener)
       document.removeEventListener("api-success", handleApiSuccess)
+      document.removeEventListener("backend-status-change", handleBackendStatusChange as EventListener)
 
       if (onlineDebounceRef.current) clearTimeout(onlineDebounceRef.current)
       if (offlineDebounceRef.current) clearTimeout(offlineDebounceRef.current)
@@ -146,50 +175,26 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
     setRetryCount((prev) => prev + 1)
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
-      const healthEndpoints = [
-        `${baseUrl}/api/health`,
-        `${baseUrl}/api/health-check`,
-        `${baseUrl}/health`,
-        `${baseUrl}/api/status`,
-      ]
+      resetWarmupState()
+      const isReady = await ensureBackendReady()
 
-      let healthCheckPassed = false
-
-      for (const endpoint of healthEndpoints) {
-        try {
-          console.log(`[v0] NetworkStatus: Trying ${endpoint}`)
-          const response = await fetch(endpoint, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            signal: AbortSignal.timeout(5000), // Increased timeout to 5 seconds
-          })
-
-          if (response.ok) {
-            console.log(`[v0] NetworkStatus: Health check successful via ${endpoint}`)
-            healthCheckPassed = true
-            break
-          }
-        } catch (error) {
-          console.log(`[v0] NetworkStatus: ${endpoint} failed:`, error)
-          continue
-        }
-      }
-
-      if (healthCheckPassed) {
+      if (isReady) {
         setBackendDown(false)
+        setIsBackendWakingUp(false)
         setShowAlert(false)
         setRetryCount(0)
+        setWarmupMessage("")
 
         // Dispatch success event to clear any other error states
         document.dispatchEvent(new CustomEvent("api-success"))
+
+        // Reload the page to refresh data
+        window.location.reload()
       } else {
-        throw new Error("All health check endpoints failed")
+        throw new Error("Backend still unavailable")
       }
     } catch (error) {
-      console.log("[v0] NetworkStatus: All retry attempts failed:", error)
+      console.log("[v0] NetworkStatus: Retry failed:", error)
 
       if (retryCount >= MAX_RETRIES) {
         setShowAlert(false)
@@ -216,7 +221,21 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
         </Alert>
       )}
 
-      {backendDown && !isOffline && (
+      {isBackendWakingUp && !isOffline && (
+        <Alert className="mb-4 border-amber-500 bg-amber-50 text-amber-800">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <AlertDescription className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Backend server is starting up</p>
+              <p className="text-sm text-amber-600 mt-1">
+                {warmupMessage || "Free tier servers may take 30-60 seconds to wake up. Please wait..."}
+              </p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {backendDown && !isOffline && !isBackendWakingUp && (
         <Alert variant="destructive" className="mb-4">
           <Server className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">
