@@ -5,6 +5,8 @@ Mizizzi E-commerce Backend Application Package
 import os
 import sys
 import logging
+import traceback
+import inspect
 from datetime import datetime, timezone, timedelta
 from flask import Flask, jsonify, request, send_from_directory, g
 from flask_migrate import Migrate
@@ -192,11 +194,24 @@ def create_app(config_name=None, enable_socketio=True):
     
     if enable_socketio:
         try:
-            cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000'])
-            
+            # Use configured CORS origins and any FRONTEND_URL entries for Socket.IO allowed origins.
+            cors_origins = list(app.config.get('CORS_ORIGINS') or [])
+            frontend_env = os.environ.get('FRONTEND_URL', '')
+            frontend_list = [u.strip() for u in frontend_env.split(',') if u.strip()]
+            socketio_allowed = []  # final list or "*" fallback
+            # merge preserving order and deduplicate
+            seen = set()
+            for u in cors_origins + frontend_list:
+                if u and u not in seen:
+                    seen.add(u); socketio_allowed.append(u)
+
+            # If no explicit origins are configured, allow all for Socket.IO to avoid blocking websocket connections.
+            if not socketio_allowed:
+                socketio_allowed = "*"
+
             socketio.init_app(
                 app,
-                cors_allowed_origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://192.168.0.118:3000'],
+                cors_allowed_origins=socketio_allowed,
                 async_mode='threading',
                 logger=True,
                 engineio_logger=False,
@@ -208,7 +223,7 @@ def create_app(config_name=None, enable_socketio=True):
             app.socketio = socketio
             
             app.logger.info("✅ SocketIO enabled and initialized successfully")
-            app.logger.info(f"   CORS origins: {cors_origins}")
+            app.logger.info(f"   SocketIO allowed origins: {socketio_allowed}")
             app.logger.info(f"   Async mode: threading")
         except Exception as e:
             app.logger.error(f"❌ SocketIO initialization failed: {str(e)}")
@@ -1602,7 +1617,32 @@ def create_app(config_name=None, enable_socketio=True):
     @app.errorhandler(429)
     def ratelimit_handler(e):
         return jsonify({"error": "Rate limit exceeded", "message": str(e.description)}), 429
-    
+
+    # Handle common SQLAlchemy / app-registration runtime error more gracefully
+    try:
+        from sqlalchemy.exc import SQLAlchemyError
+    except Exception:
+        SQLAlchemyError = Exception
+
+    @app.errorhandler(SQLAlchemyError)
+    def handle_sqlalchemy_error(e):
+        # Log full exception server-side but return minimal JSON to clients
+        app.logger.error(f"SQLAlchemyError: {e}")
+        return jsonify({"error": "database_error", "message": "Database error occurred"}), 503
+
+    @app.errorhandler(RuntimeError)
+    def handle_runtime_error(e):
+        msg = str(e)
+        if "current Flask app is not registered with this 'SQLAlchemy' instance" in msg:
+            app.logger.error(f"SQLAlchemy app-registration error: {msg}")
+            return jsonify({
+                "error": "database_not_ready",
+                "message": "Database configuration mismatch (SQLAlchemy app not registered)."
+            }), 503
+        # Fallback generic runtime error response
+        app.logger.error(f"RuntimeError: {msg}")
+        return jsonify({"error": "runtime_error", "message": msg}), 500
+
     @app.before_request
     def before_request():
         # Allow OPTIONS requests to pass through for CORS preflight

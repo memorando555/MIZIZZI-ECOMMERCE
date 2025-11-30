@@ -25,10 +25,54 @@ class Config:
     JWT_COOKIE_CSRF_PROTECT = True
     JWT_CSRF_IN_COOKIES = True
     JWT_CSRF_CHECK_FORM = False
-    JWT_COOKIE_SECURE = False  # Set to True in production
+    # Make cookie secure configurable via env; override in ProductionConfig below
+    JWT_COOKIE_SECURE = os.environ.get('JWT_COOKIE_SECURE', 'false').lower() in ['true', '1', 'on']
     JWT_COOKIE_SAMESITE = "Lax"  # Set to "None" in production with Secure=True
     JWT_BLACKLIST_ENABLED = True
     JWT_BLACKLIST_TOKEN_CHECKS = ['access', 'refresh']
+
+    # Base project directory
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+    # Upload folder configuration (single canonical absolute path)
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or os.path.join(BASE_DIR, 'uploads')
+    CATEGORIES_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, 'categories')
+    # URL prefix used by the API to serve uploaded files (route should use this)
+    UPLOAD_URL_PREFIX = os.environ.get('UPLOAD_URL_PREFIX', '/api/uploads')
+
+    # File upload configuration
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB default
+
+    # CORS configuration
+    # Allow listing frontend URL(s) via FRONTEND_URL env var (comma-separated).
+    _frontend_env = os.environ.get('FRONTEND_URL', '')
+    _frontend_list = [u.strip() for u in _frontend_env.split(',') if u.strip()]
+
+    # Default allowed origins for local dev and primary deployed frontend
+    CORS_DEFAULT = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5000",
+        "http://127.0.0.1:5000",
+        "https://mizizzi-ecommerce-1.onrender.com",
+    ]
+
+    # Add a permissive regex for vercel.app preview/deploy domains (helps Vercel preview URLs)
+    # Flask-CORS accepts regex strings for origins when they are passed through config in many setups.
+    # If your CORS initialization doesn't support regex strings here, move this logic to the app factory and pass compiled regex.
+    CORS_VERSEL_REGEX = r"^https?:\/\/([a-z0-9\-]+?\.)*vercel\.app(:\d+)?$"
+
+    # Effective origins: defaults + any FRONTEND_URL entries + vercel preview regex
+    CORS_ORIGINS = CORS_DEFAULT + _frontend_list + [CORS_VERSEL_REGEX]
+
+    CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
+    CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "X-CSRF-TOKEN"]
+    CORS_EXPOSE_HEADERS = ["Content-Range", "X-Content-Range"]
+    CORS_SUPPORTS_CREDENTIALS = True
+    CORS_MAX_AGE = 600  # Cache preflight requests for 10 minutes
+
+    # Socket.IO / engineio allowed origins (useful when creating SocketIO instance)
+    SOCKET_IO_ALLOWED_ORIGINS = CORS_ORIGINS
 
     # Base project directory
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -47,6 +91,14 @@ class Config:
     def init_app(app):
         app.logger.info(f"Using database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
         app.logger.info(f"Uploads folder: {app.config.get('UPLOAD_FOLDER')}")
+        # Log effective CORS origins to aid debugging of "not an accepted origin" errors
+        try:
+            app.logger.info(f"CORS_ORIGINS: {app.config.get('CORS_ORIGINS')}")
+            app.logger.info(f"SOCKET_IO_ALLOWED_ORIGINS: {app.config.get('SOCKET_IO_ALLOWED_ORIGINS')}")
+        except Exception:
+            # defensive: don't let logging break startup
+            pass
+
         # Ensure upload directories exist to avoid 404 when backend serves files from disk
         try:
             os.makedirs(app.config.get('UPLOAD_FOLDER'), exist_ok=True)
@@ -139,6 +191,8 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    # Ensure JWT cookies are secure in production
+    JWT_COOKIE_SECURE = True
 
 
 # Configuration dictionary
