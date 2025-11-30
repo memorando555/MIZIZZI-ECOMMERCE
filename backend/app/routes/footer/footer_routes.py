@@ -14,22 +14,37 @@ logger = logging.getLogger(__name__)
 
 footer_routes = Blueprint('footer_routes', __name__)
 
-# small helper to ensure db is initialized with the running Flask app
-def _ensure_db_registered():
+# Replaced attempt to init_app dynamically with a validator that checks
+# the current app context and whether the SQLAlchemy instance is bound.
+def _ensure_db_bound():
 	"""
-	Attempt to register the SQLAlchemy 'db' with the current Flask app.
-	It's safe/idempotent to call init_app multiple times; catch and log warnings.
+	Ensure we're inside an app context and that the SQLAlchemy 'db' is bound
+	to the current Flask app. If not bound, log a clear error so callers
+	can fix initialization in the app factory (i.e. call db.init_app(app)).
 	"""
 	try:
 		app_obj = current_app._get_current_object()
-		try:
-			db.init_app(app_obj)
-		except Exception as e:
-			# init_app may raise if already bound in some setups; warn and continue
-			logger.warning(f'[Footer] db.init_app warning: {e}')
 	except RuntimeError:
 		# current_app not available (e.g., called outside app/request context)
-		logger.debug('[Footer] _ensure_db_registered called with no current_app')
+		logger.debug('[Footer] _ensure_db_bound called with no current_app')
+		# Let callers handle the response; raise to centralize handling
+		raise RuntimeError('No Flask application context is active')
+
+	# Try a lightweight DB operation to validate binding.
+	# If the extension wasn't initialized with this app, SQLAlchemy raises a clear error.
+	try:
+		# Using a trivial statement to validate that session/engine are usable.
+		db.session.execute('SELECT 1')
+	except Exception as e:
+		# Provide a helpful log message explaining the likely cause and the fix.
+		logger.error(
+			'[Footer] SQLAlchemy not initialized with the current Flask app. '
+			"Ensure you call `db.init_app(app)` in your app factory and import "
+			"the same `db` instance from configuration.extensions everywhere. "
+			f"Original error: {e}"
+		)
+		# Re-raise so route handlers can catch and return a 500 with explanation.
+		raise
 
 # ============================================================================
 # PUBLIC ROUTES - Get footer settings
@@ -39,7 +54,8 @@ def _ensure_db_registered():
 def get_footer_settings_public():
     """Get current footer settings - Public endpoint"""
     try:
-        _ensure_db_registered()
+        # validate app context and db binding (do NOT attempt to init_app here)
+        _ensure_db_bound()
         logger.info('[Footer] GET /api/footer/settings - Fetching settings')
         settings = FooterSettings.get_or_create_default()
         data = settings.to_dict()
@@ -64,7 +80,7 @@ def get_footer_settings_public():
 def get_footer_settings_admin():
     """Get current footer settings - Admin endpoint with auth"""
     try:
-        _ensure_db_registered()
+        _ensure_db_bound()
         current_user_id = get_jwt_identity()
         logger.info(f'[Footer] Admin GET - User: {current_user_id}')
         
@@ -87,7 +103,7 @@ def get_footer_settings_admin():
 def update_footer_settings():
     """Update footer settings - Admin only"""
     try:
-        _ensure_db_registered()
+        _ensure_db_bound()
         current_user_id = get_jwt_identity()
         logger.info(f'[Footer] Admin PUT - User: {current_user_id}')
         
@@ -181,7 +197,7 @@ def update_footer_settings():
 def reset_footer_settings():
     """Reset footer settings to defaults - Admin only"""
     try:
-        _ensure_db_registered()
+        _ensure_db_bound()
         current_user_id = get_jwt_identity()
         logger.info(f'[Footer] Admin RESET - User: {current_user_id}')
         
@@ -240,14 +256,8 @@ def reset_footer_settings():
 
 def init_footer_tables(app):
     """Initialize footer tables in the database"""
-    # Ensure the SQLAlchemy extension is registered with this Flask app.
-    # Calling init_app is idempotent/safe if the extension was already initialized.
-    try:
-        db.init_app(app)
-    except Exception as e:
-        # Log a warning but continue — init_app may raise if the extension is already bound in some environments.
-        logger.warning(f'[Footer] db.init_app warning: {e}')
-
+    # Do NOT call db.init_app(app) here — the extension should be initialized
+    # in the application factory. Keep create_all under app.app_context().
     with app.app_context():
         try:
             logger.info('Initializing footer tables...')
