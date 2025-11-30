@@ -1,9 +1,5 @@
-import path from 'path';
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // point output tracing to repo root if needed
-  outputFileTracingRoot: path.resolve(process.cwd(), '..'),
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -51,6 +47,12 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'mizizzi-ecommerce-1.onrender.com',
+        pathname: '/api/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '5000',
         pathname: '/api/uploads/**',
       },
     ],

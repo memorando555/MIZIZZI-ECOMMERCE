@@ -1,69 +1,62 @@
-// Environment configuration
-export const config = {
-  // API Configuration
-  api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com",
-    timeout: 30000, // 30 seconds
-  },
+// API URL configuration
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
-  // Site Configuration
-  site: {
-    name: "Mizizzi",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://mizizzi-ecommerce-87pr-ffh57x9o6-jons-projects-a41f528c.vercel.app",
-    description: "Premium E-commerce Platform",
-  },
+// Site URL configuration
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://mizizzi-ecommerce-87pr-ffh57x9o6-jons-projects-a41f528c.vercel.app"
 
-  // WebSocket Configuration
-  websocket: {
-    url: process.env.NEXT_PUBLIC_WEBSOCKET_URL || "wss://mizizzi-ecommerce-1.onrender.com",
-    enabled: process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === "true",
-  },
+// WebSocket URL configuration
+export const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "wss://mizizzi-ecommerce-1.onrender.com"
 
-  // Feature Flags
-  features: {
-    enableWebSocket: process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === "true",
-    enablePWA: true,
-    enableOfflineMode: true,
-    enableNotifications: true,
-  },
+// Enable WebSocket
+export const ENABLE_WEBSOCKET = process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET !== "false"
 
-  // Cache Configuration
-  cache: {
-    ttl: 5 * 60 * 1000, // 5 minutes
-    maxSize: 100, // Maximum number of cached items
-  },
+// Currency configuration
+export const DEFAULT_CURRENCY = "KES"
+export const CURRENCY_SYMBOL = "KES"
 
-  // Pagination Defaults
-  pagination: {
-    defaultPageSize: 12,
-    maxPageSize: 100,
-  },
+// Pagination configuration
+export const DEFAULT_PAGE_SIZE = 12
 
-  // Image Configuration
-  images: {
-    placeholder: "/placeholder.svg",
-    quality: 80,
-    formats: ["webp", "jpg"],
-  },
+// Image configuration
+export const DEFAULT_IMAGE_PLACEHOLDER = "/placeholder.svg"
 
-  // Payment Configuration
-  payments: {
-    mpesa: {
-      enabled: true,
-    },
-    pesapal: {
-      enabled: true,
-    },
-    cashOnDelivery: {
-      enabled: true,
-    },
-  },
+// Theme configuration
+export const DEFAULT_THEME = "light"
 
-  // Development Configuration
-  development: {
-    enableDebugLogs: process.env.NODE_ENV === "development",
-    enableMockData: process.env.NODE_ENV === "development",
+// Feature flags
+export const FEATURES = {
+  WISHLIST: true,
+  REVIEWS: true,
+  COMPARE: true,
+  RECENTLY_VIEWED: true,
+  QUICK_VIEW: true,
+  NEWSLETTER: true,
+  SOCIAL_SHARING: true,
+}
+
+// Payment methods
+export const PAYMENT_METHODS = {
+  MPESA: true,
+  CARD: true,
+  CASH_ON_DELIVERY: true,
+}
+
+// Shipping methods
+export const SHIPPING_METHODS = {
+  STANDARD: {
+    id: "standard",
+    name: "Standard Shipping",
+    price: 250,
+    estimated_days: "3-5",
+  },
+  EXPRESS: {
+    id: "express",
+    name: "Express Shipping",
+    price: 500,
+    estimated_days: "1-2",
   },
 }
 
-export default config
+// Tax configuration
+export const TAX_RATE = 0.16 // 16% VAT in Kenya

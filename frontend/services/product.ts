@@ -6,7 +6,7 @@ import { imageCache } from "@/services/image-cache"
 // Only showing the changes needed to integrate with the new batch service
 import { imageBatchService } from "@/services/image-batch-service"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
 // Safely extract a product list from diverse response shapes
 function extractProducts(payload: any): Product[] {
@@ -1034,7 +1034,7 @@ export const productService = {
         return Array.isArray(cachedItem.data) ? cachedItem.data : [cachedItem.data]
       }
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
       const response = await fetch(`${backendUrl}/api/products/${productId}/reviews`, {
         method: "GET",
         headers: {
@@ -1070,7 +1070,7 @@ export const productService = {
    */
   async getProductReviewSummary(productId: number): Promise<any> {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
       const response = await fetch(`${backendUrl}/api/products/${productId}/reviews/summary`, {
         method: "GET",
         headers: {
@@ -1109,7 +1109,7 @@ export const productService = {
     },
   ): Promise<any> {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
       const token = localStorage.getItem("mizizzi_token")
 
       if (!token) {
@@ -1158,7 +1158,7 @@ export const productService = {
     },
   ): Promise<any> {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
       const token = localStorage.getItem("mizizzi_token")
 
       if (!token) {
@@ -1194,7 +1194,7 @@ export const productService = {
    */
   async deleteReview(reviewId: number): Promise<void> {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000"
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
       const token = localStorage.getItem("mizizzi_token")
 
       if (!token) {

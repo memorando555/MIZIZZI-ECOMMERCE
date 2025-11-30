@@ -70,7 +70,7 @@ const MOCK_EVENTS = {
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({
   children,
-  url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "ws://localhost:5000",
+  url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "wss://mizizzi-ecommerce-1.onrender.com",
   autoConnect = true,
   reconnectInterval = 3000,
   maxReconnectAttempts = 5,
@@ -151,37 +151,12 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
   const startMockMode = useCallback(() => {
     if (mockModeRef.current) return
 
-    // Ensure fallback flag is set so we don't keep trying to reconnect
-    fallbackInitiatedRef.current = true
-
-    // Clear any pending reconnect attempts
-    clearReconnectTimeout()
-    connectionAttemptRef.current = false
-
-    // Close any existing WebSocket to avoid race conditions / stale sockets
-    try {
-      // If there's a real socket open, close it
-      // Note: setSocket is available in this scope
-      // Using a function form to ensure latest socket value is closed
-      setSocket((prev) => {
-        if (prev) {
-          try {
-            prev.close()
-          } catch (e) {
-            /* ignore close errors */
-          }
-        }
-        return null
-      })
-    } catch (e) {
-      // ignore
-    }
-
     console.log("[v0] Starting WebSocket mock mode")
     mockModeRef.current = true
     setIsConnected(true)
     setIsConnecting(false)
     reconnectAttempts.current = 0
+    fallbackInitiatedRef.current = false
 
     // Simulate periodic events
     mockIntervalRef.current = setInterval(() => {
@@ -223,14 +198,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
     }
   }, [toast])
 
-  // Connect
   const connect = useCallback(() => {
-    // If we've already fallen back to mock mode, don't attempt again
-    if (fallbackInitiatedRef.current) {
-      console.log("[v0] Fallback already initiated, skipping connect")
-      return
-    }
-
     // If WebSocket is disabled, use mock mode
     if (!isWebSocketEnabled()) {
       console.log("[v0] WebSocket disabled, starting mock mode")
@@ -238,12 +206,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
       return
     }
 
-    // Prevent duplicate connection attempts
     if (connectionAttemptRef.current) {
       return
     }
 
-    // If already have an active socket instance, avoid creating another
     if (socket) {
       console.log("[v0] WebSocket already connected")
       return
@@ -256,15 +222,14 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
 
       console.log(`[v0] Socket context connecting to WebSocket server at ${url}...`)
 
-      // increase timeout to 5s to reduce false fallbacks on slow networks
       const connectionTimeout = setTimeout(() => {
         console.log("[v0] WebSocket connection timeout - falling back to mock mode")
         setIsConnecting(false)
         connectionAttemptRef.current = false
         fallbackInitiatedRef.current = true
-        setLastError(null)
+        setLastError(null) // Clear error since we're gracefully falling back
         startMockMode()
-      }, 5000) // <-- changed from 2000 to 5000
+      }, 2000)
 
       const ws = new WebSocket(url)
 
@@ -411,7 +376,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
       console.error("Error initializing WebSocket:", error)
       setIsConnecting(false)
       connectionAttemptRef.current = false
-      setLastError(null)
+      setLastError(null) // Clear error for graceful fallback
       fallbackInitiatedRef.current = true
 
       startMockMode()
@@ -434,9 +399,6 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
     clearReconnectTimeout()
     clearMockInterval()
 
-    // Reset fallback so manual disconnect can be followed by a fresh connect
-    fallbackInitiatedRef.current = false
-
     if (mockModeRef.current) {
       mockModeRef.current = false
       setIsConnected(false)
@@ -450,60 +412,60 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
     }
   }, [socket, clearReconnectTimeout, clearMockInterval])
 
-    // Subscribe to an event
-    const subscribe = useCallback(<T,>(event: string, callback: (data: T) => void) => {
-      if (!eventHandlers.current.has(event)) {
-        eventHandlers.current.set(event, new Set())
-      }
-  
-      eventHandlers.current.get(event)!.add(callback as any)
-  
-      // Return unsubscribe function
-      return () => {
-        const handlers = eventHandlers.current.get(event)
-        if (handlers) {
-          handlers.delete(callback as any)
-          if (handlers.size === 0) {
-            eventHandlers.current.delete(event)
-          }
-        }
-      }
-    }, [])
-  
-    // Auto-connect on mount if requested and clean up on unmount
-    useEffect(() => {
-      if (autoConnect) {
-        connect()
-      }
-  
-      return () => {
-        // Prevent further reconnection attempts and clear timers/intervals
-        fallbackInitiatedRef.current = true
-        clearReconnectTimeout()
-        clearMockInterval()
-        connectionAttemptRef.current = false
-  
-        try {
-          if (socket) {
-            socket.close()
-          }
-        } catch (e) {
-          /* ignore */
-        }
-      }
-      // Intentionally only depend on autoConnect and connect to avoid repeated connect calls.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [autoConnect, connect])
-  
-    const value: SocketContextType = {
-      isConnected,
-      isConnecting,
-      connect,
-      disconnect,
-      subscribe,
-      send,
-      lastError,
+  // Subscribe to an event
+  const subscribe = useCallback(<T,>(event: string, callback: (data: T) => void) => {
+    if (!eventHandlers.current.has(event)) {
+      eventHandlers.current.set(event, new Set())
     }
-  
-    return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>
-  }
+
+    eventHandlers.current.get(event)!.add(callback as any)
+
+    // Return unsubscribe function
+    return () => {
+      const handlers = eventHandlers.current.get(event)
+      if (handlers) {
+        handlers.delete(callback as any)
+        if (handlers.size === 0) {
+          eventHandlers.current.delete(event)
+        }
+      }
+    }
+  }, [])
+
+  // Auto-connect on mount if enabled
+  useEffect(() => {
+    if (autoConnect) {
+      connect()
+    }
+
+    // Clean up on unmount
+    return () => {
+      clearReconnectTimeout()
+      clearMockInterval()
+      disconnect()
+    }
+  }, [autoConnect, connect, disconnect, clearReconnectTimeout, clearMockInterval])
+
+  // Authenticate when user logs in
+  useEffect(() => {
+    if (isConnected && isAuthenticated && token) {
+      send("authenticate", { token })
+    }
+  }, [isConnected, isAuthenticated, token, send])
+
+  return (
+    <SocketContext.Provider
+      value={{
+        isConnected,
+        isConnecting,
+        connect,
+        disconnect,
+        subscribe,
+        send,
+        lastError,
+      }}
+    >
+      {children}
+    </SocketContext.Provider>
+  )
+}
