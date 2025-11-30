@@ -55,7 +55,7 @@ def get_footer_settings_admin():
         return jsonify({
             'success': True,
             'data': data
-        }), 200
+        }, 200)
     except Exception as e:
         logger.error(f'[Footer] Admin GET error: {str(e)}')
         return jsonify({
@@ -219,15 +219,24 @@ def reset_footer_settings():
 
 def init_footer_tables(app):
     """Initialize footer tables in the database"""
+    # Ensure the SQLAlchemy extension is registered with this Flask app.
+    # Calling init_app is idempotent/safe if the extension was already initialized.
+    try:
+        db.init_app(app)
+    except Exception as e:
+        # Log a warning but continue — init_app may raise if the extension is already bound in some environments.
+        logger.warning(f'[Footer] db.init_app warning: {e}')
+
     with app.app_context():
         try:
             logger.info('Initializing footer tables...')
             db.create_all()
-            
+
             # Create default footer settings if none exist
             FooterSettings.get_or_create_default()
-            
+
             logger.info('✅ Footer tables initialized successfully')
         except Exception as e:
             logger.error(f'❌ Error initializing footer tables: {str(e)}')
-            raise
+            # raise a clearer runtime error so caller logs show the context
+            raise RuntimeError(f'Footer table initialization failed: {str(e)}')
