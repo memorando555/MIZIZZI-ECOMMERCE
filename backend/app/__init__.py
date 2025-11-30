@@ -242,16 +242,27 @@ def create_app(config_name=None, enable_socketio=True):
     allowed_origins = get_cors_origins()
     app.config['CORS_ORIGINS'] = allowed_origins
     
-    # Initialize Flask-CORS
-    CORS(
-        app,
-        resources={r"/*": {"origins": "*"}},
-        supports_credentials=True,
-        allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "cache-control", "Pragma", "Expires", "X-MFA-Token", "Accept", "Origin"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
-        expose_headers=["Content-Range", "X-Content-Range"],
-        max_age=86400
-    )
+    # This prevents duplicate Access-Control-Allow-Origin headers
+
+    @app.before_request
+    def handle_preflight():
+        if request.method == 'OPTIONS':
+            origin = request.headers.get('Origin')
+            if origin:
+                allowed = app.config.get('CORS_ORIGINS', [])
+                is_allowed = (
+                    origin in allowed or
+                    (origin.startswith('https://mizizzi-ecommerce') and '.vercel.app' in origin)
+                )
+                if is_allowed:
+                    response = app.make_default_options_response()
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+                    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD'
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-MFA-Token, Accept, Origin, Cache-Control, cache-control, Pragma, Expires'
+                    response.headers['Access-Control-Max-Age'] = '86400'
+                    response.headers['Vary'] = 'Origin'
+                    return response
 
     @app.after_request
     def add_cors_headers(response):
@@ -263,10 +274,13 @@ def create_app(config_name=None, enable_socketio=True):
             
             is_allowed = (
                 origin in allowed or
-                origin.startswith('https://mizizzi-ecommerce') and '.vercel.app' in origin
+                (origin.startswith('https://mizizzi-ecommerce') and '.vercel.app' in origin)
             )
             
             if is_allowed:
+                response.headers.pop('Access-Control-Allow-Origin', None)
+                
+                # Set single origin value (not comma-separated)
                 response.headers['Access-Control-Allow-Origin'] = origin
                 response.headers['Access-Control-Allow-Credentials'] = 'true'
                 response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD'
@@ -1223,7 +1237,7 @@ def create_app(config_name=None, enable_socketio=True):
             app.logger.info("Admin Get Slides: /api/topbar/admin/all")
             app.logger.info("Admin Create Slide: /api/topbar/admin")
             app.logger.info("Admin Update Slide: /api/topbar/admin/<id>")
-            app.logger.info(f"TopBar System: {'✅' if 'topbar_routes' in imported_blueprints else '⚠️'}")
+            app.logger.info(f"Topbar System: {'✅' if 'topbar_routes' in imported_blueprints else '⚠️'}")
 
             app.logger.info("📞 CONTACT CTA SYSTEM ENDPOINTS")
             app.logger.info("-" * 30)
