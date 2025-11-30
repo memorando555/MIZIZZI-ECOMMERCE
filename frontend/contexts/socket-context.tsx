@@ -73,7 +73,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
   url = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "wss://mizizzi-ecommerce-1.onrender.com",
   autoConnect = true,
   reconnectInterval = 3000,
-  maxReconnectAttempts = 5,
+  maxReconnectAttempts = 2,
 }) => {
   const [socket, setSocket] = useState<WebSocket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -91,7 +91,8 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
 
   // Check if WebSocket is enabled
   const isWebSocketEnabled = useCallback(() => {
-    return process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === "true"
+    const enabled = process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === "true"
+    return enabled
   }, [])
 
   // Send a message to the server
@@ -201,8 +202,14 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
   const connect = useCallback(() => {
     // If WebSocket is disabled, use mock mode
     if (!isWebSocketEnabled()) {
-      console.log("[v0] WebSocket disabled, starting mock mode")
-      startMockMode()
+      if (!mockModeRef.current) {
+        console.log("[v0] WebSocket disabled, using mock mode")
+        startMockMode()
+      }
+      return
+    }
+
+    if (mockModeRef.current) {
       return
     }
 
@@ -211,7 +218,6 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
     }
 
     if (socket) {
-      console.log("[v0] WebSocket already connected")
       return
     }
 
@@ -223,13 +229,15 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
       console.log(`[v0] Socket context connecting to WebSocket server at ${url}...`)
 
       const connectionTimeout = setTimeout(() => {
-        console.log("[v0] WebSocket connection timeout - falling back to mock mode")
-        setIsConnecting(false)
-        connectionAttemptRef.current = false
-        fallbackInitiatedRef.current = true
-        setLastError(null) // Clear error since we're gracefully falling back
-        startMockMode()
-      }, 2000)
+        if (!fallbackInitiatedRef.current) {
+          console.log("[v0] WebSocket connection timeout - using mock mode")
+          setIsConnecting(false)
+          connectionAttemptRef.current = false
+          fallbackInitiatedRef.current = true
+          setLastError(null)
+          startMockMode()
+        }
+      }, 5000)
 
       const ws = new WebSocket(url)
 
@@ -392,6 +400,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
     send,
     isWebSocketEnabled,
     startMockMode,
+    socket,
   ])
 
   // Disconnect from WebSocket server
