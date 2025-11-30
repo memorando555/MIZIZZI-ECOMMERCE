@@ -69,13 +69,13 @@ if 'app.models.meilisearch_models' not in sys.modules:
 # Import extensions and config
 try:
     from .configuration.extensions import db, ma, mail, cache, limiter
-    from .configuration.config import config
+    from .configuration.config import config, get_database_url
     from .websocket import socketio
 except ImportError:
     # Fallback imports for different directory structures
     try:
         from configuration.extensions import db, ma, mail, cache, limiter
-        from configuration.config import config
+        from configuration.config import config, get_database_url
         from websocket import socketio
     except ImportError:
         # Last resort - create minimal extensions
@@ -94,16 +94,49 @@ except ImportError:
         limiter = Limiter(key_func=get_remote_address)
         socketio = SocketIO()
         
-        # Minimal config
+        def get_database_url():
+            """Get and fix DATABASE_URL for SQLAlchemy compatibility with Render."""
+            database_url = os.environ.get('DATABASE_URL')
+            if database_url:
+                if database_url.startswith('postgres://'):
+                    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+                return database_url
+            return 'postgresql://mizizzi:junior2020@localhost:5432/mizizzi'
+        
+        # Minimal config classes
         class Config:
             SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
-            SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'postgresql://mizizzi:junior2020@localhost:5432/mizizzi')
+            SQLALCHEMY_DATABASE_URI = get_database_url()
             SQLALCHEMY_TRACK_MODIFICATIONS = False
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                'pool_pre_ping': True,
+                'pool_recycle': 300,
+            }
             JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
             JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
             CORS_ORIGINS = ['http://localhost:3000']
+            CACHE_TYPE = 'SimpleCache'
+            RATELIMIT_STORAGE_URI = 'memory://'
         
-        config = {'default': Config}
+        class DevelopmentConfig(Config):
+            DEBUG = True
+        
+        class ProductionConfig(Config):
+            DEBUG = False
+            # Use SimpleCache as fallback if Redis not available
+            CACHE_TYPE = 'SimpleCache'
+            RATELIMIT_STORAGE_URI = os.environ.get('REDIS_URL') or 'memory://'
+        
+        class TestingConfig(Config):
+            TESTING = True
+            SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+        
+        config = {
+            'development': DevelopmentConfig,
+            'testing': TestingConfig,
+            'production': ProductionConfig,
+            'default': DevelopmentConfig
+        }
 
 def create_app(config_name=None, enable_socketio=True):
     """
@@ -134,6 +167,16 @@ def create_app(config_name=None, enable_socketio=True):
     werkzeug_logger = logging.getLogger('werkzeug')
     werkzeug_logger.setLevel(logging.WARNING)
     
+    # Ensure DB URI is available before initializing extensions that require it
+    if not app.config.get('SQLALCHEMY_DATABASE_URI'):
+        db_url = app.config.get('DATABASE_URL') or os.environ.get('DATABASE_URL')
+        if db_url:
+            app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+        else:
+            # leave as-is; init_app will raise a clear error if still absent
+            pass
+    app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+
     # Initialize extensions
     db.init_app(app)
     ma.init_app(app)
@@ -179,38 +222,59 @@ def create_app(config_name=None, enable_socketio=True):
     # Set up database migrations
     Migrate(app, db)
     
-    # Configure CORS properly
+    def get_cors_origins():
+        """Build list of allowed CORS origins including Vercel previews."""
+        base_origins = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5000",
+            "http://127.0.0.1:5000",
+            "https://mizizzi-ecommerce-1.onrender.com",
+        ]
+        frontend_env = os.environ.get('FRONTEND_URL', '')
+        if frontend_env:
+            for url in frontend_env.split(','):
+                url = url.strip()
+                if url and url not in base_origins:
+                    base_origins.append(url)
+        return base_origins
+    
+    allowed_origins = get_cors_origins()
+    app.config['CORS_ORIGINS'] = allowed_origins
+    
+    # Initialize Flask-CORS
     CORS(
         app,
-        origins=['http://localhost:3000', 'http://127.0.0.1:3000'],
+        resources={r"/*": {"origins": "*"}},
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "cache-control", "Pragma", "Expires", "X-MFA-Token", "Accept", "Origin"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
         expose_headers=["Content-Range", "X-Content-Range"],
-        send_wildcard=False,
-        vary_header=True
+        max_age=86400
     )
 
-    @app.before_request
-    def _handle_options_preflight():
-        if request.method != 'OPTIONS':
-            return None
-
-        from flask import make_response
-        response = make_response(jsonify({'status': 'ok'}), 200)
-
+    @app.after_request
+    def add_cors_headers(response):
+        """Add proper CORS headers to all responses."""
         origin = request.headers.get('Origin')
-        allowed_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000'])
-        if origin and ("*" in allowed_origins or origin in allowed_origins):
-            response.headers['Access-Control-Allow-Origin'] = origin
-        else:
-            response.headers['Access-Control-Allow-Origin'] = ','.join(allowed_origins)
-
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-MFA-Token, Accept, Origin, Cache-Control, cache-control, Pragma, Expires'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Vary'] = 'Origin'
-
+        
+        if origin:
+            allowed = app.config.get('CORS_ORIGINS', [])
+            
+            is_allowed = (
+                origin in allowed or
+                origin.startswith('https://mizizzi-ecommerce') and '.vercel.app' in origin
+            )
+            
+            if is_allowed:
+                response.headers['Access-Control-Allow-Origin'] = origin
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-MFA-Token, Accept, Origin, Cache-Control, cache-control, Pragma, Expires'
+                response.headers['Access-Control-Expose-Headers'] = 'Content-Range, X-Content-Range'
+                response.headers['Access-Control-Max-Age'] = '86400'
+                response.headers['Vary'] = 'Origin'
+        
         return response
     
     # Initialize JWT
@@ -290,12 +354,18 @@ def create_app(config_name=None, enable_socketio=True):
             if file.filename == '':
                 return jsonify({"error": "No selected file"}), 400
             
-            if len(file.read()) > 5 * 1024 * 1024:
+            # Read file to check size before saving
+            file_content = file.read()
+            if len(file_content) > 5 * 1024 * 1024: # 5MB limit
                 return jsonify({"error": "File too large (max 5MB)"}), 400
-            file.seek(0)
             
+            # Reset file stream position after reading
+            from io import BytesIO
+            file = BytesIO(file_content)
+
             allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-            if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+            filename_lower = file.filename.lower() if hasattr(file, 'filename') else ''
+            if not ('.' in filename_lower and filename_lower.rsplit('.', 1)[1] in allowed_extensions):
                 return jsonify({"error": "File type not allowed. Only images are permitted."}), 400
             
             original_filename = werkzeug.utils.secure_filename(file.filename)
@@ -303,7 +373,10 @@ def create_app(config_name=None, enable_socketio=True):
             unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
             
             file_path = os.path.join(product_images_dir, unique_filename)
-            file.save(file_path)
+            
+            # Save the file from the BytesIO object
+            with open(file_path, 'wb') as f:
+                f.write(file.getvalue()) # Use getvalue() to get bytes from BytesIO
             
             current_user_id = get_jwt_identity()
             app.logger.info(f"User {current_user_id} uploaded image: {unique_filename}")
@@ -323,6 +396,8 @@ def create_app(config_name=None, enable_socketio=True):
             
         except Exception as e:
             app.logger.error(f"Error uploading image: {str(e)}")
+            import traceback
+            app.logger.error(traceback.format_exc())
             return jsonify({"error": f"Failed to upload image: {str(e)}"}), 500
     
     @app.route('/api/uploads/product_images/<filename>', methods=['GET'])
@@ -363,6 +438,7 @@ def create_app(config_name=None, enable_socketio=True):
             db.session.commit()
         except Exception as e:
             app.logger.error(f"Error creating guest cart: {str(e)}")
+            db.session.rollback() # Rollback on error
         
         return cart
     
@@ -381,6 +457,7 @@ def create_app(config_name=None, enable_socketio=True):
                     g.guest_cart = get_or_create_guest_cart()
             except Exception as e:
                 app.logger.error(f"JWT error: {str(e)}")
+                # Ensure guest cart is still created even if JWT verification fails
                 g.is_authenticated = False
                 g.guest_cart = get_or_create_guest_cart()
             
@@ -1251,6 +1328,8 @@ def create_app(config_name=None, enable_socketio=True):
         
     except Exception as e:
         app.logger.error(f"Error registering blueprints: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
     
     # Create database tables and initialize admin auth tables
     def can_connect_to_db(app, timeout_seconds=3):
@@ -1361,6 +1440,8 @@ def create_app(config_name=None, enable_socketio=True):
                     app.logger.info("Database tables created successfully")
                 except Exception as e:
                     app.logger.error(f"Error creating database tables or initializing admin tables: {str(e)}")
+                    import traceback
+                    app.logger.error(traceback.format_exc())
             else:
                 app.logger.warning(
                     "Database is not reachable - skipping db.create_all() and admin table initializations.\n"
@@ -1369,6 +1450,8 @@ def create_app(config_name=None, enable_socketio=True):
                 )
     except Exception as e:
         app.logger.error(f"Unexpected error during DB initialization check: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
     
     # Set up order completion hooks
     try:
@@ -1409,6 +1492,8 @@ def create_app(config_name=None, enable_socketio=True):
                     
     except Exception as e:
         app.logger.error(f"Error setting up order completion hooks: {str(e)}")
+        import traceback
+        app.logger.error(traceback.format_exc())
         
         @app.route('/api/admin/inventory/sync', methods=['POST'])
         @jwt_required()
@@ -1530,6 +1615,9 @@ def create_app(config_name=None, enable_socketio=True):
     
     @app.before_request
     def before_request():
+        # Allow OPTIONS requests to pass through for CORS preflight
+        if request.method == 'OPTIONS':
+            return None
         if request.path == '/' and request.method == 'GET':
             return
         app.logger.debug(f"Processing request: {request.method} {request.path}")
@@ -1553,23 +1641,10 @@ def create_app(config_name=None, enable_socketio=True):
             }
         }), 200
     
-    @app.after_request
-    def ensure_cors_credentials(response):
-        try:
-            origin = request.headers.get('Origin')
-            allowed = app.config.get('CORS_ORIGINS', []) or []
-
-            if origin:
-                if '*' in allowed or origin in allowed:
-                    response.headers['Access-Control-Allow-Origin'] = origin
-                    response.headers['Access-Control-Allow-Credentials'] = 'true'
-
-            if 'Access-Control-Allow-Credentials' not in response.headers:
-                response.headers['Access-Control-Allow-Credentials'] = 'true'
-        except Exception:
-            pass
-        return response
-
+    # This method was previously defined inline in the CORS initialization,
+    # but is now replaced by the @app.after_request handler.
+    # The original CORS initialization is also updated.
+    
     app.logger.info(f"Application created successfully with config: {config_name}")
     return app
 
@@ -1577,8 +1652,7 @@ def create_app(config_name=None, enable_socketio=True):
 def create_app_with_search():
     """Create Flask app (Meilisearch handles search)."""
     try:
-        from app import create_app
-        
+        # Use the directly imported create_app function
         app = create_app()
         
         with app.app_context():
@@ -1588,15 +1662,29 @@ def create_app_with_search():
         
     except Exception as e:
         logger.error(f"Error creating app: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         
         try:
-            from app import create_app
+            # Fallback to calling create_app directly again
             return create_app()
         except Exception as fallback_error:
-            logger.error(f"Fallback app creation also failed: {str(fallback_error)}")
-            raise
-
-# Export the app factory
-__all__ = ['create_app_with_search', 'setup_app_environment']
-
-logger.info("app package initialized successfully with enhanced admin authentication, payment systems, and split wishlist routes")
+            logger.error(f"Fallback app creation failed: {str(fallback_error)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # As a last resort, return a minimal Flask app to avoid import-time crashes.
+            try:
+                fallback_app = Flask(__name__)
+                # Apply minimal default configuration if available
+                if isinstance(config, dict) and 'default' in config:
+                    try:
+                        fallback_app.config.from_object(config['default'])
+                    except Exception:
+                        pass
+                logger.info("Created minimal fallback Flask app")
+                return fallback_app
+            except Exception as final_err:
+                logger.error(f"Unable to create fallback Flask app: {str(final_err)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                return None

@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, RefreshCw, Server, Loader2 } from "lucide-react"
-import { ensureBackendReady, resetWarmupState } from "@/lib/backend-warmup"
+import { AlertTriangle, RefreshCw, Server, Loader2, ServerCrash } from "lucide-react"
+import { ensureBackendReady, resetWarmupState, getBackendStatus } from "@/lib/backend-warmup"
 
 interface NetworkStatusProps {
   className?: string
@@ -14,6 +14,7 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
   const [isOffline, setIsOffline] = useState(false)
   const [backendDown, setBackendDown] = useState(false)
   const [isBackendWakingUp, setIsBackendWakingUp] = useState(false)
+  const [hasServerError, setHasServerError] = useState(false)
   const [showAlert, setShowAlert] = useState(false)
   const [lastErrorTime, setLastErrorTime] = useState(0)
   const [retryCount, setRetryCount] = useState(0)
@@ -118,6 +119,7 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
 
       setBackendDown(false)
       setIsBackendWakingUp(false)
+      setHasServerError(false)
       setShowAlert(false)
       setRetryCount(0)
       setWarmupMessage("")
@@ -130,18 +132,27 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
       if (status === "waking-up") {
         setIsBackendWakingUp(true)
         setBackendDown(false)
+        setHasServerError(false)
         setShowAlert(true)
         setWarmupMessage(message || "Backend server is waking up...")
       } else if (status === "available") {
         setIsBackendWakingUp(false)
         setBackendDown(false)
+        setHasServerError(false)
         setShowAlert(false)
         setWarmupMessage("")
       } else if (status === "unavailable") {
         setIsBackendWakingUp(false)
         setBackendDown(true)
+        setHasServerError(false)
         setShowAlert(true)
         setWarmupMessage("")
+      } else if (status === "server-error") {
+        setIsBackendWakingUp(false)
+        setBackendDown(false)
+        setHasServerError(true)
+        setShowAlert(true)
+        setWarmupMessage(message || "The server is experiencing internal errors.")
       }
     }
 
@@ -179,17 +190,25 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
       const isReady = await ensureBackendReady()
 
       if (isReady) {
-        setBackendDown(false)
-        setIsBackendWakingUp(false)
-        setShowAlert(false)
-        setRetryCount(0)
-        setWarmupMessage("")
+        const status = getBackendStatus()
 
-        // Dispatch success event to clear any other error states
-        document.dispatchEvent(new CustomEvent("api-success"))
+        if (status.hasServerError) {
+          setHasServerError(true)
+          setBackendDown(false)
+        } else {
+          setBackendDown(false)
+          setIsBackendWakingUp(false)
+          setHasServerError(false)
+          setShowAlert(false)
+          setRetryCount(0)
+          setWarmupMessage("")
 
-        // Reload the page to refresh data
-        window.location.reload()
+          // Dispatch success event to clear any other error states
+          document.dispatchEvent(new CustomEvent("api-success"))
+
+          // Reload the page to refresh data
+          window.location.reload()
+        }
       } else {
         throw new Error("Backend still unavailable")
       }
@@ -235,7 +254,32 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
         </Alert>
       )}
 
-      {backendDown && !isOffline && !isBackendWakingUp && (
+      {hasServerError && !isOffline && !isBackendWakingUp && (
+        <Alert className="mb-4 border-orange-500 bg-orange-50 text-orange-800">
+          <ServerCrash className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Server experiencing issues</p>
+              <p className="text-sm text-orange-600 mt-1">
+                {warmupMessage ||
+                  "The backend is having internal errors (possibly database connection issues). This is usually temporary."}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className="border-orange-500 text-orange-700 hover:bg-orange-100 bg-transparent"
+            >
+              <RefreshCw className={`h-3 w-3 mr-1 ${isRetrying ? "animate-spin" : ""}`} />
+              {isRetrying ? "Checking..." : `Retry (${retryCount}/${MAX_RETRIES})`}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {backendDown && !isOffline && !isBackendWakingUp && !hasServerError && (
         <Alert variant="destructive" className="mb-4">
           <Server className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between">

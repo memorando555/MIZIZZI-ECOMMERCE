@@ -58,33 +58,18 @@ class Config:
     # Updated CORS configuration for secure cross-domain requests
     # Allow listing a frontend URL (or comma-separated list) via FRONTEND_URL env var.
     # Include both deployed frontend URLs by default; can be overridden via FRONTEND_URL env var.
-    _frontend_env = os.environ.get(
-        'FRONTEND_URL',
-        'https://mizizzi-ecommerce-3-xny1.vercel.app,https://mizizzi-ecommerce-87pr.vercel.app,https://mizizzi-ecommerce-87pr.vercel.app/dd'
-    )
+   # Updated CORS configuration for secure cross-domain requests
+    # Allow listing a frontend URL (or comma-separated list) via FRONTEND_URL env var.
+    _frontend_env = os.environ.get('FRONTEND_URL', '')
     _frontend_list = [u.strip() for u in _frontend_env.split(',') if u.strip()]
 
-    # CORS_ORIGINS: normalize, add missing hosts seen in logs, strip trailing slashes and dedupe
-    # Replace the previous static CORS_ORIGINS list with a sanitized, deduplicated one.
-    default_origins = [
+    CORS_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5000",
         "http://127.0.0.1:5000",
         "https://mizizzi-ecommerce-1.onrender.com",
-        "https://mizizzi-ecommerce-87pr-hh7wnptpk-jons-projects-a41f528c.vercel.app",
-        "https://mizizzi-ecommerce-87pr-ffh57x9o6-jons-projects-a41f528c.vercel.app"
-    ]
-
-    # combine and sanitize (strip trailing slashes) and preserve order while deduplicating
-    _combined_origins = default_origins + _frontend_list
-    CORS_ORIGINS = []
-    _seen = set()
-    for _u in _combined_origins:
-        _u = _u.rstrip('/')  # remove trailing slash mismatches
-        if _u and _u not in _seen:
-            _seen.add(_u)
-            CORS_ORIGINS.append(_u)
+    ] + _frontend_list
     CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
     CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "X-CSRF-TOKEN"]
     CORS_EXPOSE_HEADERS = ["Content-Range", "X-Content-Range"]

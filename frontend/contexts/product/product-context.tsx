@@ -1,10 +1,10 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import type { Product } from "@/types"
 import { productService } from "@/services/product"
 import { websocketService } from "@/services/websocket"
-import { ensureBackendReady, fetchWithWarmup } from "@/lib/backend-warmup"
+import { ensureBackendReady, fetchWithWarmup, getBackendStatus } from "@/lib/backend-warmup"
 
 interface ProductContextType {
   products: Product[]
@@ -30,7 +30,7 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
   const [isBackendWakingUp, setIsBackendWakingUp] = useState(false)
 
   // Function to refresh a specific product
-  const refreshProduct = async (id: string): Promise<Product | null> => {
+  const refreshProduct = useCallback(async (id: string): Promise<Product | null> => {
     try {
       console.log(`Refreshing product data for ID: ${id}`)
 
@@ -65,17 +65,16 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      return updatedProduct
+      return updatedProduct ?? null
     } catch (error) {
       console.error(`Error refreshing product ${id}:`, error)
       return null
     }
-  }
+  }, [])
 
   // Function to refresh all products
-  const refreshProducts = async (): Promise<void> => {
+  const refreshProducts = useCallback(async () => {
     setIsLoading(true)
-    setError(null)
 
     try {
       console.log("[v0] ProductContext: Checking if backend is ready...")
@@ -94,21 +93,41 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
       console.log("[v0] ProductContext: Backend is ready, fetching products...")
 
       const [allProducts, featured, newProds, sale] = await Promise.all([
-        fetchWithWarmup(() => productService.getProducts(), { maxRetries: 2 }),
-        fetchWithWarmup(() => productService.getFeaturedProducts(), { maxRetries: 2 }),
-        fetchWithWarmup(() => productService.getNewProducts(), { maxRetries: 2 }),
-        fetchWithWarmup(() => productService.getSaleProducts(), { maxRetries: 2 }),
+        fetchWithWarmup(() => productService.getProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
+        fetchWithWarmup(() => productService.getFeaturedProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
+        fetchWithWarmup(() => productService.getNewProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
+        fetchWithWarmup(() => productService.getSaleProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
       ])
 
+      const safeAllProducts = allProducts ?? []
+      const safeFeatured = featured ?? []
+      const safeNewProds = newProds ?? []
+      const safeSale = sale ?? []
+
       console.log(
-        `Loaded ${allProducts.length} products, ${featured.length} featured, ${newProds.length} new, ${sale.length} on sale`,
+        `Loaded ${safeAllProducts.length} products, ${safeFeatured.length} featured, ${safeNewProds.length} new, ${safeSale.length} on sale`,
       )
 
-      setProducts(allProducts)
-      setFeaturedProducts(featured)
-      setNewProducts(newProds)
-      setSaleProducts(sale)
-      setError(null)
+      setProducts(safeAllProducts)
+      setFeaturedProducts(safeFeatured)
+      setNewProducts(safeNewProds)
+      setSaleProducts(safeSale)
+
+      if (
+        safeAllProducts.length === 0 &&
+        safeFeatured.length === 0 &&
+        safeNewProds.length === 0 &&
+        safeSale.length === 0
+      ) {
+        const { hasServerError } = getBackendStatus()
+        if (hasServerError) {
+          setError("The server is experiencing issues. Products may be unavailable temporarily.")
+        } else {
+          setError(null)
+        }
+      } else {
+        setError(null)
+      }
 
       // Dispatch success event
       if (typeof document !== "undefined") {
@@ -128,12 +147,12 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false)
       setIsBackendWakingUp(false)
     }
-  }
+  }, [])
 
   // Initial data fetch
   useEffect(() => {
     refreshProducts()
-  }, [])
+  }, [refreshProducts])
 
   // Add a new method to listen for product updates
   useEffect(() => {
@@ -160,7 +179,7 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
       window.removeEventListener("product-updated", handleCustomEvent as EventListener)
       window.removeEventListener("product-refreshed", handleCustomEvent as EventListener)
     }
-  }, [])
+  }, [refreshProduct])
 
   return (
     <ProductContext.Provider

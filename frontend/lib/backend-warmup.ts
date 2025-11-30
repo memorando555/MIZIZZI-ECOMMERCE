@@ -6,6 +6,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommer
 interface WarmupState {
   isWakingUp: boolean
   isAvailable: boolean
+  hasServerError: boolean
   lastCheckTime: number
   retryCount: number
   warmupPromise: Promise<boolean> | null
@@ -14,6 +15,7 @@ interface WarmupState {
 const state: WarmupState = {
   isWakingUp: false,
   isAvailable: false,
+  hasServerError: false,
   lastCheckTime: 0,
   retryCount: 0,
   warmupPromise: null,
@@ -23,6 +25,7 @@ const MAX_RETRIES = 5
 const RETRY_DELAY = 5000 // 5 seconds between retries
 const WARMUP_TIMEOUT = 60000 // 60 seconds max warmup time
 const CACHE_DURATION = 30000 // Cache availability status for 30 seconds
+const SERVER_ERROR_CACHE_DURATION = 60000 // 60 seconds
 
 // Health check endpoints to try (in order of preference)
 const HEALTH_ENDPOINTS = [
@@ -35,7 +38,10 @@ const HEALTH_ENDPOINTS = [
 /**
  * Dispatch a custom event to notify the UI about backend status changes
  */
-function dispatchBackendStatusEvent(status: "waking-up" | "available" | "unavailable", message?: string) {
+function dispatchBackendStatusEvent(
+  status: "waking-up" | "available" | "unavailable" | "server-error",
+  message?: string,
+) {
   if (typeof document !== "undefined") {
     document.dispatchEvent(
       new CustomEvent("backend-status-change", {
@@ -47,8 +53,9 @@ function dispatchBackendStatusEvent(status: "waking-up" | "available" | "unavail
 
 /**
  * Check if the backend is available by hitting a health endpoint
+ * Returns: { isAwake: boolean, hasServerError: boolean }
  */
-async function checkBackendHealth(timeout = 10000): Promise<boolean> {
+async function checkBackendHealth(timeout = 10000): Promise<{ isAwake: boolean; hasServerError: boolean }> {
   for (const endpoint of HEALTH_ENDPOINTS) {
     try {
       const controller = new AbortController()
@@ -64,10 +71,15 @@ async function checkBackendHealth(timeout = 10000): Promise<boolean> {
 
       clearTimeout(timeoutId)
 
-      if (response.ok || response.status === 401 || response.status === 403) {
-        // Server is responding (even 401/403 means it's awake)
+      if (response.status === 500 || response.status === 502 || response.status === 503) {
+        console.log(`[v0] Backend returned ${response.status} - server is awake but has internal errors`)
+        return { isAwake: true, hasServerError: true }
+      }
+
+      if (response.ok || response.status === 401 || response.status === 403 || response.status === 404) {
+        // Server is responding (even 401/403/404 means it's awake and healthy)
         console.log(`[v0] Backend health check passed via ${endpoint}`)
-        return true
+        return { isAwake: true, hasServerError: false }
       }
     } catch (error: any) {
       if (error.name === "AbortError") {
@@ -79,7 +91,7 @@ async function checkBackendHealth(timeout = 10000): Promise<boolean> {
       continue
     }
   }
-  return false
+  return { isAwake: false, hasServerError: false }
 }
 
 /**
@@ -101,11 +113,26 @@ async function performWarmup(): Promise<boolean> {
   while (state.retryCount < MAX_RETRIES && Date.now() - startTime < WARMUP_TIMEOUT) {
     console.log(`[v0] Warmup attempt ${state.retryCount + 1}/${MAX_RETRIES}`)
 
-    const isHealthy = await checkBackendHealth()
+    const { isAwake, hasServerError } = await checkBackendHealth()
 
-    if (isHealthy) {
+    if (isAwake && hasServerError) {
+      console.log("[v0] Backend is awake but has server errors (likely database issues)")
+      state.isAvailable = true // Backend is technically available
+      state.hasServerError = true
+      state.isWakingUp = false
+      state.lastCheckTime = Date.now()
+      state.retryCount = 0
+      dispatchBackendStatusEvent(
+        "server-error",
+        "Backend server is experiencing issues. Some features may be unavailable.",
+      )
+      return true // Return true because backend IS awake, just has errors
+    }
+
+    if (isAwake && !hasServerError) {
       console.log("[v0] Backend is now available!")
       state.isAvailable = true
+      state.hasServerError = false
       state.isWakingUp = false
       state.lastCheckTime = Date.now()
       state.retryCount = 0
@@ -129,6 +156,7 @@ async function performWarmup(): Promise<boolean> {
 
   console.log("[v0] Backend warmup failed after max retries")
   state.isAvailable = false
+  state.hasServerError = false
   state.isWakingUp = false
   dispatchBackendStatusEvent("unavailable", "Backend server is not responding. Please try again later.")
 
@@ -147,6 +175,11 @@ export async function ensureBackendReady(): Promise<boolean> {
     return true
   }
 
+  if (state.hasServerError && now - state.lastCheckTime < SERVER_ERROR_CACHE_DURATION) {
+    console.log("[v0] Using cached server error state")
+    return true
+  }
+
   // If warmup is already in progress, wait for it
   if (state.isWakingUp && state.warmupPromise) {
     console.log("[v0] Waiting for existing warmup process...")
@@ -154,11 +187,17 @@ export async function ensureBackendReady(): Promise<boolean> {
   }
 
   // Quick check if backend is available
-  const isHealthy = await checkBackendHealth(5000) // Quick 5s timeout
+  const { isAwake, hasServerError } = await checkBackendHealth(5000) // Quick 5s timeout
 
-  if (isHealthy) {
+  if (isAwake) {
     state.isAvailable = true
+    state.hasServerError = hasServerError
     state.lastCheckTime = now
+
+    if (hasServerError) {
+      dispatchBackendStatusEvent("server-error", "Backend server is experiencing issues.")
+    }
+
     return true
   }
 
@@ -176,10 +215,11 @@ export async function ensureBackendReady(): Promise<boolean> {
 /**
  * Get current backend status
  */
-export function getBackendStatus(): { isWakingUp: boolean; isAvailable: boolean } {
+export function getBackendStatus(): { isWakingUp: boolean; isAvailable: boolean; hasServerError: boolean } {
   return {
     isWakingUp: state.isWakingUp,
     isAvailable: state.isAvailable,
+    hasServerError: state.hasServerError,
   }
 }
 
@@ -189,6 +229,7 @@ export function getBackendStatus(): { isWakingUp: boolean; isAvailable: boolean 
 export function resetWarmupState(): void {
   state.isWakingUp = false
   state.isAvailable = false
+  state.hasServerError = false
   state.lastCheckTime = 0
   state.retryCount = 0
   state.warmupPromise = null
@@ -196,12 +237,13 @@ export function resetWarmupState(): void {
 
 /**
  * Perform a request with automatic backend warmup
+ * Now catches 500 errors and returns undefined instead of throwing
  */
 export async function fetchWithWarmup<T>(
   requestFn: () => Promise<T>,
-  options: { maxRetries?: number; retryDelay?: number } = {},
-): Promise<T> {
-  const { maxRetries = 3, retryDelay = 2000 } = options
+  options: { maxRetries?: number; retryDelay?: number; fallbackValue?: T } = {},
+): Promise<T | undefined> {
+  const { maxRetries = 3, retryDelay = 2000, fallbackValue } = options
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -217,6 +259,17 @@ export async function fetchWithWarmup<T>(
         error.code === "ECONNREFUSED" ||
         error.name === "NetworkError"
 
+      const isServerError =
+        error.response?.status === 500 || error.response?.status === 502 || error.response?.status === 503
+
+      if (isServerError) {
+        console.log(`[v0] Server returned ${error.response?.status}, returning fallback value`)
+        state.hasServerError = true
+        state.lastCheckTime = Date.now()
+        dispatchBackendStatusEvent("server-error", "Backend server is experiencing issues.")
+        return fallbackValue
+      }
+
       if (isNetworkError && attempt < maxRetries - 1) {
         console.log(
           `[v0] Request failed due to network error, retrying in ${retryDelay}ms... (attempt ${attempt + 1}/${maxRetries})`,
@@ -230,11 +283,13 @@ export async function fetchWithWarmup<T>(
         continue
       }
 
-      throw error
+      console.log(`[v0] Request failed after ${attempt + 1} attempts, returning fallback`)
+      return fallbackValue
     }
   }
 
-  throw new Error("Max retries exceeded")
+  console.log("[v0] Max retries exceeded, returning fallback")
+  return fallbackValue
 }
 
 export default {
