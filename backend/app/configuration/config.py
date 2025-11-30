@@ -42,34 +42,34 @@ class Config:
     # File upload configuration
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB default
 
+    # Add debug logging for database connection and ensure upload folders exist
+    @staticmethod
+    def init_app(app):
+        app.logger.info(f"Using database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
+        app.logger.info(f"Uploads folder: {app.config.get('UPLOAD_FOLDER')}")
+        # Ensure upload directories exist to avoid 404 when backend serves files from disk
+        try:
+            os.makedirs(app.config.get('UPLOAD_FOLDER'), exist_ok=True)
+            os.makedirs(app.config.get('CATEGORIES_UPLOAD_FOLDER'), exist_ok=True)
+            app.logger.info("Upload directories verified/created.")
+        except Exception as e:
+            app.logger.error(f"Failed to create upload directories: {e}")
+
     # Updated CORS configuration for secure cross-domain requests
+    # Allow listing a frontend URL (or comma-separated list) via FRONTEND_URL env var.
+    # Include both deployed frontend URLs by default; can be overridden via FRONTEND_URL env var.
+   # Updated CORS configuration for secure cross-domain requests
     # Allow listing a frontend URL (or comma-separated list) via FRONTEND_URL env var.
     _frontend_env = os.environ.get('FRONTEND_URL', '')
     _frontend_list = [u.strip() for u in _frontend_env.split(',') if u.strip()]
 
-    # default trusted origins
-    _default_origins = [
+    CORS_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5000",
         "http://127.0.0.1:5000",
         "https://mizizzi-ecommerce-1.onrender.com",
-    ]
-
-    # Build a deduplicated allowed origins list (preserves order)
-    ALLOWED_ORIGINS = list(dict.fromkeys(_default_origins + _frontend_list))
-
-    # Use a callable origin checker for Flask-CORS so the server echoes back a single Origin value
-    # instead of returning a header with multiple comma-separated origins (which browsers reject).
-    @staticmethod
-    def _cors_origin_checker(origin):
-        if not origin:
-            return False
-        return origin in Config.ALLOWED_ORIGINS
-
-    # Assign the callable to CORS_ORIGINS used by Flask app config / Flask-CORS extension
-    CORS_ORIGINS = _cors_origin_checker
-
+    ] + _frontend_list
     CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
     CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "X-CSRF-TOKEN"]
     CORS_EXPOSE_HEADERS = ["Content-Range", "X-Content-Range"]
@@ -111,66 +111,6 @@ class Config:
     # Google OAuth configuration
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-
-    @staticmethod
-    def init_app(app):
-        app.logger.info(f"Using database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
-        app.logger.info(f"Uploads folder: {app.config.get('UPLOAD_FOLDER')}")
-        # Log allowed CORS origins (useful for debugging)
-        try:
-            app.logger.info(f"Allowed CORS origins: {Config.ALLOWED_ORIGINS}")
-        except Exception:
-            pass
-
-        # Ensure upload directories exist to avoid 404 when backend serves files from disk
-        try:
-            os.makedirs(app.config.get('UPLOAD_FOLDER'), exist_ok=True)
-            os.makedirs(app.config.get('CATEGORIES_UPLOAD_FOLDER'), exist_ok=True)
-            app.logger.info("Upload directories verified/created.")
-        except Exception as e:
-            app.logger.error(f"Failed to create upload directories: {e}")
-
-        # Configure Flask-CORS if available, using the callable origin checker
-        try:
-            from flask_cors import CORS
-            CORS(
-                app,
-                origins=Config.CORS_ORIGINS,
-                supports_credentials=app.config.get('CORS_SUPPORTS_CREDENTIALS', True),
-                methods=app.config.get('CORS_METHODS'),
-                allow_headers=app.config.get('CORS_ALLOW_HEADERS'),
-                expose_headers=app.config.get('CORS_EXPOSE_HEADERS'),
-                max_age=app.config.get('CORS_MAX_AGE')
-            )
-            app.logger.info("Flask-CORS configured with callable origin checker.")
-        except Exception as e:
-            app.logger.warning(f"Flask-CORS not configured (missing package or error): {e}")
-
-        # After-request hook to enforce a single Access-Control-Allow-Origin header
-        try:
-            from flask import request
-
-            @app.after_request
-            def _ensure_single_cors_header(response):
-                origin = request.headers.get('Origin')
-                # If the request origin is in the allowed list, echo it explicitly (single header)
-                if origin and origin in Config.ALLOWED_ORIGINS:
-                    response.headers['Access-Control-Allow-Origin'] = origin
-                    # Keep credentials header in sync with config
-                    if app.config.get('CORS_SUPPORTS_CREDENTIALS'):
-                        response.headers['Access-Control-Allow-Credentials'] = 'true'
-                    # Ensure Vary: Origin for caching proxies
-                    vary = response.headers.get('Vary')
-                    if vary:
-                        if 'Origin' not in vary:
-                            response.headers['Vary'] = f"{vary}, Origin"
-                    else:
-                        response.headers['Vary'] = 'Origin'
-                return response
-
-            app.logger.info("After-request CORS header enforcement installed.")
-        except Exception as e:
-            app.logger.warning(f"Failed to install after-request CORS enforcement: {e}")
 
 
 class DevelopmentConfig(Config):
