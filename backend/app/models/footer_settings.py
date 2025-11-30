@@ -1,12 +1,10 @@
-from app.configuration.extensions import db
+from ..configuration.extensions import db
 from datetime import datetime
 import json
 
 class FooterSettings(db.Model):
     """Model for managing footer content and styling"""
     __tablename__ = 'footer_settings'
-    # allow re-definition when modules are imported multiple ways (backend.app vs app)
-    __table_args__ = {"extend_existing": True}
 
     id = db.Column(db.Integer, primary_key=True)
     
@@ -56,43 +54,6 @@ class FooterSettings(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    def __init__(self, *args, **kwargs):
-        # map legacy keys to current column names
-        legacy_map = {
-            'contact_email': 'email',
-            'contact_phone': 'phone',
-            'contact_address': 'address',
-            'businessHours': 'business_hours',
-            'companyName': 'company_name',
-            'companyDescription': 'company_description',
-            'newsletterTitle': 'newsletter_title',
-            'newsletterDescription': 'newsletter_description',
-            'backgroundColor': 'background_color',
-            'newsletterBgColor': 'newsletter_bg_color',
-            'textColor': 'text_color',
-            'secondaryTextColor': 'secondary_text_color',
-            'accentColor': 'accent_color',
-            'linkColor': 'link_color',
-            'linkHoverColor': 'link_hover_color',
-        }
-        for old_key, new_key in legacy_map.items():
-            if old_key in kwargs and new_key not in kwargs:
-                kwargs[new_key] = kwargs.pop(old_key)
-
-        # Filter kwargs to only known model columns to avoid TypeError from unexpected keys
-        try:
-            allowed = set(self.__class__.__table__.columns.keys())
-        except Exception:
-            # fallback: if table metadata isn't available yet, allow kwargs as-is
-            allowed = None
-
-        if allowed is not None:
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k in allowed}
-        else:
-            filtered_kwargs = kwargs
-
-        super().__init__(*args, **filtered_kwargs)
-
     def to_dict(self):
         """Convert model to dictionary"""
         return {

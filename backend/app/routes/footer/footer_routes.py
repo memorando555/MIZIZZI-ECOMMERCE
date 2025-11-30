@@ -5,8 +5,8 @@ Handles footer content, styling, and configuration
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.footer_settings import FooterSettings
-from app.configuration.extensions import db
+from ...models.footer_settings import FooterSettings
+from ...configuration.extensions import db
 import logging
 
 # Configure logging
