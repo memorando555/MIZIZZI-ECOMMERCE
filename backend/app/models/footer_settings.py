@@ -1,4 +1,4 @@
-from ..configuration.extensions import db
+from app.configuration.extensions import db
 from datetime import datetime
 import json
 

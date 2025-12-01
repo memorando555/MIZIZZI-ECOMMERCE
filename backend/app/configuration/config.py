@@ -3,6 +3,7 @@ Configuration settings for the Mizizzi E-commerce application.
 """
 import os
 from datetime import timedelta
+import urllib.parse  # new import for masking URIs
 
 
 class Config:
@@ -68,10 +69,67 @@ class Config:
     # Socket.IO / engineio allowed origins (useful when creating SocketIO instance)
     SOCKET_IO_ALLOWED_ORIGINS = CORS_ORIGINS
 
+    @staticmethod
+    def _mask_db_uri(uri: str) -> str:
+        """
+        Mask sensitive parts of a DB URI for logging.
+        Examples:
+          postgresql://user:pass@host:5432/dbname -> postgresql://user:****@host:5432/dbname
+          sqlite:///path -> sqlite:///path (unchanged)
+        """
+        if not uri:
+            return "<not set>"
+
+        try:
+            parsed = urllib.parse.urlsplit(uri)
+            # If netloc contains credentials, mask the password
+            if "@" in parsed.netloc:
+                userinfo, hostinfo = parsed.netloc.rsplit("@", 1)
+                if ":" in userinfo:
+                    user, _ = userinfo.split(":", 1)
+                    masked_userinfo = f"{user}:****"
+                else:
+                    masked_userinfo = f"{userinfo}"
+                masked_netloc = f"{masked_userinfo}@{hostinfo}"
+            else:
+                masked_netloc = parsed.netloc
+
+            # Keep query and path but avoid printing full query if it contains tokens
+            query = parsed.query
+            # remove common token/query params from visible query for extra safety
+            if query:
+                q = urllib.parse.parse_qs(query, keep_blank_values=True)
+                safe_q = {}
+                for k, v in q.items():
+                    if any(s in k.lower() for s in ("token", "key", "password", "secret", "jwt")):
+                        safe_q[k] = ["****"]
+                    else:
+                        safe_q[k] = v
+                query = urllib.parse.urlencode(safe_q, doseq=True)
+
+            masked = urllib.parse.urlunsplit((
+                parsed.scheme,
+                masked_netloc,
+                parsed.path,
+                query,
+                parsed.fragment
+            ))
+            return masked
+        except Exception:
+            # Fallback: do not risk exposing anything
+            return "<masked-db-uri>"
+
+    # Add a small flag/env-check helper for whether DB verification should run
+    @staticmethod
+    def _db_verification_enabled(app):
+        # Always allow in debug; otherwise require explicit opt-in via env var
+        if getattr(app, "debug", False) or app.config.get("DEBUG"):
+            return True
+        return os.environ.get("ENABLE_DB_VERIFICATION", "false").lower() in ("1", "true", "on")
+
     # Add debug logging for database connection and ensure upload folders exist
     @staticmethod
     def init_app(app):
-        app.logger.info(f"Using database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
         app.logger.info(f"Uploads folder: {app.config.get('UPLOAD_FOLDER')}")
         # Log effective CORS origins to aid debugging of "not an accepted origin" errors
         try:
@@ -91,7 +149,20 @@ class Config:
 
         # Attempt a lightweight DB connection check to log real errors (non-fatal)
         try:
-            Config.verify_database_connection(app)
+            # Use masked DB URI in production/non-debug to avoid leaking credentials
+            db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+            try:
+                if getattr(app, "debug", False) or app.config.get("DEBUG"):
+                    app.logger.info(f"Using database: {db_uri}")
+                else:
+                    app.logger.info(f"Using database: {Config._mask_db_uri(db_uri)}")
+            except Exception:
+                pass
+
+            if Config._db_verification_enabled(app):
+                Config.verify_database_connection(app)
+            else:
+                app.logger.debug("Database verification skipped (disabled in production).")
         except Exception as e:
             # verify_database_connection already logs details; don't raise here
             app.logger.debug(f"Database verification raised (non-fatal): {e}")
@@ -100,14 +171,16 @@ class Config:
     def verify_database_connection(app, timeout=5):
         """
         Attempt a short test connection to the configured SQLALCHEMY_DATABASE_URI and log any issues.
-        This is non-fatal: it helps make the real DB error visible in logs (useful for diagnosing
-        '{"error":"Database error occurred"}' responses).
-        Requires SQLAlchemy to be installed; if not available we log a hint.
+        This is non-fatal: it helps make the real DB error visible in logs.
         """
         db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
         if not db_uri:
             app.logger.warning("No SQLALCHEMY_DATABASE_URI configured; skipping DB verification.")
             return
+
+        # Do not log the raw URI here; use a masked version
+        masked = Config._mask_db_uri(db_uri)
+        app.logger.debug(f"Attempting DB verification for: {masked}")
 
         try:
             # Import here to avoid hard dependency until runtime; if not available just log hint.
@@ -118,15 +191,14 @@ class Config:
             connect_args.update({"connect_timeout": int(timeout)})
             engine = create_engine(db_uri, connect_args=connect_args, pool_pre_ping=True)
             with engine.connect() as conn:
-                # simple statement to ensure DB responds
+                # Use a parameter-safe execution (SQLAlchemy text) where appropriate
                 conn.execute("SELECT 1")
             app.logger.info("Database verification succeeded.")
         except ImportError:
             app.logger.warning("SQLAlchemy not installed; cannot perform DB verification. Install sqlalchemy to get detailed DB error logs.")
         except Exception as e:
-            # Explicitly log the exception details to help debugging the runtime DB error.
-            # DO NOT include sensitive secrets in logs in production; the URI is printed above for quick diagnosis in dev.
-            app.logger.error(f"Database verification failed: {e}", exc_info=True)
+            # Log the error but avoid printing full URI or secrets.
+            app.logger.error(f"Database verification failed for {masked}: {e}", exc_info=True)
 
     # Cache configuration - using short cache type names supported by Flask-Caching
     CACHE_TYPE = 'SimpleCache'

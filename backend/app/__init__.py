@@ -5,8 +5,6 @@ Mizizzi E-commerce Backend Application Package
 import os
 import sys
 import logging
-import traceback
-import inspect
 from datetime import datetime, timezone, timedelta
 from flask import Flask, jsonify, request, send_from_directory, g
 from flask_migrate import Migrate
@@ -94,6 +92,10 @@ except ImportError:
         mail = Mail()
         cache = Cache()
         limiter = Limiter(key_func=get_remote_address)
+        # Removed duplicate SQLAlchemy instance - import from extensions instead
+        from .configuration.extensions import db, ma, mail, cache, limiter
+        from flask_socketio import SocketIO
+
         socketio = SocketIO()
         
         def get_database_url():
@@ -194,24 +196,11 @@ def create_app(config_name=None, enable_socketio=True):
     
     if enable_socketio:
         try:
-            # Use configured CORS origins and any FRONTEND_URL entries for Socket.IO allowed origins.
-            cors_origins = list(app.config.get('CORS_ORIGINS') or [])
-            frontend_env = os.environ.get('FRONTEND_URL', '')
-            frontend_list = [u.strip() for u in frontend_env.split(',') if u.strip()]
-            socketio_allowed = []  # final list or "*" fallback
-            # merge preserving order and deduplicate
-            seen = set()
-            for u in cors_origins + frontend_list:
-                if u and u not in seen:
-                    seen.add(u); socketio_allowed.append(u)
-
-            # If no explicit origins are configured, allow all for Socket.IO to avoid blocking websocket connections.
-            if not socketio_allowed:
-                socketio_allowed = "*"
-
+            cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000'])
+            
             socketio.init_app(
                 app,
-                cors_allowed_origins=socketio_allowed,
+                cors_allowed_origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://192.168.0.118:3000'],
                 async_mode='threading',
                 logger=True,
                 engineio_logger=False,
@@ -223,7 +212,7 @@ def create_app(config_name=None, enable_socketio=True):
             app.socketio = socketio
             
             app.logger.info("✅ SocketIO enabled and initialized successfully")
-            app.logger.info(f"   SocketIO allowed origins: {socketio_allowed}")
+            app.logger.info(f"   CORS origins: {cors_origins}")
             app.logger.info(f"   Async mode: threading")
         except Exception as e:
             app.logger.error(f"❌ SocketIO initialization failed: {str(e)}")
@@ -237,66 +226,38 @@ def create_app(config_name=None, enable_socketio=True):
     # Set up database migrations
     Migrate(app, db)
     
-    def get_cors_origins():
-        """Build list of allowed CORS origins including Vercel previews."""
-        base_origins = [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:5000",
-            "http://127.0.0.1:5000",
-            "https://mizizzi-ecommerce-1.onrender.com",
-        ]
-        frontend_env = os.environ.get('FRONTEND_URL', '')
-        if frontend_env:
-            for url in frontend_env.split(','):
-                url = url.strip()
-                if url and url not in base_origins:
-                    base_origins.append(url)
-        return base_origins
-    
-    allowed_origins = get_cors_origins()
-    app.config['CORS_ORIGINS'] = allowed_origins
-    
-    # Initialize Flask-CORS
-    cors_origins = app.config.get('CORS_ORIGINS', None)
-    try:
-        CORS(
-            app,
-            resources={r"/*": {"origins": cors_origins}},
-            supports_credentials=app.config.get('CORS_SUPPORTS_CREDENTIALS', True),
-            allow_headers=app.config.get('CORS_ALLOW_HEADERS'),
-            methods=app.config.get('CORS_METHODS'),
-            expose_headers=app.config.get('CORS_EXPOSE_HEADERS'),
-            max_age=app.config.get('CORS_MAX_AGE', 86400)
-        )
-        app.logger.info("Flask-CORS initialized using app.config['CORS_ORIGINS']")
-    except Exception as e:
-        app.logger.warning(f"Flask-CORS initialization failed, falling back to permissive headers: {e}")
-        # Fallback: still allow preflight to succeed; after_request hook will enforce single origin header.
-        CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    # Configure CORS properly
+    CORS(
+        app,
+        origins=['http://localhost:3000', 'http://127.0.0.1:3000'],
+        supports_credentials=True,
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "cache-control", "Pragma", "Expires", "X-MFA-Token", "Accept", "Origin"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        expose_headers=["Content-Range", "X-Content-Range"],
+        send_wildcard=False,
+        vary_header=True
+    )
 
-    @app.after_request
-    def add_cors_headers(response):
-        """Add proper CORS headers to all responses."""
+    @app.before_request
+    def _handle_options_preflight():
+        if request.method != 'OPTIONS':
+            return None
+
+        from flask import make_response
+        response = make_response(jsonify({'status': 'ok'}), 200)
+
         origin = request.headers.get('Origin')
-        
-        if origin:
-            allowed = app.config.get('CORS_ORIGINS', [])
-            
-            is_allowed = (
-                origin in allowed or
-                origin.startswith('https://mizizzi-ecommerce') and '.vercel.app' in origin
-            )
-            
-            if is_allowed:
-                response.headers['Access-Control-Allow-Origin'] = origin
-                response.headers['Access-Control-Allow-Credentials'] = 'true'
-                response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD'
-                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-MFA-Token, Accept, Origin, Cache-Control, cache-control, Pragma, Expires'
-                response.headers['Access-Control-Expose-Headers'] = 'Content-Range, X-Content-Range'
-                response.headers['Access-Control-Max-Age'] = '86400'
-                response.headers['Vary'] = 'Origin'
-        
+        allowed_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000'])
+        if origin and ("*" in allowed_origins or origin in allowed_origins):
+            response.headers['Access-Control-Allow-Origin'] = origin
+        else:
+            response.headers['Access-Control-Allow-Origin'] = ','.join(allowed_origins)
+
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, X-MFA-Token, Accept, Origin, Cache-Control, cache-control, Pragma, Expires'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Vary'] = 'Origin'
+
         return response
     
     # Initialize JWT
@@ -376,18 +337,12 @@ def create_app(config_name=None, enable_socketio=True):
             if file.filename == '':
                 return jsonify({"error": "No selected file"}), 400
             
-            # Read file to check size before saving
-            file_content = file.read()
-            if len(file_content) > 5 * 1024 * 1024: # 5MB limit
+            if len(file.read()) > 5 * 1024 * 1024:
                 return jsonify({"error": "File too large (max 5MB)"}), 400
+            file.seek(0)
             
-            # Reset file stream position after reading
-            from io import BytesIO
-            file = BytesIO(file_content)
-
             allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-            filename_lower = file.filename.lower() if hasattr(file, 'filename') else ''
-            if not ('.' in filename_lower and filename_lower.rsplit('.', 1)[1] in allowed_extensions):
+            if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
                 return jsonify({"error": "File type not allowed. Only images are permitted."}), 400
             
             original_filename = werkzeug.utils.secure_filename(file.filename)
@@ -395,10 +350,7 @@ def create_app(config_name=None, enable_socketio=True):
             unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
             
             file_path = os.path.join(product_images_dir, unique_filename)
-            
-            # Save the file from the BytesIO object
-            with open(file_path, 'wb') as f:
-                f.write(file.getvalue()) # Use getvalue() to get bytes from BytesIO
+            file.save(file_path)
             
             current_user_id = get_jwt_identity()
             app.logger.info(f"User {current_user_id} uploaded image: {unique_filename}")
@@ -418,8 +370,6 @@ def create_app(config_name=None, enable_socketio=True):
             
         except Exception as e:
             app.logger.error(f"Error uploading image: {str(e)}")
-            import traceback
-            app.logger.error(traceback.format_exc())
             return jsonify({"error": f"Failed to upload image: {str(e)}"}), 500
     
     @app.route('/api/uploads/product_images/<filename>', methods=['GET'])
@@ -460,7 +410,6 @@ def create_app(config_name=None, enable_socketio=True):
             db.session.commit()
         except Exception as e:
             app.logger.error(f"Error creating guest cart: {str(e)}")
-            db.session.rollback() # Rollback on error
         
         return cart
     
@@ -479,7 +428,6 @@ def create_app(config_name=None, enable_socketio=True):
                     g.guest_cart = get_or_create_guest_cart()
             except Exception as e:
                 app.logger.error(f"JWT error: {str(e)}")
-                # Ensure guest cart is still created even if JWT verification fails
                 g.is_authenticated = False
                 g.guest_cart = get_or_create_guest_cart()
             
@@ -1350,8 +1298,6 @@ def create_app(config_name=None, enable_socketio=True):
         
     except Exception as e:
         app.logger.error(f"Error registering blueprints: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
     
     # Create database tables and initialize admin auth tables
     def can_connect_to_db(app, timeout_seconds=3):
@@ -1372,81 +1318,96 @@ def create_app(config_name=None, enable_socketio=True):
     try:
         with app.app_context():
             if can_connect_to_db(app):
-                # Try a central create_all() but never let a RuntimeError related to an unregistered
-                # SQLAlchemy instance abort the whole startup. Many route modules create their own
-                # SQLAlchemy() instances — guard against that.
                 try:
                     db.create_all()
-                    app.logger.info("db.create_all() executed")
-                except RuntimeError as re:
-                    app.logger.warning(f"Skipping db.create_all() due to runtime error (likely different SQLAlchemy instance): {re}")
-                except Exception as e:
-                    app.logger.error(f"Unexpected error running db.create_all(): {e}")
 
-                # Helper to import and call init functions robustly.
-                import inspect
-                def _safe_init(import_paths, func_name, pass_app=False):
-                    """Try importing the init function from a list of modules and call it safely."""
-                    for module_path in import_paths:
-                        try:
-                            module = __import__(module_path, fromlist=[func_name])
-                            func = getattr(module, func_name, None)
-                            if not func:
-                                continue
-
-                            try:
-                                sig = inspect.signature(func)
-                                # If function accepts app, pass it; otherwise try without
-                                if pass_app or len(sig.parameters) == 1:
-                                    func(app)
-                                else:
-                                    func()
-                                app.logger.info(f"{func_name} initialized from {module_path}")
-                                return True
-                            except TypeError:
-                                # Fallback: call without args
-                                try:
-                                    func()
-                                    app.logger.info(f"{func_name} initialized from {module_path} (no-arg fallback)")
-                                    return True
-                                except RuntimeError as re:
-                                    app.logger.warning(f"{func_name} from {module_path} raised RuntimeError: {re}")
-                                    return False
-                                except Exception as e:
-                                    app.logger.warning(f"{func_name} from {module_path} failed: {e}")
-                                    continue
-                            except RuntimeError as re:
-                                app.logger.warning(f"{func_name} from {module_path} raised runtime error (likely DB/SQLA mismatch): {re}")
-                                return False
-                            except Exception as e:
-                                app.logger.warning(f"Error calling {func_name} from {module_path}: {e}")
-                                continue
-                        except ImportError:
-                            continue
-                    app.logger.debug(f"{func_name} not found in paths: {import_paths}")
-                    return False
-
-                # Call init functions with multiple fallback paths
-                _safe_init(['app.routes.admin.admin_auth', 'routes.admin.admin_auth'], 'init_admin_auth_tables', pass_app=False)
-                _safe_init(['app.routes.admin.admin_google_auth', 'routes.admin.admin_google_auth'], 'init_admin_google_auth_tables', pass_app=False)
-                _safe_init(['app.routes.admin.admin_email_routes', 'routes.admin.admin_email_routes'], 'init_admin_email_tables', pass_app=False)
-                _safe_init(['app.routes.footer.footer_routes', 'routes.footer.footer_routes'], 'init_footer_tables', pass_app=True)
-                # import-only checks (no init) - optional
-                try:
-                    # side panel model import attempt
-                    from .models.side_panel_model import SidePanel
-                    app.logger.info("Side panel model imported successfully")
-                except Exception:
                     try:
-                        from models.side_panel_model import SidePanel
-                        app.logger.info("Side panel model imported successfully (alt path)")
-                    except Exception:
-                        app.logger.warning("Side panel model not found - side panel system will not be available")
+                        from .routes.admin.admin_auth import init_admin_auth_tables
+                        init_admin_auth_tables()
+                        app.logger.info("Admin authentication tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.admin.admin_auth import init_admin_auth_tables
+                            init_admin_auth_tables()
+                            app.logger.info("Admin authentication tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Admin authentication tables initialization skipped - module not found")
 
-                _safe_init(['app.routes.contact_cta.contact_cta_routes', 'routes.contact_cta.contact_cta_routes'], 'init_contact_cta_tables', pass_app=False)
-                _safe_init(['app.routes.products.featured_routes', 'routes.products.featured_routes'], 'init_featured_routes_tables', pass_app=False)
-                _safe_init(['app.routes.meilisearch.meilisearch_routes', 'routes.meilisearch.meilisearch_routes', 'app.routes.meilisearch', 'routes.meilisearch'], 'init_meilisearch_tables', pass_app=False)
-                app.logger.info("Database initialization step completed (individual init calls are resilient)")
+                    try:
+                        from .routes.admin.admin_google_auth import init_admin_google_auth_tables
+                        init_admin_google_auth_tables()
+                        app.logger.info("Admin Google authentication tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.admin.admin_google_auth import init_admin_google_auth_tables
+                            init_admin_google_auth_tables()
+                            app.logger.info("Admin Google authentication tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Admin Google authentication tables initialization skipped - module not found")
+
+                    try:
+                        from .routes.admin.admin_email_routes import init_admin_email_tables
+                        init_admin_email_tables()
+                        app.logger.info("Admin email tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.admin.admin_email_routes import init_admin_email_tables
+                            init_admin_email_tables()
+                            app.logger.info("Admin email tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Admin email tables initialization skipped - module not found")
+
+                    try:
+                        from .routes.footer.footer_routes import init_footer_tables
+                        init_footer_tables(app)
+                        app.logger.info("Footer tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.footer.footer_routes import init_footer_tables
+                            init_footer_tables(app)
+                            app.logger.info("Footer tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Footer tables initialization skipped - module not found")
+
+                    try:
+                        from .models.side_panel_model import SidePanel
+                        app.logger.info("Side panel model imported successfully")
+                    except ImportError:
+                        try:
+                            from models.side_panel_model import SidePanel
+                            app.logger.info("Side panel model imported successfully")
+                        except ImportError:
+                            app.logger.warning("Side panel model not found - side panel system will not be available")
+
+                    try:
+                        from .routes.contact_cta.contact_cta_routes import init_contact_cta_tables
+                        init_contact_cta_tables()
+                        app.logger.info("Contact CTA tables initialized successfully")
+                    except ImportError:
+                        try:
+                            from routes.contact_cta.contact_cta_routes import init_contact_cta_tables
+                            init_contact_cta_tables()
+                            app.logger.info("Contact CTA tables initialized successfully")
+                        except ImportError:
+                            app.logger.warning("Contact CTA tables initialization skipped - module not found")
+
+                    try:
+                        from .routes.products.featured_routes import init_featured_routes_tables
+                        init_featured_routes_tables()
+                        app.logger.info("Featured routes tables initialized successfully")
+                    except ImportError:
+                        app.logger.warning("Featured routes tables initialization skipped - module not found")
+                        
+                    try:
+                        from .routes.meilisearch.meilisearch_routes import init_meilisearch_tables
+                        init_meilisearch_tables()
+                        app.logger.info("Meilisearch tables initialized successfully")
+                    except ImportError:
+                        app.logger.warning("Meilisearch tables initialization skipped - module not found")
+
+                    app.logger.info("Database tables created successfully")
+                except Exception as e:
+                    app.logger.error(f"Error creating database tables or initializing admin tables: {str(e)}")
             else:
                 app.logger.warning(
                     "Database is not reachable - skipping db.create_all() and admin table initializations.\n"
@@ -1455,8 +1416,6 @@ def create_app(config_name=None, enable_socketio=True):
                 )
     except Exception as e:
         app.logger.error(f"Unexpected error during DB initialization check: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
     
     # Set up order completion hooks
     try:
@@ -1497,8 +1456,6 @@ def create_app(config_name=None, enable_socketio=True):
                     
     except Exception as e:
         app.logger.error(f"Error setting up order completion hooks: {str(e)}")
-        import traceback
-        app.logger.error(traceback.format_exc())
         
         @app.route('/api/admin/inventory/sync', methods=['POST'])
         @jwt_required()
@@ -1617,37 +1574,9 @@ def create_app(config_name=None, enable_socketio=True):
     @app.errorhandler(429)
     def ratelimit_handler(e):
         return jsonify({"error": "Rate limit exceeded", "message": str(e.description)}), 429
-
-    # Handle common SQLAlchemy / app-registration runtime error more gracefully
-    try:
-        from sqlalchemy.exc import SQLAlchemyError
-    except Exception:
-        SQLAlchemyError = Exception
-
-    @app.errorhandler(SQLAlchemyError)
-    def handle_sqlalchemy_error(e):
-        # Log full exception server-side but return minimal JSON to clients
-        app.logger.error(f"SQLAlchemyError: {e}")
-        return jsonify({"error": "database_error", "message": "Database error occurred"}), 503
-
-    @app.errorhandler(RuntimeError)
-    def handle_runtime_error(e):
-        msg = str(e)
-        if "current Flask app is not registered with this 'SQLAlchemy' instance" in msg:
-            app.logger.error(f"SQLAlchemy app-registration error: {msg}")
-            return jsonify({
-                "error": "database_not_ready",
-                "message": "Database configuration mismatch (SQLAlchemy app not registered)."
-            }), 503
-        # Fallback generic runtime error response
-        app.logger.error(f"RuntimeError: {msg}")
-        return jsonify({"error": "runtime_error", "message": msg}), 500
-
+    
     @app.before_request
     def before_request():
-        # Allow OPTIONS requests to pass through for CORS preflight
-        if request.method == 'OPTIONS':
-            return None
         if request.path == '/' and request.method == 'GET':
             return
         app.logger.debug(f"Processing request: {request.method} {request.path}")
@@ -1671,10 +1600,23 @@ def create_app(config_name=None, enable_socketio=True):
             }
         }), 200
     
-    # This method was previously defined inline in the CORS initialization,
-    # but is now replaced by the @app.after_request handler.
-    # The original CORS initialization is also updated.
-    
+    @app.after_request
+    def ensure_cors_credentials(response):
+        try:
+            origin = request.headers.get('Origin')
+            allowed = app.config.get('CORS_ORIGINS', []) or []
+
+            if origin:
+                if '*' in allowed or origin in allowed:
+                    response.headers['Access-Control-Allow-Origin'] = origin
+                    response.headers['Access-Control-Allow-Credentials'] = 'true'
+
+            if 'Access-Control-Allow-Credentials' not in response.headers:
+                response.headers['Access-Control-Allow-Credentials'] = 'true'
+        except Exception:
+            pass
+        return response
+
     app.logger.info(f"Application created successfully with config: {config_name}")
     return app
 
@@ -1692,16 +1634,12 @@ def create_app_with_search():
         
     except Exception as e:
         logger.error(f"Error creating app: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
         
         try:
             # Fallback to calling create_app directly again
             return create_app()
         except Exception as fallback_error:
             logger.error(f"Fallback app creation failed: {str(fallback_error)}")
-            import traceback
-            logger.error(traceback.format_exc())
             # As a last resort, return a minimal Flask app to avoid import-time crashes.
             try:
                 fallback_app = Flask(__name__)
@@ -1715,6 +1653,4 @@ def create_app_with_search():
                 return fallback_app
             except Exception as final_err:
                 logger.error(f"Unable to create fallback Flask app: {str(final_err)}")
-                import traceback
-                logger.error(traceback.format_exc())
                 return None

@@ -33,6 +33,54 @@ limiter = Limiter(
     in_memory_fallback_enabled=True  # Fallback if storage unavailable
 )
 
+def ensure_db_bound(app):
+    """
+    Ensure the SQLAlchemy instance is bound to the given Flask app.
+    This is defensive: it sets common internal attributes and briefly
+    pushes an app context and touches the engine so that modules which
+    run DB init at import time will find a registered app.
+    """
+    try:
+        # Ensure init_app has been called at least once
+        try:
+            db.init_app(app)
+        except Exception:
+            # init_app may have been called elsewhere; continue to attempt binding
+            pass
+
+        # Try to set common internal attributes used by different SQLAlchemy versions
+        try:
+            if getattr(db, "app", None) is None:
+                setattr(db, "app", app)
+        except Exception:
+            pass
+        try:
+            if getattr(db, "_app", None) is None:
+                setattr(db, "_app", app)
+        except Exception:
+            pass
+
+        # Briefly push an app context and touch the engine/session to force registration
+        try:
+            ctx = app.app_context()
+            ctx.push()
+            # Touch engine or session to ensure binding (handles several flask-sqlalchemy versions)
+            try:
+                # Preferred: public accessor
+                _ = db.get_engine(app)
+            except Exception:
+                try:
+                    # Older/newer variants: engine attribute
+                    _ = getattr(db, "engine", None)
+                except Exception:
+                    pass
+            # No return value; context stays pushed only while we need it
+            ctx.pop()
+        except Exception as e:
+            logger.debug(f"Could not push app context to bind DB: {e}")
+    except Exception as e:
+        logger.debug(f"ensure_db_bound encountered an error: {e}")
+
 def init_extensions(app):
     """Initialize all Flask extensions."""
     # Ensure SQLALCHEMY_DATABASE_URI is set (use DATABASE_URL if provided)
@@ -49,7 +97,14 @@ def init_extensions(app):
 
     # Database
     db.init_app(app)
-    
+
+    # Ensure the SQLAlchemy instance is properly bound for early import-time DB ops
+    try:
+        ensure_db_bound(app)
+        logger.debug("SQLAlchemy instance bound to app (ensure_db_bound).")
+    except Exception as e:
+        logger.warning(f"Unable to fully bind SQLAlchemy instance to app: {e}")
+
     # Marshmallow
     ma.init_app(app)
     

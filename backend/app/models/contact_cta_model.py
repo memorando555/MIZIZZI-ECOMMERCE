@@ -3,8 +3,7 @@ Contact CTA Model
 """
 
 from datetime import datetime, timezone
-from ..configuration.extensions import db
-from sqlalchemy import text
+from app.configuration.extensions import db
 
 class ContactCTA(db.Model):
     """Contact CTA model for managing contact slides."""
@@ -17,9 +16,6 @@ class ContactCTA(db.Model):
     image = db.Column(db.String(255), nullable=False)
     gradient = db.Column(db.String(100), default='from-slate-900 via-slate-800 to-black')
     accent_color = db.Column(db.String(50), default='text-white')
-    icon = db.Column(db.String(255), nullable=False, server_default=text("''"))
-    
-    title = db.Column(db.String(255), nullable=False, server_default=text("''"))
     
     is_active = db.Column(db.Boolean, default=True, index=True)
     sort_order = db.Column(db.Integer, default=0, index=True)
@@ -46,8 +42,6 @@ class ContactCTA(db.Model):
             'image': self.image,
             'gradient': self.gradient,
             'accent_color': self.accent_color,
-            'icon': self.icon,
-            'title': self.title,
             'is_active': self.is_active,
             'sort_order': self.sort_order,
             'created_at': self.created_at.isoformat() if self.created_at else None,
