@@ -31,7 +31,7 @@ class Config:
     JWT_BLACKLIST_ENABLED = True
     JWT_BLACKLIST_TOKEN_CHECKS = ['access', 'refresh']
 
-    # Base project directory
+    # Base project directory (single definition)
     BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
     # Upload folder configuration (single canonical absolute path)
@@ -43,27 +43,21 @@ class Config:
     # File upload configuration
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB default
 
-    # CORS configuration
-    # Allow listing frontend URL(s) via FRONTEND_URL env var (comma-separated).
+    # CORS configuration (single canonical set)
     _frontend_env = os.environ.get('FRONTEND_URL', '')
     _frontend_list = [u.strip() for u in _frontend_env.split(',') if u.strip()]
 
-    # Default allowed origins for local dev and primary deployed frontend
-    CORS_DEFAULT = [
+    CORS_ORIGINS = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:5000",
         "http://127.0.0.1:5000",
         "https://mizizzi-ecommerce-1.onrender.com",
-    ]
+    ] + _frontend_list
 
-    # Add a permissive regex for vercel.app preview/deploy domains (helps Vercel preview URLs)
-    # Flask-CORS accepts regex strings for origins when they are passed through config in many setups.
-    # If your CORS initialization doesn't support regex strings here, move this logic to the app factory and pass compiled regex.
+    # Add a permissive regex for vercel.app preview/deploy domains
     CORS_VERSEL_REGEX = r"^https?:\/\/([a-z0-9\-]+?\.)*vercel\.app(:\d+)?$"
-
-    # Effective origins: defaults + any FRONTEND_URL entries + vercel preview regex
-    CORS_ORIGINS = CORS_DEFAULT + _frontend_list + [CORS_VERSEL_REGEX]
+    CORS_ORIGINS += [CORS_VERSEL_REGEX]
 
     CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
     CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "X-CSRF-TOKEN"]
@@ -73,18 +67,6 @@ class Config:
 
     # Socket.IO / engineio allowed origins (useful when creating SocketIO instance)
     SOCKET_IO_ALLOWED_ORIGINS = CORS_ORIGINS
-
-    # Base project directory
-    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-
-    # Upload folder configuration (single canonical absolute path)
-    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER') or os.path.join(BASE_DIR, 'uploads')
-    CATEGORIES_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, 'categories')
-    # URL prefix used by the API to serve uploaded files (route should use this)
-    UPLOAD_URL_PREFIX = os.environ.get('UPLOAD_URL_PREFIX', '/api/uploads')
-
-    # File upload configuration
-    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))  # 16MB default
 
     # Add debug logging for database connection and ensure upload folders exist
     @staticmethod
@@ -107,26 +89,44 @@ class Config:
         except Exception as e:
             app.logger.error(f"Failed to create upload directories: {e}")
 
-    # Updated CORS configuration for secure cross-domain requests
-    # Allow listing a frontend URL (or comma-separated list) via FRONTEND_URL env var.
-    # Include both deployed frontend URLs by default; can be overridden via FRONTEND_URL env var.
-   # Updated CORS configuration for secure cross-domain requests
-    # Allow listing a frontend URL (or comma-separated list) via FRONTEND_URL env var.
-    _frontend_env = os.environ.get('FRONTEND_URL', '')
-    _frontend_list = [u.strip() for u in _frontend_env.split(',') if u.strip()]
+        # Attempt a lightweight DB connection check to log real errors (non-fatal)
+        try:
+            Config.verify_database_connection(app)
+        except Exception as e:
+            # verify_database_connection already logs details; don't raise here
+            app.logger.debug(f"Database verification raised (non-fatal): {e}")
 
-    CORS_ORIGINS = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:5000",
-        "http://127.0.0.1:5000",
-        "https://mizizzi-ecommerce-1.onrender.com",
-    ] + _frontend_list
-    CORS_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"]
-    CORS_ALLOW_HEADERS = ["Content-Type", "Authorization", "X-Requested-With", "Accept", "Origin", "X-CSRF-TOKEN"]
-    CORS_EXPOSE_HEADERS = ["Content-Range", "X-Content-Range"]
-    CORS_SUPPORTS_CREDENTIALS = True
-    CORS_MAX_AGE = 600  # Cache preflight requests for 10 minutes
+    @staticmethod
+    def verify_database_connection(app, timeout=5):
+        """
+        Attempt a short test connection to the configured SQLALCHEMY_DATABASE_URI and log any issues.
+        This is non-fatal: it helps make the real DB error visible in logs (useful for diagnosing
+        '{"error":"Database error occurred"}' responses).
+        Requires SQLAlchemy to be installed; if not available we log a hint.
+        """
+        db_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+        if not db_uri:
+            app.logger.warning("No SQLALCHEMY_DATABASE_URI configured; skipping DB verification.")
+            return
+
+        try:
+            # Import here to avoid hard dependency until runtime; if not available just log hint.
+            from sqlalchemy import create_engine
+            # Create engine with short connect_args where supported
+            connect_args = {}
+            # For psycopg2-based URLs we can pass connect_timeout via connect_args
+            connect_args.update({"connect_timeout": int(timeout)})
+            engine = create_engine(db_uri, connect_args=connect_args, pool_pre_ping=True)
+            with engine.connect() as conn:
+                # simple statement to ensure DB responds
+                conn.execute("SELECT 1")
+            app.logger.info("Database verification succeeded.")
+        except ImportError:
+            app.logger.warning("SQLAlchemy not installed; cannot perform DB verification. Install sqlalchemy to get detailed DB error logs.")
+        except Exception as e:
+            # Explicitly log the exception details to help debugging the runtime DB error.
+            # DO NOT include sensitive secrets in logs in production; the URI is printed above for quick diagnosis in dev.
+            app.logger.error(f"Database verification failed: {e}", exc_info=True)
 
     # Cache configuration - using short cache type names supported by Flask-Caching
     CACHE_TYPE = 'SimpleCache'
