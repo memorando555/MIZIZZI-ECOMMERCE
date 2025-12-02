@@ -236,7 +236,6 @@ threadpoolctl
 tomlkit
 tornado
 tqdm
-transformers
 triton
 twilio
 typer
