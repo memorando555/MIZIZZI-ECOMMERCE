@@ -108,14 +108,14 @@ export function GoogleAuthButton({ mode = "signup", fullWidth = false, showAnima
 
           <motion.div
             className="flex items-center justify-center gap-2 relative z-10"
-            animate={contentVariants}
+            animate={status}
             variants={contentVariants}
             transition={{ duration: 0.2 }}
           >
             {status === "loading" ? (
               <>
                 <motion.div
-                  animate={iconVariants}
+                  animate={status}
                   variants={iconVariants}
                   transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
                 >

@@ -1,6 +1,17 @@
 from app.configuration.extensions import db
 from datetime import datetime
 import json
+import logging
+import time
+from sqlalchemy import exc as sa_exc
+
+try:
+    import psycopg2
+    DB_OP_ERRORS = (sa_exc.OperationalError, sa_exc.DBAPIError, psycopg2.OperationalError)
+except Exception:
+    DB_OP_ERRORS = (sa_exc.OperationalError, sa_exc.DBAPIError)
+
+logger = logging.getLogger(__name__)
 
 class FooterSettings(db.Model):
     """Model for managing footer content and styling"""
@@ -100,8 +111,9 @@ class FooterSettings(db.Model):
             'paymentMethods': self.payment_methods,
             'copyright': self.copyright_text,
             'isActive': self.is_active,
-            'createdAt': self.created_at.isoformat(),
-            'updatedAt': self.updated_at.isoformat(),
+            # Safe timestamp handling (may be None for in-memory fallback)
+            'createdAt': self.created_at.isoformat() if getattr(self, 'created_at', None) else None,
+            'updatedAt': self.updated_at.isoformat() if getattr(self, 'updated_at', None) else None,
         }
     
     def to_css_variables(self):
@@ -117,16 +129,55 @@ class FooterSettings(db.Model):
 """
     
     @staticmethod
-    def get_active_settings():
-        """Get the active footer settings"""
-        return FooterSettings.query.filter_by(is_active=True).first()
-    
+    def _in_memory_default():
+        """Return an in-memory default FooterSettings instance (not persisted)."""
+        fs = FooterSettings()
+        # mark as non-persistent fallback
+        fs.created_at = None
+        fs.updated_at = None
+        fs.is_active = True
+        return fs
+
     @staticmethod
-    def get_or_create_default():
-        """Get existing settings or create default ones"""
-        settings = FooterSettings.query.filter_by(is_active=True).first()
-        if not settings:
-            settings = FooterSettings()
-            db.session.add(settings)
-            db.session.commit()
-        return settings
+    def get_active_settings(retries: int = 2, backoff: float = 0.5):
+        """Get the active footer settings with retries and in-memory fallback on DB errors."""
+        attempt = 0
+        while True:
+            try:
+                return FooterSettings.query.filter_by(is_active=True).first()
+            except DB_OP_ERRORS as e:
+                attempt += 1
+                logger.error("[Footer] Error fetching settings (attempt %s): %s", attempt, e)
+                if attempt > retries:
+                    logger.warning("[Footer] DB unreachable, returning in-memory default footer settings")
+                    return FooterSettings._in_memory_default()
+                time.sleep(backoff * attempt)
+
+    @staticmethod
+    def get_or_create_default(retries: int = 2, backoff: float = 0.5):
+        """Get existing settings or create default ones. Falls back to in-memory default on DB errors."""
+        attempt = 0
+        while True:
+            try:
+                settings = FooterSettings.query.filter_by(is_active=True).first()
+                if not settings:
+                    settings = FooterSettings()
+                    db.session.add(settings)
+                    try:
+                        db.session.commit()
+                    except DB_OP_ERRORS as commit_exc:
+                        logger.error("[Footer] Commit failed when creating default settings: %s", commit_exc)
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
+                        return FooterSettings._in_memory_default()
+                return settings
+            except DB_OP_ERRORS as e:
+                attempt += 1
+                logger.error("[Footer] Error accessing DB for get_or_create_default (attempt %s): %s", attempt, e)
+                if attempt > retries:
+                    logger.warning("[Footer] DB unreachable, returning in-memory default footer settings")
+                    return FooterSettings._in_memory_default()
+                time.sleep(backoff * attempt)
+
