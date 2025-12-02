@@ -5,8 +5,8 @@ Handles footer content, styling, and configuration
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.configuration.extensions import db
 from app.models.footer_settings import FooterSettings
+from app.configuration.extensions import db
 import logging
 
 # Configure logging
@@ -219,14 +219,9 @@ def reset_footer_settings():
 
 def init_footer_tables(app):
     """Initialize footer tables in the database"""
-    if not hasattr(db, 'app') and not db.get_app():
-        logger.warning('Database not initialized with app, skipping footer table init')
-        return
-        
     with app.app_context():
         try:
             logger.info('Initializing footer tables...')
-            from app.models.footer_settings import FooterSettings
             db.create_all()
             
             # Create default footer settings if none exist
@@ -235,4 +230,4 @@ def init_footer_tables(app):
             logger.info('✅ Footer tables initialized successfully')
         except Exception as e:
             logger.error(f'❌ Error initializing footer tables: {str(e)}')
-            logger.warning('Footer tables initialization failed, but continuing app startup')
+            raise

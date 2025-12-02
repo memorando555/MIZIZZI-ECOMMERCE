@@ -1,6 +1,6 @@
 import { getAuthToken } from "../auth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
 export interface GoogleAuthResponse {
   status: "success" | "error"
@@ -22,7 +22,6 @@ export interface GoogleConfigResponse {
   status: "success" | "error"
   client_id: string
   configured: boolean
-  message?: string
 }
 
 export interface GoogleLinkResponse {
@@ -145,26 +144,6 @@ class GoogleOAuthAPI {
         )
       }
       throw error
-    }
-  }
-
-  /**
-   * Check if Google OAuth is configured and available
-   * Returns configuration status without throwing errors
-   */
-  async isGoogleOAuthAvailable(): Promise<{ available: boolean; message?: string }> {
-    try {
-      const config = await this.getGoogleConfig({ timeout: 5000 })
-      return {
-        available: config.configured && !!config.client_id,
-        message: config.configured ? undefined : "Google Sign-In is not available at this time.",
-      }
-    } catch (error) {
-      console.warn("[v0] Could not check Google OAuth availability:", error)
-      return {
-        available: false,
-        message: "Unable to connect to authentication server.",
-      }
     }
   }
 
@@ -373,7 +352,7 @@ class GoogleOAuthAPI {
 
       if (!config.configured || !config.client_id) {
         console.error("[v0] Google OAuth not configured on server")
-        reject(new Error("Google Sign-In is currently unavailable. Please use email/password login instead."))
+        reject(new Error("Google OAuth is not configured. Please contact support."))
         return
       }
 

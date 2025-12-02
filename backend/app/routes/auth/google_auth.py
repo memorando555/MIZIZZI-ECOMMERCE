@@ -544,11 +544,10 @@ def get_google_config():
         
         if not client_id:
             logger.warning("GOOGLE_CLIENT_ID is not configured")
-            # Return 200 so frontend can handle the "not configured" case gracefully
             return jsonify({
                 'configured': False,
                 'message': 'Google OAuth is not configured on the server'
-            }), 200
+            }), 500
 
         return jsonify({
             'configured': True,
