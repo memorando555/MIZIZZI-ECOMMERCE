@@ -1,6 +1,6 @@
 import { getAuthToken } from "../auth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
 const ALLOWED_ADMIN_EMAILS = [
   "info.contactgilbertdev@gmail.com",
