@@ -9,7 +9,7 @@ amqp
 aniso8601
 annotated-types
 anyio
-attrs 
+attrs
 Authlib
 awscli
 babel
@@ -17,7 +17,7 @@ bandit
 bcrypt
 bidict
 billiard
-black 
+black
 bleach
 blinker
 botocore
@@ -85,7 +85,7 @@ google-auth-oauthlib
 googleapis-common-protos
 greenlet
 gunicorn
-h
+h11
 hf-xet
 httpcore
 httpie
@@ -149,6 +149,7 @@ proto-plus
 protobuf
 psutil
 psycopg
+psycopg2
 psycopg2-binary
 py
 py-cpuinfo
@@ -201,7 +202,6 @@ rpds-py
 rsa
 ruamel.yaml
 ruamel.yaml.clib
-sib-api-v3-sdk
 s3transfer
 safetensors
 safety
@@ -214,6 +214,7 @@ sentence-transformers
 sentry-sdk
 setuptools
 shellingham
+sib-api-v3-sdk
 simple-websocket
 six
 smmap
@@ -224,6 +225,7 @@ sphinx-rtd-theme
 sphinxcontrib-applehelp
 sphinxcontrib-devhelp
 sphinxcontrib-htmlhelp
+sphinxcontrib-jquery
 sphinxcontrib-jsmath
 sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml

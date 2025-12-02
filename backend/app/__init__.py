@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def setup_app_environment():
     """Setup the app environment and paths."""
-    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    app_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Add app directory to Python path if not already there
     if app_dir not in sys.path:
@@ -337,10 +337,7 @@ def create_app(config_name=None, enable_socketio=True):
             if file.filename == '':
                 return jsonify({"error": "No selected file"}), 400
             
-            # Check file size before reading the whole file
-            file.seek(0, os.SEEK_END)
-            file_size = file.tell()
-            if file_size > 5 * 1024 * 1024: # 5MB limit
+            if len(file.read()) > 5 * 1024 * 1024:
                 return jsonify({"error": "File too large (max 5MB)"}), 400
             file.seek(0)
             
@@ -394,12 +391,10 @@ def create_app(config_name=None, enable_socketio=True):
             try:
                 from models.models import Cart
             except ImportError:
-                # Define a simple fallback class if Cart model is not found
                 class Cart:
                     def __init__(self, guest_id=None):
                         self.guest_id = guest_id
                         self.is_active = True
-                # Return a new cart instance if models are not available
                 return Cart(guest_id=str(uuid.uuid4()))
         
         guest_cart_id = request.cookies.get('guest_cart_id')
@@ -432,7 +427,7 @@ def create_app(config_name=None, enable_socketio=True):
                     g.is_authenticated = False
                     g.guest_cart = get_or_create_guest_cart()
             except Exception as e:
-                app.logger.error(f"JWT error in jwt_optional decorator: {str(e)}")
+                app.logger.error(f"JWT error: {str(e)}")
                 g.is_authenticated = False
                 g.guest_cart = get_or_create_guest_cart()
             
@@ -982,7 +977,6 @@ def create_app(config_name=None, enable_socketio=True):
         app.register_blueprint(final_blueprints['admin_meilisearch_routes'], url_prefix='/api/admin/meilisearch')
         app.logger.info("✅ Meilisearch routes registered successfully")
 
-        # Import Google Auth routes
         try:
             app.logger.debug("Importing Google Auth routes...")
             from app.routes.auth.google_auth import google_auth_routes
@@ -998,7 +992,7 @@ def create_app(config_name=None, enable_socketio=True):
                 return jsonify({
                     'configured': False,
                     'message': 'Google OAuth is not configured'
-                }), 200  # Changed from 500 to 200
+                }), 500
             
             app.register_blueprint(fallback_google, url_prefix='/api/auth')
             app.logger.warning("⚠️ Using fallback Google OAuth routes")
