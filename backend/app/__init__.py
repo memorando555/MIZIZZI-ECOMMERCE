@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def setup_app_environment():
     """Setup the app environment and paths."""
-    app_dir = os.path.dirname(os.path.abspath(__file__))
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     # Add app directory to Python path if not already there
     if app_dir not in sys.path:
@@ -118,9 +118,14 @@ except ImportError:
             }
             JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
             JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-            CORS_ORIGINS = ['http://localhost:3000']
+            CORS_ORIGINS = ['http://localhost:3000', 'https://mizizzi-ecommerce-87pr-pt9scgbc3-jons-projects-a41f528c.vercel.app']
             CACHE_TYPE = 'SimpleCache'
             RATELIMIT_STORAGE_URI = 'memory://'
+            GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+            GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+            BREVO_API_KEY = os.environ.get('BREVO_API_KEY')
+            BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'info.contactgilbertdev@gmail.com')
+            MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'info.contactgilbertdev@gmail.com')
         
         class DevelopmentConfig(Config):
             DEBUG = True
@@ -196,11 +201,11 @@ def create_app(config_name=None, enable_socketio=True):
     
     if enable_socketio:
         try:
-            cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000'])
+            cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'https://mizizzi-ecommerce-87pr-pt9scgbc3-jons-projects-a41f528c.vercel.app'])
             
             socketio.init_app(
                 app,
-                cors_allowed_origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://192.168.0.118:3000'],
+                cors_allowed_origins=['http://localhost:3000', 'https://mizizzi-ecommerce-87pr-pt9scgbc3-jons-projects-a41f528c.vercel.app', 'http://192.168.0.118:3000'],
                 async_mode='threading',
                 logger=True,
                 engineio_logger=False,
@@ -229,7 +234,7 @@ def create_app(config_name=None, enable_socketio=True):
     # Configure CORS properly
     CORS(
         app,
-        origins=['http://localhost:3000', 'http://127.0.0.1:3000'],
+        origins=['http://localhost:3000', 'https://mizizzi-ecommerce-87pr-pt9scgbc3-jons-projects-a41f528c.vercel.app'],
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "cache-control", "Pragma", "Expires", "X-MFA-Token", "Accept", "Origin"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -247,7 +252,7 @@ def create_app(config_name=None, enable_socketio=True):
         response = make_response(jsonify({'status': 'ok'}), 200)
 
         origin = request.headers.get('Origin')
-        allowed_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000'])
+        allowed_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'https://mizizzi-ecommerce-87pr-pt9scgbc3-jons-projects-a41f528c.vercel.app'])
         if origin and ("*" in allowed_origins or origin in allowed_origins):
             response.headers['Access-Control-Allow-Origin'] = origin
         else:
