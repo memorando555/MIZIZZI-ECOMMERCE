@@ -12,11 +12,11 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
 try:
-    from ...configuration.extensions import db, limiter
-    from ...models.models import User, UserRole
+    from app.configuration.extensions import db, limiter
+    from app.models.models import User, UserRole
 except ImportError:
-    from backend.app.configuration.extensions import db, limiter
-    from backend.app.models.models import User, UserRole
+    from app.configuration.extensions import db, limiter
+    from app.models.models import User, UserRole
 
 # Import log_admin_activity from the local admin_auth module
 from .admin_auth import log_admin_activity
