@@ -1,223 +1,224 @@
-africastalking
-aiohappyeyeballs
-aiohttp
-aiohttp-retry
-aiosignal
-alabaster
-alembic
-amqp
-aniso8601
-annotated-types
-anyio
-attrs
-Authlib
-awscli
-babel
-bandit
-bcrypt
-bidict
-billiard
-black
-bleach
-blinker
-botocore
-brevo-python
-cachelib
-cachetools
-camel-converter
-celery
-Cerberus
-certifi
-cffi
-charset-normalizer
-click
-click-didyoumean
-click-plugins
-click-repl
-cloudinary
-colorama
-coverage
-cryptography
-decorator
-defusedxml
-Deprecated
-dnspython
-docutils
-dparse
-email-validator
-et_xmlfile
-eventlet
-exceptiongroup
-execnet
-fabric
-factory_boy
-Faker
-filelock
-flake8
-flasgger
+# --------------------------------------
+# Core Web Framework & Extensions
+# --------------------------------------
 Flask
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-WTF
 Flask-Bcrypt
 Flask-Caching
-flask-cors
-Flask-JWT-Extended
-Flask-Limiter
+Flask-Login
 Flask-Mail
-flask-marshmallow
-Flask-Migrate
 Flask-RESTful
 flask-restx
 Flask-Session
+flask-marshmallow
+Flask-JWT-Extended
+Flask-Limiter
+flask-cors
 Flask-SocketIO
-Flask-SQLAlchemy
 Flask-Testing
-Flask-WTF
-flower
-freezegun
-frozenlist
-fsspec
-fuzzywuzzy
-gitdb
-GitPython
-google-api-core
-google-api-python-client
+
+# --------------------------------------
+# Authentication, Security & Tokens
+# --------------------------------------
+PyJWT
+Authlib
+passlib
+bcrypt
+itsdangerous
+python-socketio
+python-engineio
+pyotp
+
+# --------------------------------------
+# Google Auth & OAuth
+# --------------------------------------
 google-auth
 google-auth-httplib2
 google-auth-oauthlib
+google-api-core
+google-api-python-client
 googleapis-common-protos
-greenlet
-gunicorn
-h11
-httpcore
-httpie
-httplib2
-httpx
-humanize
-idna
-imagesize
-importlib_resources
-iniconfig
-invoke
-isort
-itsdangerous
-Jinja2
-jmespath
-joblib
-json-logging
-jsonschema
-jsonschema-specifications
-kombu
-Levenshtein
-librt
-limits
-Mako
-markdown-it-py
-MarkupSafe
-marshmallow
-marshmallow-sqlalchemy
-mccabe
-mdurl
-meilisearch
-mirakuru
-mistune
-mpmath
-msgspec
-multidict
-mypy
-mypy_extensions
-networkx
-newrelic
-nltk
-numpy
 oauthlib
-openpyxl
-ordered-set
-packaging
-pandas
-paramiko
-passlib
-pathspec
-pbr
-phonenumbers
-pillow
-platformdirs
-pluggy
-port-for
-prometheus_client
-prompt_toolkit
-propcache
-proto-plus
-protobuf
-psutil
+requests-oauthlib
+
+# --------------------------------------
+# Cloud Messaging, Email & SMS
+# --------------------------------------
+sendgrid
+sib-api-v3-sdk
+brevo-python
+twilio
+africastalking
+
+# --------------------------------------
+# Database & ORM
+# --------------------------------------
+SQLAlchemy
 psycopg
 psycopg2
 psycopg2-binary
-py
-py-cpuinfo
-pyasn1
-pyasn1_modules
-pycodestyle
-pycparser
+PyMySQL
+alembic
+redis
+
+# --------------------------------------
+# File Processing, Images & Media
+# --------------------------------------
+pillow
+python-magic
+qrcode
+
+# --------------------------------------
+# Data Handling, Formats & Serialization
+# --------------------------------------
+marshmallow
+marshmallow-sqlalchemy
+jsonschema
+jsonschema-specifications
+schema
 pydantic
 pydantic_core
-pyflakes
-Pygments
-PyJWT
-PyMySQL
-PyNaCl
-pyotp
-pyparsing
-PySocks
-pytest
-pytest-benchmark
-pytest-cov
-pytest-flask
-pytest-html
-pytest-metadata
-pytest-mock
-pytest-postgresql
-pytest-xdist
-python-dateutil
-python-dotenv
-python-engineio
-python-http-client
-python-Levenshtein
-python-magic
-python-slugify
-python-socketio
-pytokens
-pytz
+msgspec
 PyYAML
-qrcode
-RapidFuzz
-redis
-referencing
-regex
-reportlab
+
+# --------------------------------------
+# Networking, HTTP Clients & APIs
+# --------------------------------------
 requests
-requests-oauthlib
+httpx
+httpcore
+httplib2
 requests-toolbelt
-responses
-retry
+simple-websocket
+websockets
+
+# --------------------------------------
+# CLI, Terminal & Productivity Tools
+# --------------------------------------
+click
+click-repl
+click-plugins
+click-didyoumean
+typer
+prompt_toolkit
+colorama
+humanize
 rich
-rpds-py
-rsa
-ruamel.yaml
-ruamel.yaml.clib
-s3transfer
-safety
-safety-schemas
-schema
+
+# --------------------------------------
+# Asynchronous Tools
+# --------------------------------------
+aiohttp
+aiohttp-retry
+aiosignal
+aiohappyeyeballs
+multidict
+frozenlist
+
+# --------------------------------------
+# Celery & Task Queues
+# --------------------------------------
+celery
+billiard
+kombu
+vine
+amqp
+eventlet
+flower
+
+# --------------------------------------
+# Search & Indexing
+# --------------------------------------
+meilisearch
+
+# --------------------------------------
+# NLP, ML & Data Science
+# --------------------------------------
+numpy
+pandas
 scikit-learn
 scipy
-sendgrid
-setuptools
-shellingham
-sib-api-v3-sdk
-simple-websocket
-six
-smmap
-sniffio
-snowballstemmer
+nltk
+joblib
+networkx
+sympy
+
+# --------------------------------------
+# Validation, Parsing & Formatting
+# --------------------------------------
+email-validator
+phonenumbers
+python-slugify
+text-unidecode
+regex
+markdown-it-py
+mistune
+mdurl
+
+# --------------------------------------
+# Utilities & Helpers
+# --------------------------------------
+protobuf
+proto-plus
+python-dateutil
+pytz
+tzlocal
+tzdata
+uritemplate
+camel-converter
+cachetools
+cachelib
+decorator
+Deprecated
+wrapt
+exceptiongroup
+attrs
+platformdirs
+
+# --------------------------------------
+# Logging & Monitoring
+# --------------------------------------
+structlog
+json-logging
+prometheus_client
+newrelic
+
+# --------------------------------------
+# Testing & QA
+# --------------------------------------
+pytest
+pytest-flask
+pytest-cov
+pytest-xdist
+pytest-mock
+pytest-html
+pytest-metadata
+pytest-postgresql
+pytest-benchmark
+freezegun
+Faker
+factory_boy
+coverage
+
+# --------------------------------------
+# Code Quality & Linting
+# --------------------------------------
+black
+flake8
+pycodestyle
+pyflakes
+isort
+mypy
+mypy_extensions
+bandit
+safety
+dparse
+
+# --------------------------------------
+# Documentation
+# --------------------------------------
 Sphinx
 sphinx-rtd-theme
 sphinxcontrib-applehelp
@@ -227,34 +228,91 @@ sphinxcontrib-jquery
 sphinxcontrib-jsmath
 sphinxcontrib-qthelp
 sphinxcontrib-serializinghtml
-SQLAlchemy
-starkbank-ecdsa
-stevedore
-stripe
-structlog
-sympy
-tenacity
-text-unidecode
-threadpoolctl
-tomlkit
-tornado
-tqdm
-twilio
-typer
-typing-inspection
-typing_extensions
-tzdata
-tzlocal
-uritemplate
-urllib3
-vine
-wcwidth
-webargs
-webencodings
+docutils
+alabaster
+imagesize
+mistune
+
+# --------------------------------------
+# Async, Websockets & Realtime
+# --------------------------------------
 websockets
-Werkzeug
-wheel
-wrapt
 wsproto
-WTForms
+simple-websocket
+
+# --------------------------------------
+# File Formats & Excel
+# --------------------------------------
+openpyxl
+et_xmlfile
+
+# --------------------------------------
+# Cloud, Storage & AWS
+# --------------------------------------
+boto3
+botocore
+awscli
+s3transfer
+
+# --------------------------------------
+# Cryptography
+# --------------------------------------
+cryptography
+cffi
+pyasn1
+pyasn1_modules
+starkbank-ecdsa
+rsa
+PyNaCl
+
+# --------------------------------------
+# DevOps, SSH, Networking
+# --------------------------------------
+paramiko
+fabric
+invoke
+port-for
+
+# --------------------------------------
+# Search & String Matching
+# --------------------------------------
+fuzzywuzzy
+RapidFuzz
+python-Levenshtein
+Levenshtein
+
+# --------------------------------------
+# URL, Encoding & Normalizing
+# --------------------------------------
+charset-normalizer
+idna
+urllib3
 yarl
+uritemplate
+
+# --------------------------------------
+# Web Servers
+# --------------------------------------
+gunicorn
+tornado
+simple-websocket
+
+# --------------------------------------
+# Misc & Dependency Utilities
+# --------------------------------------
+setuptools
+wheel
+filelock
+pluggy
+stevedore
+sniffio
+wrapt
+rpds-py
+importlib_resources
+ordered-set
+mirakuru
+fsspec
+propcache
+retry
+pytokens
+imagesize

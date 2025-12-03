@@ -15,20 +15,25 @@ from flask_jwt_extended import (
     get_jwt_identity,
     get_jwt
 )
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
 import random
 import string
-
-from ...configuration.extensions import db, limiter
-from ...models.models import User
-from .auth_email_templates import send_welcome_email
 
 # Setup logging
 logger = logging.getLogger(__name__)
 
 # Create Blueprint
 google_auth_routes = Blueprint('google_auth_routes', __name__)
+
+def get_google_auth_modules():
+    """Lazily import Google auth modules with proper error handling."""
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests as google_requests
+        return id_token, google_requests
+    except ImportError as e:
+        logger.error(f"Google Auth library not installed: {e}")
+        logger.error("Please install: pip install google-auth google-auth-oauthlib")
+        return None, None
 
 
 def get_csrf_token():
@@ -38,25 +43,27 @@ def get_csrf_token():
 
 def set_access_cookies(response, access_token):
     """Set access token cookie"""
+    is_production = os.environ.get('FLASK_ENV') == 'production'
     response.set_cookie(
         'access_token_cookie',
         access_token,
         max_age=3600,
-        secure=False,  # False for local development, True for production
+        secure=is_production,
         httponly=True,
-        samesite='Lax'
+        samesite='Lax' if not is_production else 'None'
     )
 
 
 def set_refresh_cookies(response, refresh_token):
     """Set refresh token cookie"""
+    is_production = os.environ.get('FLASK_ENV') == 'production'
     response.set_cookie(
         'refresh_token_cookie',
         refresh_token,
         max_age=2592000,  # 30 days
-        secure=False,  # False for local development, True for production
+        secure=is_production,
         httponly=True,
-        samesite='Lax'
+        samesite='Lax' if not is_production else 'None'
     )
 
 
@@ -64,7 +71,6 @@ def set_refresh_cookies(response, refresh_token):
 # GOOGLE LOGIN ENDPOINT
 # ============================================
 @google_auth_routes.route('/google-login', methods=['POST', 'OPTIONS'])
-@limiter.limit("10 per minute")
 def google_login():
     """
     Google OAuth Login/Register Endpoint
@@ -87,6 +93,19 @@ def google_login():
         return jsonify({'status': 'ok'}), 200
     
     try:
+        from ...configuration.extensions import db, limiter
+        from ...models.models import User
+        from .auth_email_templates import send_welcome_email
+    except ImportError:
+        try:
+            from app.configuration.extensions import db, limiter
+            from app.models.models import User
+            from app.routes.auth.auth_email_templates import send_welcome_email
+        except ImportError as e:
+            logger.error(f"Failed to import required modules: {e}")
+            return jsonify({'msg': 'Server configuration error', 'status': 'error'}), 500
+    
+    try:
         data = request.get_json()
         if not data:
             logger.warning("Google login: Missing request body")
@@ -97,6 +116,7 @@ def google_login():
             logger.warning("Google login: Missing token in request")
             return jsonify({'msg': 'Google token is required', 'status': 'error'}), 400
 
+        # Get Google Client ID from config or environment
         client_id = current_app.config.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
         
         if not client_id:
@@ -108,9 +128,18 @@ def google_login():
 
         logger.info(f"Google login: Verifying token with client_id: {client_id[:20]}...")
 
+        id_token_module, google_requests = get_google_auth_modules()
+        
+        if id_token_module is None or google_requests is None:
+            logger.error("Google Auth library not available")
+            return jsonify({
+                'msg': 'Google authentication is not available. Please contact support.',
+                'status': 'error'
+            }), 500
+
         # Verify the Google token
         try:
-            idinfo = id_token.verify_oauth2_token(
+            idinfo = id_token_module.verify_oauth2_token(
                 token,
                 google_requests.Request(),
                 client_id
@@ -138,7 +167,7 @@ def google_login():
             logger.warning(f"Google login: Invalid token - {str(e)}")
             return jsonify({'msg': 'Invalid Google token. Please try again.', 'status': 'error'}), 400
         except Exception as e:
-            logger.error(f"Google login: Error verifying token - {str(e)}")
+            logger.error(f"Google login: Error verifying token - {str(e)}", exc_info=True)
             return jsonify({'msg': 'Error verifying Google token. Please try again.', 'status': 'error'}), 500
 
         # Check if user exists
@@ -236,7 +265,10 @@ def google_login():
 
     except Exception as e:
         logger.error(f"Google login: Unexpected error - {str(e)}", exc_info=True)
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except:
+            pass
         return jsonify({'msg': 'An error occurred during authentication. Please try again.', 'status': 'error'}), 500
 
 
@@ -276,11 +308,18 @@ def google_logout():
 # ============================================
 @google_auth_routes.route('/link-google', methods=['POST', 'OPTIONS'])
 @jwt_required()
-@limiter.limit("5 per minute")
 def link_google_account():
     """Link Google Account to Existing User"""
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
+    
+    # Import dependencies
+    try:
+        from ...configuration.extensions import db
+        from ...models.models import User
+    except ImportError:
+        from app.configuration.extensions import db
+        from app.models.models import User
     
     try:
         user_id = get_jwt_identity()
@@ -297,13 +336,19 @@ def link_google_account():
         if not token:
             return jsonify({'msg': 'Google token is required', 'status': 'error'}), 400
 
+        # Get Google auth modules
+        id_token_module, google_requests = get_google_auth_modules()
+        
+        if id_token_module is None or google_requests is None:
+            return jsonify({'msg': 'Google authentication is not available', 'status': 'error'}), 500
+
         # Verify Google token
         try:
             client_id = current_app.config.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
             if not client_id:
                 return jsonify({'msg': 'Server configuration error', 'status': 'error'}), 500
 
-            idinfo = id_token.verify_oauth2_token(
+            idinfo = id_token_module.verify_oauth2_token(
                 token,
                 google_requests.Request(),
                 client_id
@@ -345,7 +390,10 @@ def link_google_account():
 
     except Exception as e:
         logger.error(f"Error in link_google_account: {str(e)}")
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except:
+            pass
         return jsonify({'msg': 'Error linking Google account', 'status': 'error'}), 500
 
 
@@ -354,11 +402,18 @@ def link_google_account():
 # ============================================
 @google_auth_routes.route('/unlink-google', methods=['POST', 'OPTIONS'])
 @jwt_required()
-@limiter.limit("5 per minute")
 def unlink_google_account():
     """Unlink Google Account from User"""
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
+    
+    # Import dependencies
+    try:
+        from ...configuration.extensions import db
+        from ...models.models import User
+    except ImportError:
+        from app.configuration.extensions import db
+        from app.models.models import User
     
     try:
         user_id = get_jwt_identity()
@@ -387,7 +442,10 @@ def unlink_google_account():
 
     except Exception as e:
         logger.error(f"Error in unlink_google_account: {str(e)}")
-        db.session.rollback()
+        try:
+            db.session.rollback()
+        except:
+            pass
         return jsonify({'msg': 'Error unlinking Google account', 'status': 'error'}), 500
 
 
@@ -400,6 +458,12 @@ def get_google_status():
     """Get Google Account Linking Status"""
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
+    
+    # Import dependencies
+    try:
+        from ...models.models import User
+    except ImportError:
+        from app.models.models import User
     
     try:
         user_id = get_jwt_identity()
@@ -433,6 +497,12 @@ def refresh_google_token():
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
     
+    # Import dependencies
+    try:
+        from ...models.models import User
+    except ImportError:
+        from app.models.models import User
+    
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
@@ -462,7 +532,6 @@ def refresh_google_token():
 # VALIDATE GOOGLE TOKEN ENDPOINT
 # ============================================
 @google_auth_routes.route('/validate-google-token', methods=['POST', 'OPTIONS'])
-@limiter.limit("10 per minute")
 def validate_google_token():
     """Validate Google Token before processing"""
     if request.method == 'OPTIONS':
@@ -477,13 +546,19 @@ def validate_google_token():
         if not token:
             return jsonify({'msg': 'Google token is required', 'status': 'error'}), 400
 
+        # Get Google auth modules
+        id_token_module, google_requests = get_google_auth_modules()
+        
+        if id_token_module is None or google_requests is None:
+            return jsonify({'msg': 'Google authentication is not available', 'status': 'error'}), 500
+
         # Verify token
         try:
             client_id = current_app.config.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
             if not client_id:
                 return jsonify({'msg': 'Server configuration error', 'status': 'error'}), 500
 
-            idinfo = id_token.verify_oauth2_token(
+            idinfo = id_token_module.verify_oauth2_token(
                 token,
                 google_requests.Request(),
                 client_id

@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, CheckCircle2, X, Shield, Sparkles, AlertCircle } from "lucide-react"
+import { Loader2, CheckCircle2, X, Shield, Sparkles, AlertCircle, RefreshCw } from "lucide-react"
 import { useState, useEffect } from "react"
 import { GoogleOAuthAPI } from "@/lib/api/google-oauth"
 import { useAuth } from "@/contexts/auth/auth-context"
@@ -19,21 +19,32 @@ interface GoogleAuthModalProps {
 export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuthModalProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
+  const [errorDetails, setErrorDetails] = useState("")
   const { refreshAuthState } = useAuth()
   const router = useRouter()
   const googleOAuth = new GoogleOAuthAPI()
 
-  // Reset status when modal opens
   useEffect(() => {
     if (isOpen) {
       setStatus("idle")
       setErrorMessage("")
+      setErrorDetails("")
     }
   }, [isOpen])
+
+  useEffect(() => {
+    return () => {
+      const overlay = document.getElementById("google-signin-overlay")
+      if (overlay) {
+        overlay.remove()
+      }
+    }
+  }, [])
 
   const handleGoogleAuth = async () => {
     setStatus("loading")
     setErrorMessage("")
+    setErrorDetails("")
 
     try {
       console.log("[v0] Starting Google OAuth flow from modal...")
@@ -42,7 +53,6 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
 
       console.log("[v0] Google OAuth successful:", result)
 
-      // Refresh auth state
       await refreshAuthState()
 
       setStatus("success")
@@ -54,7 +64,6 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
           : "You've successfully signed in.",
       })
 
-      // Close modal and redirect after brief success animation
       setTimeout(() => {
         onClose()
         router.push("/")
@@ -64,25 +73,50 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
       setStatus("error")
 
       let message = "Something went wrong with Google sign-in"
+      let details = ""
+
       if (error instanceof Error) {
-        message = error.message
-        // Clean up the message if it's too technical
-        if (message.includes("Backend server")) {
-          message = "Unable to connect to the server. Please try again in a moment."
-        } else if (message.includes("cancelled")) {
-          message = "Sign-in was cancelled. Please try again."
+        const errorMsg = error.message.toLowerCase()
+
+        if (errorMsg.includes("backend server") || errorMsg.includes("500")) {
+          message = "Unable to connect to the authentication server"
+          details = "The server may be starting up. Please wait a moment and try again."
+        } else if (errorMsg.includes("failed to connect") || errorMsg.includes("network")) {
+          message = "Connection failed"
+          details = "Please check your internet connection and try again."
+        } else if (errorMsg.includes("cancelled") || errorMsg.includes("cancel")) {
+          message = "Sign-in was cancelled"
+          details = "You can try again when you're ready."
+        } else if (errorMsg.includes("popup") || errorMsg.includes("blocked")) {
+          message = "Popup was blocked"
+          details = "Please allow popups for this site and try again."
+        } else if (errorMsg.includes("not configured") || errorMsg.includes("configuration")) {
+          message = "Google Sign-In is not available"
+          details = "Please try another sign-in method or contact support."
+        } else if (errorMsg.includes("timeout")) {
+          message = "Request timed out"
+          details = "The server is taking too long to respond. Please try again."
+        } else if (errorMsg.includes("verify") || errorMsg.includes("token")) {
+          message = "Verification failed"
+          details = "Could not verify your Google account. Please try again."
+        } else {
+          message = error.message
         }
       }
+
       setErrorMessage(message)
+      setErrorDetails(details)
     }
   }
 
   const handleClose = () => {
-    // Clean up any Google overlays when closing
     const overlay = document.getElementById("google-signin-overlay")
     if (overlay) {
       overlay.remove()
     }
+    setStatus("idle")
+    setErrorMessage("")
+    setErrorDetails("")
     onClose()
   }
 
@@ -115,7 +149,6 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-4"
               >
-                {/* Benefits Section */}
                 <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-cherry-100 space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5 p-2 bg-cherry-100 rounded-lg">
@@ -139,7 +172,6 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
                   </div>
                 </div>
 
-                {/* Google Sign-In Button */}
                 <Button
                   onClick={handleGoogleAuth}
                   className="w-full h-12 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-cherry-400 shadow-md hover:shadow-lg transition-all duration-300 group"
@@ -247,13 +279,15 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-red-900 mb-1">Authentication Failed</h4>
-                      <p className="text-sm text-red-700">{errorMessage}</p>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-red-900 mb-1">{errorMessage}</h4>
+                      {errorDetails && <p className="text-sm text-red-700">{errorDetails}</p>}
                     </div>
                   </div>
                 </div>
+
                 <Button onClick={handleGoogleAuth} className="w-full bg-cherry-600 hover:bg-cherry-700 text-white">
+                  <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again
                 </Button>
                 <Button onClick={handleClose} variant="outline" className="w-full bg-transparent">

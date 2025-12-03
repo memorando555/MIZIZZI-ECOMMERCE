@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, RefreshCw, Server, Loader2, ServerCrash } from "lucide-react"
-import { ensureBackendReady, resetWarmupState, getBackendStatus } from "@/lib/backend-warmup"
 
 interface NetworkStatusProps {
   className?: string
@@ -186,29 +185,21 @@ export function NetworkStatus({ className }: NetworkStatusProps) {
     setRetryCount((prev) => prev + 1)
 
     try {
-      resetWarmupState()
-      const isReady = await ensureBackendReady()
+      // Simple health check to determine backend availability.
+      // Adjust endpoint as needed (e.g. /api/health or another lightweight endpoint).
+      const res = await fetch("/api/health", { cache: "no-store" })
 
-      if (isReady) {
-        const status = getBackendStatus()
+      if (res.ok) {
+        // Backend reachable — clear error state and reload to refresh data
+        setBackendDown(false)
+        setIsBackendWakingUp(false)
+        setHasServerError(false)
+        setShowAlert(false)
+        setRetryCount(0)
+        setWarmupMessage("")
 
-        if (status.hasServerError) {
-          setHasServerError(true)
-          setBackendDown(false)
-        } else {
-          setBackendDown(false)
-          setIsBackendWakingUp(false)
-          setHasServerError(false)
-          setShowAlert(false)
-          setRetryCount(0)
-          setWarmupMessage("")
-
-          // Dispatch success event to clear any other error states
-          document.dispatchEvent(new CustomEvent("api-success"))
-
-          // Reload the page to refresh data
-          window.location.reload()
-        }
+        document.dispatchEvent(new CustomEvent("api-success"))
+        window.location.reload()
       } else {
         throw new Error("Backend still unavailable")
       }
