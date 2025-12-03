@@ -118,7 +118,7 @@ except ImportError:
             }
             JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key')
             JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-            CORS_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app']
+            CORS_ORIGINS = ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app', 'https://mizizzi-ecommerce-87pr.vercel.app/']
             CACHE_TYPE = 'SimpleCache'
             RATELIMIT_STORAGE_URI = 'memory://'
         
@@ -196,11 +196,11 @@ def create_app(config_name=None, enable_socketio=True):
     
     if enable_socketio:
         try:
-            cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app'])
+            cors_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app', 'https://mizizzi-ecommerce-87pr.vercel.app'])
             
             socketio.init_app(
                 app,
-                cors_allowed_origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://192.168.0.118:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app'],
+                cors_allowed_origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'http://192.168.0.118:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app', 'https://mizizzi-ecommerce-87pr.vercel.app'],
                 async_mode='threading',
                 logger=True,
                 engineio_logger=False,
@@ -229,7 +229,7 @@ def create_app(config_name=None, enable_socketio=True):
     # Configure CORS properly
     CORS(
         app,
-        origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app'],
+        origins=['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app', 'https://mizizzi-ecommerce-87pr.vercel.app'],
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "cache-control", "Pragma", "Expires", "X-MFA-Token", "Accept", "Origin"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -247,7 +247,7 @@ def create_app(config_name=None, enable_socketio=True):
         response = make_response(jsonify({'status': 'ok'}), 200)
 
         origin = request.headers.get('Origin')
-        allowed_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app'])
+        allowed_origins = app.config.get('CORS_ORIGINS', ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://mizizzi-ecommerce-87pr-jfgwto387-jons-projects-a41f528c.vercel.app', 'https://mizizzi-ecommerce-87pr.vercel.app'])
         if origin and ("*" in allowed_origins or origin in allowed_origins):
             response.headers['Access-Control-Allow-Origin'] = origin
         else:

@@ -20,21 +20,9 @@ from google.auth.transport import requests as google_requests
 import random
 import string
 
-try:
-    from ...configuration.extensions import db, limiter
-    from ...models.models import User
-    from .auth_email_templates import send_welcome_email
-except ImportError:
-    try:
-        from backend.app.configuration.extensions import db, limiter
-        from backend.app.models.models import User
-        from backend.app.routes.auth.auth_email_templates import send_welcome_email
-    except ImportError:
-        # Final fallback - create dummy send_welcome_email
-        from backend.app.configuration.extensions import db, limiter
-        from backend.app.models.models import User
-        def send_welcome_email(email, name, auth_method='google'):
-            logging.getLogger(__name__).info(f"Welcome email would be sent to {email}")
+from ...configuration.extensions import db, limiter
+from ...models.models import User
+from .auth_email_templates import send_welcome_email
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -76,7 +64,7 @@ def set_refresh_cookies(response, refresh_token):
 # GOOGLE LOGIN ENDPOINT
 # ============================================
 @google_auth_routes.route('/google-login', methods=['POST', 'OPTIONS'])
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")
 def google_login():
     """
     Google OAuth Login/Register Endpoint
@@ -95,23 +83,33 @@ def google_login():
         "is_new_user": true/false
     }
     """
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'msg': 'Request body is required'}), 400
+            logger.warning("Google login: Missing request body")
+            return jsonify({'msg': 'Request body is required', 'status': 'error'}), 400
 
         token = data.get('token')
         if not token:
-            return jsonify({'msg': 'Google token is required'}), 400
+            logger.warning("Google login: Missing token in request")
+            return jsonify({'msg': 'Google token is required', 'status': 'error'}), 400
+
+        client_id = current_app.config.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
+        
+        if not client_id:
+            logger.error("GOOGLE_CLIENT_ID not configured in app config or environment")
+            return jsonify({
+                'msg': 'Server configuration error: Google OAuth not configured',
+                'status': 'error'
+            }), 500
+
+        logger.info(f"Google login: Verifying token with client_id: {client_id[:20]}...")
 
         # Verify the Google token
         try:
-            client_id = current_app.config.get('GOOGLE_CLIENT_ID')
-            
-            if not client_id:
-                logger.error("GOOGLE_CLIENT_ID not configured")
-                return jsonify({'msg': 'Server configuration error: Google Client ID not set'}), 500
-
             idinfo = id_token.verify_oauth2_token(
                 token,
                 google_requests.Request(),
@@ -124,20 +122,24 @@ def google_login():
             name = idinfo.get('name', '')
             picture = idinfo.get('picture', '')
 
+            logger.info(f"Google login: Token verified for email: {email}")
+
             # Validate required fields
             if not google_id or not email:
-                return jsonify({'msg': 'Invalid Google token: missing required fields'}), 400
+                logger.warning("Google login: Missing required fields in token")
+                return jsonify({'msg': 'Invalid Google token: missing required fields', 'status': 'error'}), 400
 
             # Check if email is verified by Google
             if not idinfo.get('email_verified', False):
-                return jsonify({'msg': 'Google email is not verified'}), 400
+                logger.warning(f"Google login: Email not verified: {email}")
+                return jsonify({'msg': 'Google email is not verified', 'status': 'error'}), 400
 
         except ValueError as e:
-            logger.warning(f"Invalid Google token: {str(e)}")
-            return jsonify({'msg': 'Invalid Google token'}), 400
+            logger.warning(f"Google login: Invalid token - {str(e)}")
+            return jsonify({'msg': 'Invalid Google token. Please try again.', 'status': 'error'}), 400
         except Exception as e:
-            logger.error(f"Error verifying Google token: {str(e)}")
-            return jsonify({'msg': 'Error verifying Google token'}), 500
+            logger.error(f"Google login: Error verifying token - {str(e)}")
+            return jsonify({'msg': 'Error verifying Google token. Please try again.', 'status': 'error'}), 500
 
         # Check if user exists
         user = User.query.filter_by(email=email).first()
@@ -145,7 +147,7 @@ def google_login():
 
         if user:
             # Existing user - update Google information
-            logger.info(f"Google login for existing user: {user.id}")
+            logger.info(f"Google login: Existing user found: {user.id}")
             
             user.is_google_user = True
             user.email_verified = True
@@ -158,7 +160,7 @@ def google_login():
             db.session.commit()
         else:
             # New user - create account
-            logger.info(f"Google login creating new user with email: {email}")
+            logger.info(f"Google login: Creating new user with email: {email}")
             is_new_user = True
             
             user = User(
@@ -185,11 +187,11 @@ def google_login():
             try:
                 send_welcome_email(user.email, user.name, auth_method='google')
                 logger.info(f"Welcome email sent for new Google user: {user.id}")
-            except Exception as email_error:
-                logger.warning(f"Could not send welcome email: {str(email_error)}")
+            except Exception as e:
+                logger.warning(f"Failed to send welcome email: {str(e)}")
 
         # Create JWT tokens
-        additional_claims = {"role": user.role.value if hasattr(user, 'role') and user.role else 'customer'}
+        additional_claims = {"role": user.role.value if hasattr(user, 'role') and user.role else 'user'}
         access_token = create_access_token(
             identity=str(user.id),
             additional_claims=additional_claims
@@ -204,6 +206,7 @@ def google_login():
 
         # Build response
         response_data = {
+            'status': 'success',
             'access_token': access_token,
             'refresh_token': refresh_token,
             'csrf_token': csrf_token,
@@ -213,7 +216,6 @@ def google_login():
                 'name': user.name,
                 'is_google_user': user.is_google_user,
                 'email_verified': user.email_verified,
-                'is_new_user': is_new_user
             },
             'is_new_user': is_new_user
         }
@@ -228,14 +230,14 @@ def google_login():
             logger.debug("Authentication cookies set successfully")
         except Exception as e:
             logger.warning(f"Could not set cookies: {str(e)}")
-            # Continue even if cookie setting fails
 
-        logger.info(f"Successful Google login/registration for user: {user.id}")
+        logger.info(f"Google login: Successful for user: {user.id}")
         return resp, 200
 
     except Exception as e:
-        logger.error(f"Error in google_login: {str(e)}", exc_info=True)
-        return jsonify({'msg': 'Internal server error during Google authentication'}), 500
+        logger.error(f"Google login: Unexpected error - {str(e)}", exc_info=True)
+        db.session.rollback()
+        return jsonify({'msg': 'An error occurred during authentication. Please try again.', 'status': 'error'}), 500
 
 
 # ============================================
@@ -248,11 +250,14 @@ def google_logout():
     Google Logout Endpoint
     Clears authentication cookies and logs out user
     """
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
         user_id = get_jwt_identity()
         logger.info(f"Google logout for user: {user_id}")
 
-        response = jsonify({'msg': 'Logged out successfully'})
+        response = jsonify({'msg': 'Logged out successfully', 'status': 'success'})
 
         # Clear authentication cookies
         response.set_cookie('access_token_cookie', '', max_age=0)
@@ -263,7 +268,7 @@ def google_logout():
 
     except Exception as e:
         logger.error(f"Error in google_logout: {str(e)}")
-        return jsonify({'msg': 'Error logging out'}), 500
+        return jsonify({'msg': 'Error logging out', 'status': 'error'}), 500
 
 
 # ============================================
@@ -274,26 +279,29 @@ def google_logout():
 @limiter.limit("5 per minute")
 def link_google_account():
     """Link Google Account to Existing User"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
 
         if not user:
-            return jsonify({'msg': 'User not found'}), 404
+            return jsonify({'msg': 'User not found', 'status': 'error'}), 404
 
         data = request.get_json()
         if not data:
-            return jsonify({'msg': 'Request body is required'}), 400
+            return jsonify({'msg': 'Request body is required', 'status': 'error'}), 400
 
         token = data.get('token')
         if not token:
-            return jsonify({'msg': 'Google token is required'}), 400
+            return jsonify({'msg': 'Google token is required', 'status': 'error'}), 400
 
         # Verify Google token
         try:
-            client_id = current_app.config.get('GOOGLE_CLIENT_ID')
+            client_id = current_app.config.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
             if not client_id:
-                return jsonify({'msg': 'Server configuration error'}), 500
+                return jsonify({'msg': 'Server configuration error', 'status': 'error'}), 500
 
             idinfo = id_token.verify_oauth2_token(
                 token,
@@ -305,18 +313,18 @@ def link_google_account():
             email = idinfo.get('email')
 
             if not google_id or not email:
-                return jsonify({'msg': 'Invalid Google token'}), 400
+                return jsonify({'msg': 'Invalid Google token', 'status': 'error'}), 400
 
             if not idinfo.get('email_verified', False):
-                return jsonify({'msg': 'Google email is not verified'}), 400
+                return jsonify({'msg': 'Google email is not verified', 'status': 'error'}), 400
 
         except ValueError:
-            return jsonify({'msg': 'Invalid Google token'}), 400
+            return jsonify({'msg': 'Invalid Google token', 'status': 'error'}), 400
 
         # Check if this Google account is already linked to another user
         existing_user = User.query.filter_by(email=email).first()
         if existing_user and str(existing_user.id) != str(user_id):
-            return jsonify({'msg': 'This Google account is already linked to another user'}), 409
+            return jsonify({'msg': 'This Google account is already linked to another user', 'status': 'error'}), 409
 
         # Link Google account to current user
         user.is_google_user = True
@@ -326,6 +334,8 @@ def link_google_account():
         logger.info(f"Google account linked for user: {user_id}")
         return jsonify({
             'msg': 'Google account linked successfully',
+            'status': 'success',
+            'linked': True,
             'user': {
                 'id': str(user.id),
                 'email': user.email,
@@ -335,7 +345,8 @@ def link_google_account():
 
     except Exception as e:
         logger.error(f"Error in link_google_account: {str(e)}")
-        return jsonify({'msg': 'Error linking Google account'}), 500
+        db.session.rollback()
+        return jsonify({'msg': 'Error linking Google account', 'status': 'error'}), 500
 
 
 # ============================================
@@ -346,21 +357,25 @@ def link_google_account():
 @limiter.limit("5 per minute")
 def unlink_google_account():
     """Unlink Google Account from User"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
 
         if not user:
-            return jsonify({'msg': 'User not found'}), 404
+            return jsonify({'msg': 'User not found', 'status': 'error'}), 404
 
         if not user.is_google_user:
-            return jsonify({'msg': 'This account is not linked to Google'}), 400
+            return jsonify({'msg': 'This account is not linked to Google', 'status': 'error'}), 400
 
         # Check if user has a password (required for unlinking)
         if not user.password_hash:
             return jsonify({
                 'msg': 'Cannot unlink Google account without a password',
-                'error_code': 'NO_PASSWORD_SET'
+                'error_code': 'NO_PASSWORD_SET',
+                'status': 'error'
             }), 400
 
         # Unlink Google account
@@ -368,11 +383,12 @@ def unlink_google_account():
         db.session.commit()
 
         logger.info(f"Google account unlinked for user: {user_id}")
-        return jsonify({'msg': 'Google account unlinked successfully'}), 200
+        return jsonify({'msg': 'Google account unlinked successfully', 'status': 'success', 'linked': False}), 200
 
     except Exception as e:
         logger.error(f"Error in unlink_google_account: {str(e)}")
-        return jsonify({'msg': 'Error unlinking Google account'}), 500
+        db.session.rollback()
+        return jsonify({'msg': 'Error unlinking Google account', 'status': 'error'}), 500
 
 
 # ============================================
@@ -382,16 +398,21 @@ def unlink_google_account():
 @jwt_required()
 def get_google_status():
     """Get Google Account Linking Status"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
 
         if not user:
-            return jsonify({'msg': 'User not found'}), 404
+            return jsonify({'msg': 'User not found', 'status': 'error'}), 404
 
         can_unlink = user.is_google_user and bool(user.password_hash)
 
         return jsonify({
+            'status': 'success',
+            'google_linked': user.is_google_user,
             'is_google_user': user.is_google_user,
             'email_verified': user.email_verified,
             'can_unlink': can_unlink
@@ -399,7 +420,7 @@ def get_google_status():
 
     except Exception as e:
         logger.error(f"Error in get_google_status: {str(e)}")
-        return jsonify({'msg': 'Error retrieving Google status'}), 500
+        return jsonify({'msg': 'Error retrieving Google status', 'status': 'error'}), 500
 
 
 # ============================================
@@ -409,32 +430,32 @@ def get_google_status():
 @jwt_required(refresh=True)
 def refresh_google_token():
     """Refresh JWT Token for Google Users"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
 
         if not user:
-            return jsonify({'msg': 'User not found'}), 404
-
-        if not user.is_google_user:
-            return jsonify({'msg': 'This endpoint is for Google users only'}), 400
+            return jsonify({'msg': 'User not found', 'status': 'error'}), 404
 
         # Create new access token
-        additional_claims = {"role": user.role.value if hasattr(user, 'role') and user.role else 'customer'}
+        additional_claims = {"role": user.role.value if hasattr(user, 'role') and user.role else 'user'}
         new_access_token = create_access_token(
             identity=str(user.id),
             additional_claims=additional_claims
         )
 
-        response = jsonify({'access_token': new_access_token})
+        response = jsonify({'access_token': new_access_token, 'status': 'success'})
         set_access_cookies(response, new_access_token)
 
-        logger.info(f"Token refreshed for Google user: {user_id}")
+        logger.info(f"Token refreshed for user: {user_id}")
         return response, 200
 
     except Exception as e:
         logger.error(f"Error in refresh_google_token: {str(e)}")
-        return jsonify({'msg': 'Error refreshing token'}), 500
+        return jsonify({'msg': 'Error refreshing token', 'status': 'error'}), 500
 
 
 # ============================================
@@ -443,21 +464,24 @@ def refresh_google_token():
 @google_auth_routes.route('/validate-google-token', methods=['POST', 'OPTIONS'])
 @limiter.limit("10 per minute")
 def validate_google_token():
-    """Validate Google Token"""
+    """Validate Google Token before processing"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'msg': 'Request body is required'}), 400
+            return jsonify({'msg': 'Request body is required', 'status': 'error'}), 400
 
         token = data.get('token')
         if not token:
-            return jsonify({'msg': 'Google token is required'}), 400
+            return jsonify({'msg': 'Google token is required', 'status': 'error'}), 400
 
         # Verify token
         try:
-            client_id = current_app.config.get('GOOGLE_CLIENT_ID')
+            client_id = current_app.config.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
             if not client_id:
-                return jsonify({'msg': 'Server configuration error'}), 500
+                return jsonify({'msg': 'Server configuration error', 'status': 'error'}), 500
 
             idinfo = id_token.verify_oauth2_token(
                 token,
@@ -466,6 +490,7 @@ def validate_google_token():
             )
 
             return jsonify({
+                'status': 'success',
                 'valid': True,
                 'email': idinfo.get('email'),
                 'name': idinfo.get('name'),
@@ -474,11 +499,11 @@ def validate_google_token():
             }), 200
 
         except ValueError:
-            return jsonify({'valid': False}), 200
+            return jsonify({'valid': False, 'status': 'error'}), 200
 
     except Exception as e:
         logger.error(f"Error in validate_google_token: {str(e)}")
-        return jsonify({'msg': 'Error validating token'}), 500
+        return jsonify({'msg': 'Error validating token', 'status': 'error'}), 500
 
 
 # ============================================
@@ -490,24 +515,30 @@ def get_google_config():
     Get Google OAuth Configuration
     Client-side needs this to initialize Google Sign-In
     """
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    
     try:
-        client_id = current_app.config.get('GOOGLE_CLIENT_ID')
+        client_id = current_app.config.get('GOOGLE_CLIENT_ID') or os.environ.get('GOOGLE_CLIENT_ID')
         
         if not client_id:
             logger.warning("GOOGLE_CLIENT_ID is not configured")
             return jsonify({
+                'status': 'error',
                 'configured': False,
                 'message': 'Google OAuth is not configured on the server'
             }), 500
 
+        logger.info(f"Google config: Returning client_id: {client_id[:20]}...")
         return jsonify({
+            'status': 'success',
             'configured': True,
             'client_id': client_id
         }), 200
 
     except Exception as e:
         logger.error(f"Error in get_google_config: {str(e)}")
-        return jsonify({'msg': 'Error retrieving Google configuration'}), 500
+        return jsonify({'msg': 'Error retrieving Google configuration', 'status': 'error'}), 500
 
 
 # ============================================
@@ -516,4 +547,4 @@ def get_google_config():
 @google_auth_routes.errorhandler(429)
 def ratelimit_handler(e):
     """Handle rate limit errors"""
-    return jsonify({'msg': 'Rate limit exceeded. Please try again later'}), 429
+    return jsonify({'msg': 'Rate limit exceeded. Please try again later', 'status': 'error'}), 429

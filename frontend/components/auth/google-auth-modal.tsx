@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, CheckCircle2, Shield, Sparkles } from "lucide-react"
+import { Loader2, CheckCircle2, X, Shield, Sparkles, AlertCircle } from "lucide-react"
 import { useState, useEffect } from "react"
 import { GoogleOAuthAPI } from "@/lib/api/google-oauth"
 import { useAuth } from "@/contexts/auth/auth-context"
@@ -62,18 +62,41 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
     } catch (error) {
       console.error("[v0] Google auth error:", error)
       setStatus("error")
-      setErrorMessage(error instanceof Error ? error.message : "Something went wrong with Google sign-in")
+
+      let message = "Something went wrong with Google sign-in"
+      if (error instanceof Error) {
+        message = error.message
+        // Clean up the message if it's too technical
+        if (message.includes("Backend server")) {
+          message = "Unable to connect to the server. Please try again in a moment."
+        } else if (message.includes("cancelled")) {
+          message = "Sign-in was cancelled. Please try again."
+        }
+      }
+      setErrorMessage(message)
     }
   }
 
+  const handleClose = () => {
+    // Clean up any Google overlays when closing
+    const overlay = document.getElementById("google-signin-overlay")
+    if (overlay) {
+      overlay.remove()
+    }
+    onClose()
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-gradient-to-br from-white via-cherry-50/30 to-white border-2 border-cherry-200/50 shadow-2xl">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-2xl font-playfair text-cherry-900">
               {mode === "signup" ? "Create Your Account" : "Welcome Back"}
             </DialogTitle>
+            <Button variant="ghost" size="icon" onClick={handleClose} className="h-8 w-8 rounded-full">
+              <X className="h-4 w-4" />
+            </Button>
           </div>
           <DialogDescription className="text-gray-600">
             {mode === "signup"
@@ -222,11 +245,19 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
                 className="space-y-4"
               >
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-red-900 mb-2">Authentication Failed</h4>
-                  <p className="text-sm text-red-700">{errorMessage}</p>
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold text-red-900 mb-1">Authentication Failed</h4>
+                      <p className="text-sm text-red-700">{errorMessage}</p>
+                    </div>
+                  </div>
                 </div>
-                <Button onClick={handleGoogleAuth} className="w-full bg-transparent" variant="outline">
+                <Button onClick={handleGoogleAuth} className="w-full bg-cherry-600 hover:bg-cherry-700 text-white">
                   Try Again
+                </Button>
+                <Button onClick={handleClose} variant="outline" className="w-full bg-transparent">
+                  Cancel
                 </Button>
               </motion.div>
             )}
