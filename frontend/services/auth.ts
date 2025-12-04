@@ -99,6 +99,7 @@ class AuthService {
         console.warn("[v0] No CSRF token in verification response")
       }
 
+      // Store user data
       if (response.data.user) {
         localStorage.setItem("user", JSON.stringify(response.data.user))
       }
@@ -199,6 +200,7 @@ class AuthService {
     try {
       const response = await api.post("/api/login", { identifier, password })
 
+      // Store tokens in localStorage
       if (response.data.access_token) {
         localStorage.setItem("mizizzi_token", response.data.access_token)
         console.log("Access token stored:", response.data.access_token.substring(0, 10) + "...")
@@ -220,6 +222,7 @@ class AuthService {
         console.error("No CSRF token received from server")
       }
 
+      // Store user data
       if (response.data.user) {
         localStorage.setItem("user", JSON.stringify(response.data.user))
       }
@@ -521,64 +524,54 @@ class AuthService {
 
   async socialLogin(provider: "google"): Promise<LoginResponse> {
     try {
-      console.log("[v0] ========== AUTH SERVICE: socialLogin() ==========")
-      console.log("[v0] Provider:", provider)
       console.log("[v0] Starting Google social login")
       console.log(
         "[v0] Environment check - NEXT_PUBLIC_GOOGLE_CLIENT_ID:",
         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? "SET" : "NOT SET",
       )
 
-      console.log("[v0] Calling getGoogleToken()...")
+      // Load Google Sign-In library
       const googleToken = await this.getGoogleToken()
 
-      console.log("[v0] ✓ Got Google token (length:", googleToken.length, ")")
-      console.log("[v0] Token preview:", googleToken.substring(0, 30) + "...")
-      console.log("[v0] Sending token to backend /api/google-login...")
+      console.log("[v0] Got Google token, sending to backend")
 
-      const response = await api.post("/api/google-login", { token: googleToken })
+      let response
+      try {
+        response = await api.post("/api/auth/google-login", { token: googleToken })
+      } catch (primaryError: any) {
+        console.log("[v0] Primary endpoint failed, trying alternate")
+        response = await api.post("/api/google-login", { token: googleToken })
+      }
 
-      console.log("[v0] ✓ Backend response received")
-      console.log("[v0] Response status:", response.status)
-      console.log("[v0] Response data keys:", Object.keys(response.data))
-
+      // Store tokens in localStorage
       if (response.data.access_token) {
         localStorage.setItem("mizizzi_token", response.data.access_token)
-        console.log("[v0] ✓ Access token stored:", response.data.access_token.substring(0, 10) + "...")
+        console.log("Access token stored:", response.data.access_token.substring(0, 10) + "...")
       } else {
-        console.error("[v0] ✗ No access token received from server")
+        console.error("No access token received from server")
       }
 
       if (response.data.refresh_token) {
         localStorage.setItem("mizizzi_refresh_token", response.data.refresh_token)
-        console.log("[v0] ✓ Refresh token stored")
+        console.log("Refresh token stored")
       } else {
-        console.error("[v0] ✗ No refresh token received from server")
+        console.error("No refresh token received from server")
       }
 
       if (response.data.csrf_token) {
         localStorage.setItem("mizizzi_csrf_token", response.data.csrf_token)
-        console.log("[v0] ✓ CSRF token stored:", response.data.csrf_token)
+        console.log("CSRF token stored:", response.data.csrf_token)
       } else {
-        console.error("[v0] ✗ No CSRF token received from server")
+        console.error("No CSRF token received from server")
       }
 
+      // Store user data
       if (response.data.user) {
         localStorage.setItem("user", JSON.stringify(response.data.user))
-        console.log("[v0] ✓ User data stored:", {
-          id: response.data.user.id,
-          email: response.data.user.email,
-          name: response.data.user.name,
-        })
-      } else {
-        console.error("[v0] ✗ No user data received from server")
       }
 
       // Clear verification state
       localStorage.removeItem("auth_verification_state")
-      console.log("[v0] ✓ Cleared verification state")
-
-      console.log("[v0] ========== AUTH SERVICE: socialLogin() SUCCESS ==========")
 
       return {
         user: response.data.user,
@@ -588,150 +581,146 @@ class AuthService {
         message: response.data.msg,
       }
     } catch (error: any) {
-      console.error("[v0] ========== AUTH SERVICE: socialLogin() ERROR ==========")
-      console.error("[v0] Error type:", error.constructor?.name)
-      console.error("[v0] Error message:", error.message)
-
-      if (error.response) {
-        console.error("[v0] Response error details:")
-        console.error("[v0]   Status:", error.response.status)
-        console.error("[v0]   Status text:", error.response.statusText)
-        console.error("[v0]   Data:", error.response.data)
-        console.error("[v0]   Headers:", error.response.headers)
-      } else if (error.request) {
-        console.error("[v0] Request error - no response received")
-        console.error("[v0] Request:", error.request)
-      } else {
-        console.error("[v0] Error setting up request:", error.message)
-      }
-
-      console.error("[v0] Full error stack:", error.stack)
-
+      console.error("[v0] Social login error:", error)
       const errorMessage = error.response?.data?.msg || error.message || "Google sign-in failed"
-      console.error("[v0] Final error message:", errorMessage)
-      console.error("[v0] ========== ERROR END ==========")
-
       throw new Error(errorMessage)
     }
   }
 
   private async getGoogleToken(): Promise<string> {
     return new Promise((resolve, reject) => {
-      console.log("[v0] ========== getGoogleToken() ==========")
       console.log("[v0] Getting Google token")
 
+      const flowTimeout = setTimeout(() => {
+        reject(new Error("Google authentication timed out. Please try again."))
+      }, 120000)
+
+      const cleanup = () => clearTimeout(flowTimeout)
+
+      // Load Google Sign-In script if not already loaded
       if (!window.google) {
-        console.log("[v0] Google Sign-In script not loaded, loading now...")
+        console.log("[v0] Loading Google Sign-In script")
         const script = document.createElement("script")
         script.src = "https://accounts.google.com/gsi/client"
         script.async = true
         script.defer = true
         script.onload = () => {
-          console.log("[v0] ✓ Google Sign-In script loaded successfully")
-          this.initializeGoogleSignIn(resolve, reject)
+          console.log("[v0] Google Sign-In script loaded")
+          this.initializeGoogleSignIn(resolve, reject, cleanup)
         }
         script.onerror = () => {
-          console.error("[v0] ✗ Failed to load Google Sign-In library")
+          cleanup()
+          console.error("[v0] Failed to load Google Sign-In library")
           reject(new Error("Failed to load Google Sign-In library"))
         }
         document.head.appendChild(script)
       } else {
-        console.log("[v0] ✓ Google Sign-In script already loaded")
-        this.initializeGoogleSignIn(resolve, reject)
+        console.log("[v0] Google Sign-In script already loaded")
+        this.initializeGoogleSignIn(resolve, reject, cleanup)
       }
     })
   }
 
-  private initializeGoogleSignIn(resolve: (token: string) => void, reject: (error: Error) => void): void {
+  private initializeGoogleSignIn(
+    resolve: (token: string) => void,
+    reject: (error: Error) => void,
+    cleanup?: () => void,
+  ): void {
     try {
-      console.log("[v0] ========== initializeGoogleSignIn() ==========")
-
       const clientId =
         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
         "114775886111-eeboja3q4dff66t6dfro4v15diduodm8.apps.googleusercontent.com"
 
       console.log(
-        "[v0] Client ID source:",
-        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? "Environment variable" : "Fallback",
+        "[v0] Initializing Google Sign-In with clientId:",
+        clientId ? clientId.substring(0, 20) + "..." : "NOT SET",
       )
-      console.log("[v0] Client ID (first 30 chars):", clientId ? clientId.substring(0, 30) + "..." : "NOT SET")
-      console.log("[v0] Full Client ID:", clientId)
 
       if (!clientId) {
-        console.error("[v0] ✗ Google Client ID not configured")
+        cleanup?.()
+        console.error("[v0] Google Client ID not configured")
         reject(new Error("Google Client ID not configured"))
         return
       }
 
-      console.log("[v0] Calling google.accounts.id.initialize()...")
+      console.log("[v0] Calling google.accounts.id.initialize")
 
-      if (!window.google) {
-        console.error("[v0] ✗ Google object is not defined")
-        reject(new Error("Google Sign-In library is not available"))
+      let responseReceived = false
+
+      const g = window.google
+      if (!g || !g.accounts || !g.accounts.id) {
+        cleanup?.()
+        console.error("[v0] Google Sign-In API not available on window.google")
+        reject(new Error("Google Sign-In library not available"))
         return
       }
 
-      window.google.accounts.id.initialize({
+      g.accounts.id.initialize({
         client_id: clientId,
         callback: (response: any) => {
-          console.log("[v0] ========== Google Callback Received ==========")
-          console.log("[v0] Response keys:", Object.keys(response))
-
+          if (responseReceived) return
+          responseReceived = true
+          cleanup?.()
+          console.log("[v0] Google callback received")
           if (response.credential) {
-            console.log("[v0] ✓ Credential received (length:", response.credential.length, ")")
-            console.log("[v0] Credential preview:", response.credential.substring(0, 50) + "...")
-            console.log("[v0] Resolving promise with credential")
+            console.log("[v0] Credential received, resolving with token")
             resolve(response.credential)
           } else {
-            console.error("[v0] ✗ No credential in response")
-            console.error("[v0] Response object:", response)
+            console.log("[v0] No credential in response")
             reject(new Error("No credential received from Google"))
           }
         },
+        auto_select: false,
+        cancel_on_tap_outside: false,
       })
 
-      console.log("[v0] ✓ Google Sign-In initialized")
-      console.log("[v0] Creating button container...")
+      console.log("[v0] Creating button container")
 
+      // Remove any existing container
+      const existingContainer = document.getElementById("google-signin-button-container")
+      if (existingContainer) {
+        existingContainer.remove()
+      }
+
+      // Create a container for the button
       const container = document.createElement("div")
       container.id = "google-signin-button-container"
       container.style.display = "none"
       document.body.appendChild(container)
-      console.log("[v0] ✓ Button container created and added to DOM")
 
-      console.log("[v0] Rendering Google Sign-In button...")
+      console.log("[v0] Rendering Google Sign-In button")
 
-      if (!window.google) {
-        console.error("[v0] ✗ Google object is not defined")
-        reject(new Error("Google Sign-In library is not available"))
-        return
-      }
-
-      window.google.accounts.id.renderButton(container, {
+      // Render the Google Sign-In button
+      g.accounts.id.renderButton(container, {
         theme: "outline",
         size: "large",
         type: "standard",
       })
 
-      console.log("[v0] ✓ Button rendered")
-      console.log("[v0] Looking for button element to trigger click...")
+      console.log("[v0] Looking for button to click")
 
       setTimeout(() => {
-        const button = container.querySelector("button")
+        // Trigger the button click programmatically
+        const button = container.querySelector("button") || container.querySelector('[role="button"]')
         if (button) {
-          console.log("[v0] ✓ Button found, triggering click")
-          button.click()
-          console.log("[v0] ✓ Button clicked - waiting for user interaction...")
+          console.log("[v0] Triggering Google Sign-In button click")
+          ;(button as HTMLElement).click()
         } else {
-          console.error("[v0] ✗ Failed to find Google Sign-In button in container")
-          console.error("[v0] Container HTML:", container.innerHTML)
-          reject(new Error("Failed to render Google Sign-In button"))
+          // Try clicking the container's first interactive element
+          const anyButton = container.querySelector("div[role='button']") || container.firstElementChild
+          if (anyButton) {
+            console.log("[v0] Triggering fallback button click")
+            ;(anyButton as HTMLElement).click()
+          } else {
+            cleanup?.()
+            console.error("[v0] Failed to find Google Sign-In button")
+            reject(new Error("Failed to render Google Sign-In button"))
+          }
         }
       }, 100)
     } catch (error) {
-      console.error("[v0] ========== initializeGoogleSignIn() ERROR ==========")
-      console.error("[v0] Error:", error)
-      console.error("[v0] Error stack:", error instanceof Error ? error.stack : "No stack trace")
+      cleanup?.()
+      console.error("[v0] Error in initializeGoogleSignIn:", error)
       reject(error instanceof Error ? error : new Error("Failed to initialize Google Sign-In"))
     }
   }

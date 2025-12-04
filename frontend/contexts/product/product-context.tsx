@@ -4,7 +4,6 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import type { Product } from "@/types"
 import { productService } from "@/services/product"
 import { websocketService } from "@/services/websocket"
-import { ensureBackendReady, fetchWithWarmup, getBackendStatus } from "@/lib/backend-warmup"
 
 interface ProductContextType {
   products: Product[]
@@ -37,12 +36,9 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
       // Force cache invalidation before fetching
       productService.invalidateProductCache(id)
 
-      // Add timestamp to avoid caching issues
+      // Add timestamp to avoid caching issues and call productService directly
       const timestamp = Date.now()
-      const updatedProduct = await fetchWithWarmup(() => productService.getProduct(`${id}?t=${timestamp}`), {
-        maxRetries: 3,
-        retryDelay: 2000,
-      })
+      const updatedProduct = await productService.getProduct(`${id}?t=${timestamp}`)
 
       if (updatedProduct) {
         console.log("Product refreshed successfully:", updatedProduct)
@@ -77,26 +73,13 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true)
 
     try {
-      console.log("[v0] ProductContext: Checking if backend is ready...")
-      setIsBackendWakingUp(true)
-
-      const isReady = await ensureBackendReady()
-      setIsBackendWakingUp(false)
-
-      if (!isReady) {
-        console.warn("[v0] ProductContext: Backend not available after warmup attempts")
-        setError("Backend server is not available. Please try again later.")
-        setIsLoading(false)
-        return
-      }
-
-      console.log("[v0] ProductContext: Backend is ready, fetching products...")
-
+      console.log("[v0] ProductContext: fetching products...")
+      // Directly fetch product lists from productService
       const [allProducts, featured, newProds, sale] = await Promise.all([
-        fetchWithWarmup(() => productService.getProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
-        fetchWithWarmup(() => productService.getFeaturedProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
-        fetchWithWarmup(() => productService.getNewProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
-        fetchWithWarmup(() => productService.getSaleProducts(), { maxRetries: 2, fallbackValue: [] as Product[] }),
+        productService.getProducts(),
+        productService.getFeaturedProducts(),
+        productService.getNewProducts(),
+        productService.getSaleProducts(),
       ])
 
       const safeAllProducts = allProducts ?? []
@@ -113,18 +96,14 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
       setNewProducts(safeNewProds)
       setSaleProducts(safeSale)
 
+      // If all lists are empty we keep a generic message; otherwise clear error
       if (
         safeAllProducts.length === 0 &&
         safeFeatured.length === 0 &&
         safeNewProds.length === 0 &&
         safeSale.length === 0
       ) {
-        const { hasServerError } = getBackendStatus()
-        if (hasServerError) {
-          setError("The server is experiencing issues. Products may be unavailable temporarily.")
-        } else {
-          setError(null)
-        }
+        setError("Products are unavailable. Please try again later.")
       } else {
         setError(null)
       }
@@ -137,9 +116,7 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error refreshing products:", error)
 
       if (error.message?.includes("Network") || error.code === "ERR_NETWORK") {
-        setError(
-          "Unable to connect to the server. The backend may be starting up - please wait a moment and try again.",
-        )
+        setError("Unable to connect to the server. Please check your connection and try again.")
       } else {
         setError("Failed to load products. Please try again.")
       }
@@ -202,7 +179,7 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
 
 export const useProducts = (): ProductContextType => {
   const context = useContext(ProductContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useProducts must be used within a ProductProvider")
   }
   return context

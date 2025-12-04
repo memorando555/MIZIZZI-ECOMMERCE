@@ -37,7 +37,7 @@ class AdminGoogleOAuthAPI {
 
   private async makeRequest<T>(endpoint: string, options: RequestInit & { timeout?: number } = {}): Promise<T> {
     const token = getAuthToken()
-    const timeoutMs = options.timeout || 60000
+    const timeoutMs = options.timeout || 30000
     delete options.timeout
 
     try {
@@ -58,15 +58,7 @@ class AdminGoogleOAuthAPI {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        console.error("[v0] API Error Response:", {
-          status: response.status,
-          statusText: response.statusText,
-          errorData,
-          endpoint,
-        })
-        // Extract error message from backend response format
-        const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`
-        throw new Error(errorMessage)
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`)
       }
 
       return await response.json()
@@ -78,94 +70,9 @@ class AdminGoogleOAuthAPI {
     }
   }
 
-  async getGoogleConfig(options: { timeout?: number; retries?: number } = {}): Promise<GoogleConfigResponse> {
-    const timeout = options.timeout || 45000 // Increased from 10s to 45s for cold starts
-    const maxRetries = options.retries ?? 2
-    let lastError: Error | null = null
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        if (attempt > 0) {
-          console.log(`[v0] Retrying getGoogleConfig (attempt ${attempt + 1}/${maxRetries + 1})...`)
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
-        }
-
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-        const response = await fetch(`${API_BASE_URL}/api/auth/google-config`, {
-          signal: controller.signal,
-        })
-
-        clearTimeout(timeoutId)
-
-        const data = await response.json().catch(() => ({}))
-
-        if (!response.ok || data.configured === false) {
-          // If backend says not configured, try frontend fallback from NEXT_PUBLIC_GOOGLE_CLIENT_ID
-          const envClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
-          if (envClientId) {
-            console.warn(
-              "[v0] Google OAuth not configured on server, falling back to NEXT_PUBLIC_GOOGLE_CLIENT_ID from frontend env",
-            )
-            return {
-              status: "success",
-              client_id: envClientId,
-              configured: true,
-            }
-          }
-
-          console.warn("[v0] Google OAuth not configured on server:", data.message)
-          return {
-            status: "error",
-            client_id: "",
-            configured: false,
-          }
-        }
-
-        // Ensure client_id exists
-        if (!data.client_id) {
-          const envClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
-          if (envClientId) {
-            console.warn("[v0] Server returned empty client_id, using NEXT_PUBLIC_GOOGLE_CLIENT_ID fallback")
-            return {
-              status: "success",
-              client_id: envClientId,
-              configured: true,
-            }
-          }
-
-          console.warn("[v0] Server returned no client_id for Google OAuth")
-          return {
-            status: "error",
-            client_id: "",
-            configured: false,
-          }
-        }
-
-        return {
-          status: "success",
-          client_id: data.client_id,
-          configured: true,
-        }
-      } catch (error: any) {
-        lastError = error
-        console.warn(`[v0] getGoogleConfig attempt ${attempt + 1} failed:`, error.message)
-
-        if (error.name === "AbortError") {
-          if (attempt === maxRetries) {
-            throw new Error(
-              "Server is taking too long to respond. The server may be waking up - please try again in a moment.",
-            )
-          }
-          continue
-        }
-
-        throw error
-      }
-    }
-
-    throw lastError || new Error("Failed to get Google config after retries")
+  async getGoogleConfig(options: { timeout?: number } = {}): Promise<GoogleConfigResponse> {
+    const timeout = options.timeout || 10000
+    return await this.makeRequest<GoogleConfigResponse>("/api/auth/google-config", { timeout })
   }
 
   async loginWithGoogle(googleToken: string): Promise<AdminGoogleAuthResponse> {
@@ -176,56 +83,44 @@ class AdminGoogleOAuthAPI {
 
       console.log("[v0] Admin: Sending Google token to backend for authentication")
 
-      // Backend returns: { access_token, refresh_token, csrf_token, user, is_new_user }
-      // We need: { status, message, user, access_token, refresh_token, csrf_token, is_new_user }
-      const response = await this.makeRequest<any>("/api/admin/auth/google-login", {
+      const response = await this.makeRequest<AdminGoogleAuthResponse>("/api/admin/auth/google-login", {
         method: "POST",
         body: JSON.stringify({ token: googleToken }),
       })
 
-      console.log("[v0] Admin Google OAuth raw response:", response)
-
-      const normalizedResponse: AdminGoogleAuthResponse = {
-        status: response.access_token ? "success" : "error",
-        message: response.access_token ? "Authentication successful" : "Authentication failed",
-        user: response.user,
-        access_token: response.access_token,
-        refresh_token: response.refresh_token,
-        csrf_token: response.csrf_token,
-        is_new_user: response.is_new_user,
-      }
-
-      if (normalizedResponse.user && normalizedResponse.user.role !== "admin") {
+      if (response.user && response.user.role !== "admin") {
         throw new Error("You don't have admin privileges to access this area")
       }
 
-      if (normalizedResponse.user && !this.isAllowedAdminEmail(normalizedResponse.user.email)) {
+      if (response.user && !this.isAllowedAdminEmail(response.user.email)) {
         throw new Error("This email is not authorized for admin access")
       }
 
-      if (normalizedResponse.access_token) {
-        localStorage.setItem("admin_token", normalizedResponse.access_token)
-        localStorage.setItem("mizizzi_token", normalizedResponse.access_token)
+      // Store admin tokens
+      if (response.access_token) {
+        localStorage.setItem("admin_token", response.access_token)
+        localStorage.setItem("mizizzi_token", response.access_token)
         console.log("[v0] Admin access token stored")
       }
 
-      if (normalizedResponse.refresh_token) {
-        localStorage.setItem("admin_refresh_token", normalizedResponse.refresh_token)
-        localStorage.setItem("mizizzi_refresh_token", normalizedResponse.refresh_token)
+      if (response.refresh_token) {
+        localStorage.setItem("admin_refresh_token", response.refresh_token)
+        localStorage.setItem("mizizzi_refresh_token", response.refresh_token)
         console.log("[v0] Admin refresh token stored")
       }
 
-      if (normalizedResponse.csrf_token) {
-        localStorage.setItem("mizizzi_csrf_token", normalizedResponse.csrf_token)
+      if (response.csrf_token) {
+        localStorage.setItem("mizizzi_csrf_token", response.csrf_token)
         console.log("[v0] CSRF token stored")
       }
 
-      if (normalizedResponse.user) {
-        localStorage.setItem("admin_user", JSON.stringify(normalizedResponse.user))
+      // Store admin user data
+      if (response.user) {
+        localStorage.setItem("admin_user", JSON.stringify(response.user))
         console.log("[v0] Admin user data stored")
       }
 
-      return normalizedResponse
+      return response
     } catch (error: any) {
       console.error("[v0] Admin Google login error:", error)
       throw error
@@ -265,14 +160,9 @@ class AdminGoogleOAuthAPI {
     try {
       const config = await this.getGoogleConfig()
 
-      // Accept fallback case where frontend env provided the client id
       if (!config.configured || !config.client_id) {
-        console.error("[v0] Google OAuth not configured on server and no frontend fallback available")
-        reject(
-          new Error(
-            "Google Sign-In is not available. Ensure GOOGLE_CLIENT_ID is set on the backend, or set NEXT_PUBLIC_GOOGLE_CLIENT_ID in the frontend environment.",
-          ),
-        )
+        console.error("[v0] Google OAuth not configured on server")
+        reject(new Error("Google OAuth is not configured. Please contact support."))
         return
       }
 

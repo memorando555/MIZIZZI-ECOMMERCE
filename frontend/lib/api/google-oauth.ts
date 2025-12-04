@@ -43,27 +43,11 @@ interface NetworkError extends Error {
   statusCode?: number
 }
 
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: any) => void
-          prompt: (callback?: (notification: any) => void) => void
-          renderButton: (element: HTMLElement, config: any) => void
-          cancel: () => void
-          disableAutoSelect: () => void
-        }
-      }
-    }
-  }
-}
-
-export class GoogleOAuthAPI {
+class GoogleOAuthAPI {
   private async makeRequest<T>(endpoint: string, options: RequestInit & { timeout?: number } = {}): Promise<T> {
     const token = getAuthToken()
-    const timeoutMs = options.timeout || 60000
-    delete options.timeout
+    const timeoutMs = options.timeout || 30000 // Default 30 second timeout
+    delete options.timeout // Remove timeout from options to avoid fetch error
 
     try {
       const controller = new AbortController()
@@ -88,9 +72,7 @@ export class GoogleOAuthAPI {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
 
-        const error = new Error(
-          errorData.message || errorData.msg || `HTTP error! status: ${response.status}`,
-        ) as NetworkError
+        const error = new Error(errorData.message || `HTTP error! status: ${response.status}`) as NetworkError
         error.statusCode = response.status
 
         console.error(`[v0] HTTP ${response.status} error at ${endpoint}:`, {
@@ -101,8 +83,7 @@ export class GoogleOAuthAPI {
 
         if (response.status >= 500) {
           error.code = "SERVER_UNAVAILABLE"
-          error.message =
-            errorData.message || errorData.msg || `Backend server error (${response.status}). Please try again.`
+          error.message = `Backend server error (${response.status}). Please ensure the backend is running at ${API_BASE_URL}`
         } else if (response.status === 400) {
           error.code = "VALIDATION_ERROR"
         } else if (response.status === 401 || response.status === 403) {
@@ -125,13 +106,16 @@ export class GoogleOAuthAPI {
       }
 
       if (error instanceof TypeError && error.message.includes("fetch")) {
-        const networkError = new Error(`Backend server is not responding. Please try again later.`) as NetworkError
+        const networkError = new Error(
+          `Backend server is not responding at ${API_BASE_URL}. Make sure your backend server is running.\n\nIf you haven't started the backend yet, please run: npm run dev:backend`,
+        ) as NetworkError
         networkError.code = "NETWORK_ERROR"
         networkError.originalError = error
         console.error(`[v0] Network error connecting to ${API_BASE_URL}:`, error.message)
         throw networkError
       }
 
+      // Re-throw NetworkError instances
       if ((error as NetworkError).code) {
         throw error
       }
@@ -147,119 +131,20 @@ export class GoogleOAuthAPI {
   /**
    * Get Google OAuth configuration from backend
    */
-  async getGoogleConfig(options: { timeout?: number; retries?: number } = {}): Promise<GoogleConfigResponse> {
-    const timeout = options.timeout || 45000
-    const maxRetries = options.retries ?? 2
-    let lastError: Error | null = null
-
-    const envClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        if (attempt > 0) {
-          console.log(`[v0] Retrying getGoogleConfig (attempt ${attempt + 1}/${maxRetries + 1})...`)
-          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
-        }
-
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-        const response = await fetch(`${API_BASE_URL}/api/auth/google-config`, {
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
-        })
-
-        clearTimeout(timeoutId)
-
-        const data = await response.json().catch(() => ({}))
-
-        if (!response.ok || data.configured === false) {
-          if (envClientId) {
-            console.warn("[v0] Google OAuth not configured on server, using NEXT_PUBLIC_GOOGLE_CLIENT_ID")
-            return {
-              status: "success",
-              client_id: envClientId,
-              configured: true,
-            }
-          }
-
-          console.warn("[v0] Google OAuth not configured on server:", data.message)
-          return {
-            status: "error",
-            client_id: "",
-            configured: false,
-          }
-        }
-
-        if (!data.client_id) {
-          if (envClientId) {
-            console.warn("[v0] Server returned empty client_id, using NEXT_PUBLIC_GOOGLE_CLIENT_ID fallback")
-            return {
-              status: "success",
-              client_id: envClientId,
-              configured: true,
-            }
-          }
-
-          console.warn("[v0] Server returned no client_id for Google OAuth")
-          return {
-            status: "error",
-            client_id: "",
-            configured: false,
-          }
-        }
-
-        return {
-          status: "success",
-          client_id: data.client_id,
-          configured: true,
-        }
-      } catch (error: any) {
-        lastError = error
-        console.warn(`[v0] getGoogleConfig attempt ${attempt + 1} failed:`, error.message)
-
-        if (error.name === "AbortError") {
-          if (attempt === maxRetries) {
-            if (envClientId) {
-              console.warn("[v0] Server timeout, falling back to NEXT_PUBLIC_GOOGLE_CLIENT_ID")
-              return {
-                status: "success",
-                client_id: envClientId,
-                configured: true,
-              }
-            }
-            throw new Error("Server is taking too long to respond. Please try again in a moment.")
-          }
-          continue
-        }
-
-        if (
-          (error as NetworkError).code &&
-          (error as NetworkError).code !== "TIMEOUT" &&
-          (error as NetworkError).code !== "NETWORK_ERROR"
-        ) {
-          throw error
-        }
+  async getGoogleConfig(options: { timeout?: number } = {}): Promise<GoogleConfigResponse> {
+    try {
+      const timeout = options.timeout || 10000 // 10 seconds default for config
+      return await this.makeRequest<GoogleConfigResponse>("/api/auth/google-config", { timeout })
+    } catch (error) {
+      console.error("[v0] Error getting Google config:", error)
+      // Add more context to timeout errors
+      if ((error as NetworkError).code === "TIMEOUT") {
+        throw new Error(
+          "Could not reach the authentication server. Please ensure the backend server is running and try again.",
+        )
       }
+      throw error
     }
-
-    if (lastError) {
-      if (envClientId) {
-        console.warn("[v0] All retries failed, falling back to NEXT_PUBLIC_GOOGLE_CLIENT_ID")
-        return {
-          status: "success",
-          client_id: envClientId,
-          configured: true,
-        }
-      }
-
-      if ((lastError as NetworkError).code === "TIMEOUT") {
-        throw new Error("Could not reach the authentication server. Please try again later.")
-      }
-      throw lastError
-    }
-
-    throw new Error("Failed to get Google config after retries")
   }
 
   /**
@@ -275,13 +160,13 @@ export class GoogleOAuthAPI {
       }
 
       console.log("[v0] Sending Google token to backend for authentication")
-      console.log("[v0] Token length:", googleToken.length)
 
       const response = await this.makeRequest<GoogleAuthResponse>("/api/auth/google-login", {
         method: "POST",
         body: JSON.stringify({ token: googleToken }),
       })
 
+      // Store tokens in localStorage if provided
       if (response.access_token) {
         localStorage.setItem("mizizzi_token", response.access_token)
         console.log("[v0] Access token stored")
@@ -297,6 +182,7 @@ export class GoogleOAuthAPI {
         console.log("[v0] CSRF token stored")
       }
 
+      // Store user data
       if (response.user) {
         localStorage.setItem("user", JSON.stringify(response.user))
         console.log("[v0] User data stored")
@@ -308,11 +194,15 @@ export class GoogleOAuthAPI {
       const networkError = error as NetworkError
 
       if (networkError.code === "NETWORK_ERROR") {
-        throw new Error(`Backend server is not responding. Please try again later.`)
+        throw new Error(
+          `Backend server is not responding at ${API_BASE_URL}.\n\nPlease ensure:\n1. Backend server is running\n2. NEXT_PUBLIC_API_URL environment variable is set correctly\n3. Network connectivity is available`,
+        )
       } else if (networkError.code === "SERVER_UNAVAILABLE") {
-        throw new Error(error.message || `Backend server error. Please try again in a few moments.`)
+        throw new Error(
+          `Backend server returned error (${networkError.statusCode}). Please try again in a few moments.`,
+        )
       } else if (networkError.code === "TIMEOUT") {
-        throw new Error("Google authentication request timed out. Please try again.")
+        throw new Error("Google authentication request timed out. Please check your connection and try again.")
       } else if (networkError.code === "VALIDATION_ERROR") {
         throw error
       }
@@ -323,6 +213,7 @@ export class GoogleOAuthAPI {
 
   /**
    * Link Google account to existing user account
+   * Requires authentication
    */
   async linkGoogleAccount(googleToken: string): Promise<GoogleLinkResponse> {
     try {
@@ -351,6 +242,7 @@ export class GoogleOAuthAPI {
 
   /**
    * Unlink Google account from user account
+   * Requires authentication
    */
   async unlinkGoogleAccount(): Promise<GoogleLinkResponse> {
     try {
@@ -372,6 +264,7 @@ export class GoogleOAuthAPI {
 
   /**
    * Get Google account linking status
+   * Requires authentication
    */
   async getGoogleStatus(): Promise<GoogleStatusResponse> {
     try {
@@ -391,6 +284,7 @@ export class GoogleOAuthAPI {
 
   /**
    * Logout from Google OAuth session
+   * Requires authentication
    */
   async logoutGoogle(): Promise<{ status: string; message: string }> {
     try {
@@ -405,6 +299,7 @@ export class GoogleOAuthAPI {
         method: "POST",
       })
 
+      // Clear tokens from localStorage
       localStorage.removeItem("mizizzi_token")
       localStorage.removeItem("mizizzi_refresh_token")
       localStorage.removeItem("mizizzi_csrf_token")
@@ -418,89 +313,11 @@ export class GoogleOAuthAPI {
   }
 
   /**
-   * Get Google Sign-In token using Google's One Tap flow
+   * Get Google Sign-In token using Google's library
    */
   async getGoogleToken(): Promise<string> {
     return new Promise((resolve, reject) => {
       console.log("[v0] Getting Google token")
-
-      const initializeAuth = async () => {
-        try {
-          const config = await this.getGoogleConfig()
-
-          if (!config.configured || !config.client_id) {
-            reject(new Error("Google Sign-In is not available. Please contact support."))
-            return
-          }
-
-          const clientId = config.client_id
-          console.log("[v0] Initializing Google Sign-In with clientId:", clientId.substring(0, 20) + "...")
-
-          if (!window.google?.accounts?.id) {
-            reject(new Error("Google Sign-In library not loaded correctly"))
-            return
-          }
-
-          // Initialize with callback
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: (response: any) => {
-              console.log("[v0] Google callback received")
-              if (response.credential) {
-                console.log("[v0] Credential received, token length:", response.credential.length)
-                resolve(response.credential)
-              } else {
-                console.log("[v0] No credential in response")
-                reject(new Error("No credential received from Google"))
-              }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: false,
-            itp_support: true, // Support Intelligent Tracking Prevention
-          })
-
-          console.log("[v0] Using Google One Tap prompt")
-
-          // Try One Tap first
-          window.google.accounts.id.prompt((notification: any) => {
-            console.log("[v0] One Tap notification received")
-
-            if (notification.isNotDisplayed()) {
-              const reason = notification.getNotDisplayedReason()
-              console.log("[v0] One Tap not displayed, reason:", reason)
-
-              // Fall back to button for these cases
-              if (
-                reason === "opt_out_or_no_session" ||
-                reason === "suppressed_by_user" ||
-                reason === "unknown_reason"
-              ) {
-                this.showGoogleSignInButton(resolve, reject, clientId)
-              } else if (reason === "browser_not_supported") {
-                reject(new Error("Your browser doesn't support Google Sign-In. Please try a different browser."))
-              } else {
-                this.showGoogleSignInButton(resolve, reject, clientId)
-              }
-            } else if (notification.isSkippedMoment()) {
-              const reason = notification.getSkippedReason()
-              console.log("[v0] One Tap skipped, reason:", reason)
-              this.showGoogleSignInButton(resolve, reject, clientId)
-            } else if (notification.isDismissedMoment()) {
-              const reason = notification.getDismissedReason()
-              console.log("[v0] One Tap dismissed, reason:", reason)
-              if (reason === "credential_returned") {
-                // Success - callback will handle it
-                console.log("[v0] Credential returned via One Tap")
-              } else {
-                this.showGoogleSignInButton(resolve, reject, clientId)
-              }
-            }
-          })
-        } catch (error) {
-          console.error("[v0] Error initializing Google auth:", error)
-          reject(error instanceof Error ? error : new Error("Failed to initialize Google Sign-In"))
-        }
-      }
 
       // Load Google Sign-In script if not already loaded
       if (!window.google) {
@@ -511,7 +328,7 @@ export class GoogleOAuthAPI {
         script.defer = true
         script.onload = () => {
           console.log("[v0] Google Sign-In script loaded")
-          initializeAuth()
+          this.initializeGoogleSignIn(resolve, reject)
         }
         script.onerror = () => {
           console.error("[v0] Failed to load Google Sign-In library")
@@ -520,130 +337,97 @@ export class GoogleOAuthAPI {
         document.head.appendChild(script)
       } else {
         console.log("[v0] Google Sign-In script already loaded")
-        initializeAuth()
+        this.initializeGoogleSignIn(resolve, reject)
       }
     })
   }
 
-  private showGoogleSignInButton(
+  private async initializeGoogleSignIn(
     resolve: (token: string) => void,
     reject: (error: Error) => void,
-    clientId: string,
-  ): void {
-    console.log("[v0] Showing Google Sign-In button as fallback")
+  ): Promise<void> {
+    try {
+      // Get client ID from backend config with shorter timeout
+      const config = await this.getGoogleConfig()
 
-    // Remove any existing overlay
-    const existingOverlay = document.getElementById("google-signin-overlay")
-    if (existingOverlay) {
-      existingOverlay.remove()
-    }
+      if (!config.configured || !config.client_id) {
+        console.error("[v0] Google OAuth not configured on server")
+        reject(new Error("Google OAuth is not configured. Please contact support."))
+        return
+      }
 
-    // Create overlay modal
-    const overlay = document.createElement("div")
-    overlay.id = "google-signin-overlay"
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10000;
-    `
+      const clientId = config.client_id
 
-    const modal = document.createElement("div")
-    modal.style.cssText = `
-      background: white;
-      padding: 32px;
-      border-radius: 16px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-      text-align: center;
-      max-width: 400px;
-      width: 90%;
-    `
+      console.log("[v0] Initializing Google Sign-In with clientId:", clientId.substring(0, 20) + "...")
 
-    const title = document.createElement("h3")
-    title.textContent = "Sign in with Google"
-    title.style.cssText = `
-      margin: 0 0 8px 0;
-      font-size: 20px;
-      font-weight: 600;
-      color: #1f2937;
-    `
+      // Ensure google object exists
+      if (!window.google?.accounts?.id) {
+        reject(new Error("Google Sign-In library not loaded correctly"))
+        return
+      }
 
-    const subtitle = document.createElement("p")
-    subtitle.textContent = "Click the button below to continue"
-    subtitle.style.cssText = `
-      margin: 0 0 24px 0;
-      font-size: 14px;
-      color: #6b7280;
-    `
-
-    const buttonContainer = document.createElement("div")
-    buttonContainer.id = "google-signin-button-fallback"
-    buttonContainer.style.cssText = `
-      display: flex;
-      justify-content: center;
-      margin-bottom: 16px;
-    `
-
-    const cancelBtn = document.createElement("button")
-    cancelBtn.textContent = "Cancel"
-    cancelBtn.style.cssText = `
-      padding: 8px 24px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      background: white;
-      color: #374151;
-      font-size: 14px;
-      cursor: pointer;
-      transition: background 0.2s;
-    `
-    cancelBtn.onmouseover = () => {
-      cancelBtn.style.background = "#f3f4f6"
-    }
-    cancelBtn.onmouseout = () => {
-      cancelBtn.style.background = "white"
-    }
-    cancelBtn.onclick = () => {
-      overlay.remove()
-      reject(new Error("Sign-in cancelled by user"))
-    }
-
-    modal.appendChild(title)
-    modal.appendChild(subtitle)
-    modal.appendChild(buttonContainer)
-    modal.appendChild(cancelBtn)
-    overlay.appendChild(modal)
-    document.body.appendChild(overlay)
-
-    // Re-initialize Google for this button
-    if (window.google?.accounts?.id) {
+      // Initialize Google Sign-In
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: (response: any) => {
-          console.log("[v0] Google button callback received")
-          overlay.remove()
+          console.log("[v0] Google callback received")
           if (response.credential) {
+            console.log("[v0] Credential received, resolving with token")
             resolve(response.credential)
           } else {
+            console.log("[v0] No credential in response")
             reject(new Error("No credential received from Google"))
           }
         },
       })
 
-      // Render the button
-      window.google.accounts.id.renderButton(buttonContainer, {
+      console.log("[v0] Creating button container")
+
+      // Create a container for the button
+      const container = document.createElement("div")
+      container.id = "google-signin-button-container"
+      container.style.display = "none"
+      document.body.appendChild(container)
+
+      console.log("[v0] Rendering Google Sign-In button")
+
+      // Double-check google object still exists
+      if (!window.google?.accounts?.id) {
+        reject(new Error("Lost connection to Google Sign-In library"))
+        return
+      }
+
+      // Render the Google Sign-In button
+      window.google.accounts.id.renderButton(container, {
         theme: "outline",
         size: "large",
         type: "standard",
-        shape: "rectangular",
-        text: "signin_with",
-        width: 280,
       })
+
+      console.log("[v0] Looking for button to click")
+
+      // Wait a short moment for the button to be rendered
+      setTimeout(() => {
+        const button = container.querySelector("div[role='button']") as HTMLElement | null
+        if (button) {
+          console.log("[v0] Triggering Google Sign-In button click")
+          button.click()
+        } else {
+          // Try one more time with a different selector
+          const fallbackButton = container.querySelector("button") as HTMLButtonElement | null
+          if (fallbackButton) {
+            console.log("[v0] Triggering Google Sign-In button click (fallback)")
+            fallbackButton.click()
+          } else {
+            console.error("[v0] Failed to find Google Sign-In button")
+            console.log("[v0] Container contents:", container.innerHTML)
+            reject(new Error("Failed to render Google Sign-In button"))
+          }
+        }
+      }, 500) // Wait 500ms for the button to be rendered
+    } catch (error) {
+      console.error("[v0] Error in initializeGoogleSignIn:", error)
+      reject(error instanceof Error ? error : new Error("Failed to initialize Google Sign-In"))
     }
   }
 
@@ -654,77 +438,87 @@ export class GoogleOAuthAPI {
     try {
       console.log("[v0] Starting Google OAuth flow")
 
+      // Get Google token
       const googleToken = await this.getGoogleToken()
 
       console.log("[v0] Got Google token, authenticating with backend")
 
+      // Login with the token
       const response = await this.loginWithGoogle(googleToken)
 
       console.log("[v0] Google authentication successful")
 
-      // Clean up any overlays
-      const overlay = document.getElementById("google-signin-overlay")
-      if (overlay) {
-        overlay.remove()
-      }
-
       return response
     } catch (error) {
       console.error("[v0] Google authentication flow error:", error)
-
-      // Clean up any overlays on error
-      const overlay = document.getElementById("google-signin-overlay")
-      if (overlay) {
-        overlay.remove()
-      }
-
       throw error
     }
   }
 
   /**
-   * Check server health
+   * Check server health using the Google OAuth config endpoint
+   * This endpoint is public and doesn't require authentication
    */
   async checkServerHealth(): Promise<{ available: boolean; message: string }> {
     try {
       console.log(`[v0] Checking server health at ${API_BASE_URL}`)
+      // Use the Google OAuth config endpoint since it's public
       const config = await this.makeRequest<GoogleConfigResponse>("/api/auth/google-config", {
-        timeout: 10000,
+        timeout: 5000, // Use a short timeout for health check
       })
 
       return {
         available: true,
         message: config.configured
-          ? `Backend server is running. Google OAuth is configured.`
-          : `Backend server is running. Google OAuth needs configuration.`,
+          ? `Backend server is running and ready at ${API_BASE_URL}\nGoogle OAuth is configured`
+          : `Backend server is running at ${API_BASE_URL}\nWarning: Google OAuth is not configured on the server`,
       }
     } catch (error: any) {
       const networkError = error as NetworkError
       if (networkError.code === "NETWORK_ERROR") {
         return {
           available: false,
-          message: `Backend server is not responding.`,
+          message: `❌ Backend server is NOT responding at ${API_BASE_URL}\n\nTo fix this:\n1. Make sure your backend server is running\n2. Check that NEXT_PUBLIC_API_URL=${API_BASE_URL} is correct\n3. Verify network connectivity\n\nError: ${error.message}`,
         }
       }
       if (networkError.statusCode === 401 || networkError.statusCode === 403) {
         return {
           available: true,
-          message: `Backend server is running.`,
+          message: `Backend server is running at ${API_BASE_URL}\nNote: Authentication endpoints are protected`,
         }
       }
       if (networkError.code === "TIMEOUT") {
         return {
           available: false,
-          message: `Backend server is not responding (timeout).`,
+          message: `Backend server at ${API_BASE_URL} is not responding (timeout)\n\nPossible causes:\n1. Server is overloaded\n2. Network latency is too high\n3. Server is not running`,
         }
       }
       return {
         available: false,
-        message: `Backend server error: ${error.message}`,
+        message: `Backend server check failed at ${API_BASE_URL}\nError: ${error.message}`,
       }
     }
   }
 }
 
-// Export singleton instance
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void
+          prompt: (callback?: (notification: any) => void) => void
+          renderButton: (element: HTMLElement, config: any) => void
+        }
+        oauth2: {
+          initTokenClient: (config: any) => {
+            requestAccessToken: () => void
+          }
+        }
+      }
+    }
+  }
+}
+
+export { GoogleOAuthAPI }
 export const googleOAuthAPI = new GoogleOAuthAPI()
