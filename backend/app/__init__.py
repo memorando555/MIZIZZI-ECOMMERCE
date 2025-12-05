@@ -113,7 +113,7 @@ except ImportError:
                 if database_url.startswith('postgres://'):
                     database_url = database_url.replace('postgres://', 'postgresql://', 1)
                 return database_url
-            return 'postgresql://mizizzi:junior2020@localhost:5432/mizizzi'
+            return 'DATABASE_URL', 'postgresql://neondb_owner:npg_0gMwASZYo9pJ@ep-shiny-term-adlossxs-pooler.c-2.us-east-1.aws.neon.tech/mizizzi_project?sslmode=require&channel_binding=require'
         
         # Minimal config classes
         class Config:
