@@ -1,11 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://mizizzi-ecommerce-1.onrender.com',
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://mizizzi-ecommerce-87pr-ffh57x9o6-jons-projects-a41f528c.vercel.app',
@@ -15,16 +9,6 @@ const nextConfig = {
   images: {
     // unoptimized should be false in production for proper image serving
     unoptimized: false,
-    
-    domains: [
-      'images.pexels.com',
-      'images.unsplash.com',
-      'res.cloudinary.com',
-      'via.placeholder.com',
-      'hebbkx1anhila5yf.public.blob.vercel-storage.com',
-      'mizizzi-ecommerce-1.onrender.com',
-      'localhost',
-    ],
     
     remotePatterns: [
       {
@@ -96,6 +80,9 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; img-src * data: blob: 'self'; script-src 'none'; sandbox;",
   },
   output: 'standalone',
+  turbopack: {
+    root: process.cwd(),
+  },
   async rewrites() {
     return [
       {
