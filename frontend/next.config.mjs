@@ -13,36 +13,64 @@ const nextConfig = {
     NEXT_PUBLIC_ENABLE_WEBSOCKET: process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET || 'true',
   },
   images: {
-    localPatterns: [
-      {
-        pathname: '/placeholder.svg',
-        search: '**',
-      },
+    // unoptimized should be false in production for proper image serving
+    unoptimized: false,
+    
+    domains: [
+      'images.pexels.com',
+      'images.unsplash.com',
+      'res.cloudinary.com',
+      'via.placeholder.com',
+      'hebbkx1anhila5yf.public.blob.vercel-storage.com',
+      'mizizzi-ecommerce-1.onrender.com',
+      'localhost',
     ],
+    
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'images.pexels.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.pexels.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.unsplash.com',
+        pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'hebbkx1anhila5yf.public.blob.vercel-storage.com',
+        pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: '**.vercel-storage.com',
+        hostname: '*.vercel-storage.com',
+        pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'via.placeholder.com',
+        pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+        pathname: '/**',
       },
       {
         protocol: 'https',
         hostname: 'upload.wikimedia.org',
+        pathname: '/**',
       },
       {
         protocol: 'https',
@@ -58,24 +86,16 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '**',
-        pathname: '/**',
-      },
-      {
-        protocol: 'http',
-        hostname: '**',
-        pathname: '/**',
       },
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    formats: ['image/avif', 'image/webp'], // added avif support
+    formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy:
-      "default-src 'self'; img-src * data: blob: 'self'; script-src 'none'; sandbox;", // update content security policy so images from data/blob and external sources are allowed
-    qualities: [10, 25, 50, 75, 85, 90, 95, 100],
-    unoptimized: process.env.NODE_ENV === 'development',
+    contentSecurityPolicy: "default-src 'self'; img-src * data: blob: 'self'; script-src 'none'; sandbox;",
   },
+  output: 'standalone',
   async rewrites() {
     return [
       {
@@ -90,9 +110,15 @@ const nextConfig = {
   },
   async headers() {
     return [
-      // Add CORS + long caching for common static image assets in /public
       {
-        source: '/:path*\\.(png|jpg|jpeg|gif|svg|webp|avif)',
+        source: '/public/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/:path*\\.(png|jpg|jpeg|gif|svg|webp|avif|ico)',
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
           { key: 'Access-Control-Allow-Methods', value: 'GET,HEAD,OPTIONS' },
@@ -125,7 +151,6 @@ const nextConfig = {
   },
   webpack: (config, { dev }) => {
     if (dev) {
-      // Disable cache in development to prevent these errors
       config.cache = false;
     }
     return config;
