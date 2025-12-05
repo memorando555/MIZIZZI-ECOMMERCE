@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useCallback, useMemo } from "react"
+import { useEffect, useRef, useCallback, useMemo, useState } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
+import Image from "next/image"
+import { motion, AnimatePresence } from "framer-motion"
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react"
 import type { Category } from "@/services/category"
-import { useInView } from "react-intersection-observer"
 import { websocketService } from "@/services/websocket"
 import useSWR from "swr"
 
@@ -80,10 +80,31 @@ const normalizeImageUrl = (url: string | undefined | null): string | undefined =
   return url
 }
 
+const LogoPlaceholder = () => (
+  <div className="absolute inset-0 flex items-center justify-center bg-white">
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="relative h-10 w-10 sm:h-12 sm:w-12"
+    >
+      <Image
+        src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
+        alt="Loading"
+        fill
+        className="object-contain"
+        priority
+      />
+    </motion.div>
+  </div>
+)
+
 const CategoryCardSkeleton = ({ index }: { index: number }) => (
   <div className="flex-shrink-0 min-w-[150px] sm:min-w-[170px] md:min-w-[190px] flex-1">
     <div className="relative overflow-hidden rounded-lg w-full h-full bg-white shadow-md">
-      <div className="aspect-square w-full overflow-hidden bg-gray-200 animate-pulse" />
+      <div className="aspect-square w-full overflow-hidden bg-white">
+        <LogoPlaceholder />
+      </div>
       <div className="absolute bottom-0 left-0 w-full p-3 space-y-2">
         <div className="h-4 w-3/4 bg-gray-300 rounded animate-pulse" />
         <div className="h-3 w-1/2 bg-gray-300 rounded animate-pulse" />
@@ -91,6 +112,87 @@ const CategoryCardSkeleton = ({ index }: { index: number }) => (
     </div>
   </div>
 )
+
+const FastCategoryImage = ({
+  src,
+  alt,
+  isPriority,
+}: {
+  src?: string
+  alt: string
+  isPriority: boolean
+}) => {
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [imageError, setImageError] = useState(false)
+  const [showPlaceholder, setShowPlaceholder] = useState(true)
+
+  const imageUrl = src || "/abstract-categories.png"
+
+  // Handle image load success
+  const handleImageLoad = () => {
+    setImageLoaded(true)
+    // Add a small delay to show the smooth transition
+    setTimeout(() => {
+      setShowPlaceholder(false)
+    }, 300)
+  }
+
+  // Handle image load error
+  const handleImageError = () => {
+    setImageError(true)
+    setImageLoaded(false)
+  }
+
+  // Reset states when src changes
+  useEffect(() => {
+    setImageLoaded(false)
+    setImageError(false)
+    setShowPlaceholder(true)
+  }, [src])
+
+  return (
+    <div className="aspect-square w-full overflow-hidden bg-white relative">
+      {/* Logo placeholder shown while loading - same as flash sales */}
+      <AnimatePresence>
+        {(showPlaceholder || imageError) && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            exit={{
+              opacity: 0,
+              scale: 1.1,
+              transition: { duration: 0.5, ease: "easeInOut" },
+            }}
+            className="absolute inset-0 z-10"
+          >
+            <LogoPlaceholder />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Actual image with fade-in effect */}
+      <motion.div
+        initial={{ opacity: 0, scale: 1.1 }}
+        animate={{
+          opacity: imageLoaded ? 1 : 0,
+          scale: imageLoaded ? 1 : 1.1,
+        }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="absolute inset-0"
+      >
+        <img
+          src={imageUrl || "/placeholder.svg"}
+          alt={alt}
+          className="h-full w-full object-cover"
+          loading={isPriority ? "eager" : "lazy"}
+          decoding={isPriority ? "sync" : "async"}
+          fetchPriority={isPriority ? "high" : "auto"}
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
+      </motion.div>
+    </div>
+  )
+}
 
 const CategoryCard = ({
   category,
@@ -101,19 +203,11 @@ const CategoryCard = ({
   index: number
   isPriority: boolean
 }) => {
-  const { ref, inView } = useInView({
-    triggerOnce: true,
-    rootMargin: "300px 0px", // Increased margin for earlier preloading
-  })
-
-  const imageUrl = category.image_url || "/abstract-categories.png"
-
   return (
     <Link
       href={`/category/${category.slug}`}
       key={`carousel-${category.id || index}`}
       className="flex-shrink-0 min-w-[150px] sm:min-w-[170px] md:min-w-[190px] flex-1"
-      ref={ref}
       prefetch={true}
     >
       <motion.div
@@ -122,34 +216,17 @@ const CategoryCard = ({
         transition={{ duration: 0.2, ease: "easeOut" }}
         layout
       >
-        {(inView || isPriority) && (
-          <>
-            <div className="aspect-square w-full overflow-hidden bg-gray-100">
-              <img
-                src={imageUrl || "/placeholder.svg"}
-                alt={category.name}
-                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                loading={isPriority ? "eager" : "lazy"}
-                decoding={isPriority ? "sync" : "async"}
-                // @ts-ignore - fetchpriority is valid but not in types
-                fetchpriority={isPriority ? "high" : "auto"}
-                onError={(e) => {
-                  ;(e.target as HTMLImageElement).src = "/abstract-categories.png"
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/20" />
-            <div className="absolute bottom-0 left-0 w-full p-3">
-              <h3 className="text-sm font-semibold text-white sm:text-base group-hover:text-cherry-200 transition-colors">
-                {category.name}
-              </h3>
-              <div className="flex items-center text-xs text-white/90 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <span>Shop Now</span>
-                <ArrowRight className="ml-1 h-3 w-3" />
-              </div>
-            </div>
-          </>
-        )}
+        <FastCategoryImage src={category.image_url} alt={category.name} isPriority={isPriority} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/20" />
+        <div className="absolute bottom-0 left-0 w-full p-3">
+          <h3 className="text-sm font-semibold text-white sm:text-base group-hover:text-cherry-200 transition-colors">
+            {category.name}
+          </h3>
+          <div className="flex items-center text-xs text-white/90 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span>Shop Now</span>
+            <ArrowRight className="ml-1 h-3 w-3" />
+          </div>
+        </div>
       </motion.div>
     </Link>
   )
@@ -175,14 +252,22 @@ export function CategoryGrid() {
 
   useEffect(() => {
     if (categories.length > 0) {
-      const imagesToPreload = categories.slice(0, 4)
+      const imagesToPreload = categories.slice(0, 6)
       imagesToPreload.forEach((cat) => {
         if (cat.image_url) {
-          const link = document.createElement("link")
-          link.rel = "preload"
-          link.as = "image"
-          link.href = cat.image_url
-          document.head.appendChild(link)
+          // Use Image constructor for faster preloading
+          const img = new (window.Image as any)()
+          img.src = cat.image_url
+
+          // Also add link preload hint
+          const existingLink = document.querySelector(`link[href="${cat.image_url}"]`)
+          if (!existingLink) {
+            const link = document.createElement("link")
+            link.rel = "preload"
+            link.as = "image"
+            link.href = cat.image_url
+            document.head.appendChild(link)
+          }
         }
       })
     }
@@ -257,7 +342,7 @@ export function CategoryGrid() {
                   key={category.id || `category-${index}`}
                   category={category}
                   index={index}
-                  isPriority={index < 4} // First 4 items load with high priority
+                  isPriority={index < 6} // First 6 items load with high priority
                 />
               ))}
         </div>
