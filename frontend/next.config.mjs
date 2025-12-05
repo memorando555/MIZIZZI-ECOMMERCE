@@ -68,10 +68,11 @@ const nextConfig = {
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    formats: ['image/webp'],
+    formats: ['image/avif', 'image/webp'], // added avif support
     minimumCacheTTL: 60,
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    contentSecurityPolicy:
+      "default-src 'self'; img-src * data: blob: 'self'; script-src 'none'; sandbox;", // update content security policy so images from data/blob and external sources are allowed
     qualities: [10, 25, 50, 75, 85, 90, 95, 100],
     unoptimized: process.env.NODE_ENV === 'development',
   },
@@ -89,6 +90,16 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // Add CORS + long caching for common static image assets in /public
+      {
+        source: '/:path*\\.(png|jpg|jpeg|gif|svg|webp|avif)',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET,HEAD,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Origin, X-Requested-With, Content-Type, Accept' },
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
       {
         source: '/api/:path*',
         headers: [
