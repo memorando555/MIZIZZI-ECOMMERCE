@@ -38,7 +38,7 @@ const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCo
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`h-2.5 w-2.5 ${
+            className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${
               star <= Math.floor(rating)
                 ? "fill-yellow-400 text-yellow-400"
                 : star - 0.5 <= rating
@@ -48,7 +48,9 @@ const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCo
           />
         ))}
       </div>
-      {reviewCount > 0 && <span className="text-[9px] text-gray-400">({reviewCount.toLocaleString()})</span>}
+      {reviewCount > 0 && (
+        <span className="text-[10px] sm:text-xs text-gray-400">({reviewCount.toLocaleString()})</span>
+      )}
     </div>
   )
 }
@@ -80,9 +82,9 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
 
   const imageUrl = getProductImageUrl(product)
 
-  // Generate random rating and reviews for demo
-    const rating = product.rating || 3 + Math.random() * 2
-    const reviewCount = product.review_count ?? Math.floor(Math.random() * 5000) + 100
+  // Generate random rating for demo
+  const rating = product.rating || 3 + Math.random() * 2
+  const reviewCount = product.review_count || Math.floor(Math.random() * 5000) + 100
 
   return (
     <Link href={`/product/${product.slug || product.id}`} prefetch={false}>
@@ -126,30 +128,28 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
               />
             </motion.div>
 
-            {/* Discount Badge - Orange like Kilimall */}
             {product.sale_price && discountPercentage > 0 && (
-              <div className="absolute top-1 left-1 bg-[#f85606] text-white text-[9px] font-medium px-1 py-0.5 rounded-sm z-20">
+              <div className="absolute top-1 left-1 bg-[#8B1538] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
                 -{discountPercentage}%
               </div>
             )}
           </div>
 
           {/* Product Info - Compact like Daily Finds */}
-          <div className={isMobile ? "p-1.5" : "p-2"}>
-            {/* Product Name - 2 lines max */}
+          <div className={isMobile ? "p-2" : "p-3"}>
+            {/* Product Name - Increased font size */}
             <h3
-              className={`text-gray-800 line-clamp-2 leading-tight mb-1 ${isMobile ? "text-[10px] min-h-[24px]" : "text-xs min-h-[32px]"}`}
+              className={`text-gray-800 line-clamp-2 leading-tight mb-1.5 ${isMobile ? "text-xs min-h-[32px]" : "text-sm min-h-[40px]"}`}
             >
               {product.name}
             </h3>
 
-            {/* Price - Orange/Red like Kilimall */}
-            <div className="mb-1">
-              <span className={`font-semibold text-[#f85606] ${isMobile ? "text-xs" : "text-sm"}`}>
+            <div className="mb-1.5">
+              <span className={`font-semibold text-[#8B1538] ${isMobile ? "text-sm" : "text-base"}`}>
                 KSh {(product.sale_price || product.price).toLocaleString()}
               </span>
               {product.sale_price && (
-                <span className={`text-gray-400 line-through ml-1 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>
+                <span className={`text-gray-400 line-through ml-1.5 ${isMobile ? "text-[10px]" : "text-xs"}`}>
                   KSh {product.price.toLocaleString()}
                 </span>
               )}
@@ -169,7 +169,7 @@ ProductCard.displayName = "ProductCard"
 const FlashSalesSkeleton = ({ isMobile }: { isMobile: boolean }) => (
   <section className="w-full mb-4 sm:mb-8">
     <div className="w-full">
-      <div className="bg-cherry-900 text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
+      <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
         <div className="flex items-center gap-1 sm:gap-2">
           <div className={`bg-white/20 rounded animate-pulse ${isMobile ? "h-4 w-16" : "h-5 w-20"}`}></div>
         </div>
@@ -589,37 +589,38 @@ export function FlashSales() {
   return (
     <section className="w-full mb-4 sm:mb-8">
       <div className="w-full">
-        {/* Jumia-style Flash Sales Header - Responsive */}
-        <div className="bg-cherry-900 text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
+        <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
           <div className="flex items-center gap-1 sm:gap-2">
-            <Zap className={`text-yellow-300 ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
-            <h2 className={`font-bold whitespace-nowrap ${isMobile ? "text-xs" : "text-sm sm:text-base"}`}>
-              {isMobile ? "Flash Sales" : "Flash Sales | Don't Miss Out!"}
+            <Zap className={`text-yellow-300 fill-yellow-300 ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
+            <h2 className={`font-bold whitespace-nowrap ${isMobile ? "text-sm" : "text-base sm:text-lg"}`}>
+              {isMobile ? "Flash Sale" : "Flash Sale | Limited Time Only!"}
             </h2>
-          </div>
-
-          <div className="flex items-center gap-1 text-[10px] sm:gap-2 sm:text-xs md:text-sm">
-            <span className="hidden sm:inline">Time Left:</span>
-            <div className="flex items-center gap-0.5 font-semibold sm:gap-1">
-              <span>{String(timeLeft.hours).padStart(2, "0")}</span>
-              <span>h</span>
-              <span>:</span>
-              <span>{String(timeLeft.minutes).padStart(2, "0")}</span>
-              <span>m</span>
-              <span>:</span>
-              <span>{String(timeLeft.seconds).padStart(2, "0")}</span>
-              <span>s</span>
+            {/* Timer */}
+            <div
+              className={`flex items-center gap-0.5 sm:gap-1 ml-1 sm:ml-2 ${isMobile ? "text-[10px]" : "text-xs sm:text-sm"}`}
+            >
+              <span className="hidden sm:inline">Time Left:</span>
+              <div className="flex items-center gap-0.5 font-semibold sm:gap-1">
+                <span>{String(timeLeft.hours).padStart(2, "0")}</span>
+                <span>h</span>
+                <span>:</span>
+                <span>{String(timeLeft.minutes).padStart(2, "0")}</span>
+                <span>m</span>
+                <span>:</span>
+                <span>{String(timeLeft.seconds).padStart(2, "0")}</span>
+                <span>s</span>
+              </div>
             </div>
           </div>
 
           <button
             onClick={handleViewAll}
             className={`flex items-center gap-0.5 sm:gap-1 font-medium hover:underline whitespace-nowrap ${
-              isMobile ? "text-[10px]" : "text-xs sm:text-sm"
+              isMobile ? "text-xs" : "text-sm"
             }`}
           >
             See All
-            <ChevronRight className={isMobile ? "h-3 w-3" : "h-4 w-4"} />
+            <ChevronRight className={isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} />
           </button>
         </div>
 

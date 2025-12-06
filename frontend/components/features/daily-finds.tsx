@@ -6,14 +6,12 @@ import { motion, AnimatePresence, type PanInfo } from "framer-motion"
 import Link from "next/link"
 import { ChevronRight, ChevronLeft, Sparkles, Star } from "lucide-react"
 import Image from "next/image"
-import type { Product as BaseProduct } from "@/types"
+import type { Product } from "@/types"
 import { productService } from "@/services/product"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cloudinaryService } from "@/services/cloudinary-service"
-
-type Product = BaseProduct & { color_options?: string[]; stock?: number; rating?: number; reviews_count?: number }
 
 function getProductImageUrl(product: Product): string {
   if (product.image_urls && product.image_urls.length > 0) {
@@ -110,7 +108,7 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
   const imageUrl = getProductImageUrl(product)
 
   const rating = product.rating || 3 + Math.random() * 2
-  const reviewCount = product.reviews_count || Math.floor(Math.random() * 5000) + 100
+  const reviewCount = product.review_count || Math.floor(Math.random() * 5000) + 100
 
   return (
     <Link href={`/product/${product.slug || product.id}`} prefetch={false}>
@@ -154,7 +152,7 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
             </motion.div>
 
             {product.sale_price && discountPercentage > 0 && (
-              <div className="absolute top-1 left-1 bg-[#f85606] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
+              <div className="absolute top-1 left-1 bg-[#8B1538] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
                 -{discountPercentage}%
               </div>
             )}
@@ -168,7 +166,7 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
             </h3>
 
             <div className="mb-1.5">
-              <span className={`font-semibold text-[#f85606] ${isMobile ? "text-sm" : "text-base"}`}>
+              <span className={`font-semibold text-[#8B1538] ${isMobile ? "text-sm" : "text-base"}`}>
                 KSh {(product.sale_price || product.price).toLocaleString()}
               </span>
               {product.sale_price && (
@@ -191,7 +189,7 @@ ProductCard.displayName = "ProductCard"
 const DailyFindsSkeleton = ({ isMobile }: { isMobile: boolean }) => (
   <section className="w-full mb-4 sm:mb-8">
     <div className="w-full">
-      <div className="bg-cherry-900 text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
+      <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
         <div className="flex items-center gap-1 sm:gap-2">
           <div className={`bg-white/20 rounded animate-pulse ${isMobile ? "h-4 w-16" : "h-5 w-20"}`}></div>
         </div>
@@ -235,7 +233,7 @@ const DailyFindsSkeleton = ({ isMobile }: { isMobile: boolean }) => (
                   }}
                   className="text-center z-10"
                 >
-                  <Sparkles className={`text-cherry-400 mx-auto ${isMobile ? "h-4 w-4" : "h-6 w-6"}`} />
+                  <Sparkles className={`text-[#8B1538] mx-auto ${isMobile ? "h-4 w-4" : "h-6 w-6"}`} />
                 </motion.div>
               </div>
               <Skeleton className={`w-1/3 mb-2 bg-[#f5f5f7] rounded-full ${isMobile ? "h-3" : "h-4"}`} />
@@ -563,7 +561,7 @@ export function DailyFinds() {
   return (
     <section className="w-full mb-4 sm:mb-8">
       <div className="w-full">
-        <div className="bg-[#f85606] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
+        <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
           <div className="flex items-center gap-1 sm:gap-2">
             <Sparkles className={`text-white ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
             <h2 className={`font-bold whitespace-nowrap ${isMobile ? "text-sm" : "text-base sm:text-lg"}`}>
@@ -599,95 +597,71 @@ export function DailyFinds() {
           >
             {isMobile ? (
               <div
-                className="flex gap-1 w-full overflow-x-auto scrollbar-hide px-2"
+                className="flex gap-[1px] w-max"
                 style={{
                   scrollSnapType: "x mandatory",
                   WebkitOverflowScrolling: "touch",
-                  paddingBottom: "8px",
                 }}
               >
-                {dailyFinds.map((product, index) => (
+                {dailyFinds.map((product) => (
                   <div
                     key={product.id}
-                    className="flex-shrink-0 pointer-events-auto"
+                    className="flex-shrink-0"
                     style={{
                       width: mobileItemWidth,
-                      minWidth: isSmallMobile ? "100px" : "110px",
-                      maxWidth: "130px",
                       scrollSnapAlign: "start",
                     }}
                   >
-                    <ProductCard product={product} isMobile={true} />
+                    <ProductCard product={product} isMobile={isMobile} />
                   </div>
                 ))}
               </div>
             ) : (
               <motion.div
                 className="flex gap-[1px]"
+                animate={{ x: -currentIndex * (itemWidthPx + 1) }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.1}
+                dragConstraints={{ left: -maxIndex * (itemWidthPx + 1), right: 0 }}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
-                animate={{
-                  x: `-${currentIndex * (isTablet ? 20 : 16.666)}%`,
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30,
-                  mass: 0.8,
-                }}
-                style={{
-                  cursor: isDragging ? "grabbing" : "grab",
-                }}
               >
-                {dailyFinds.map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    className="flex-shrink-0 pointer-events-auto"
-                    style={{ width: `${isTablet ? 20 : 16.666}%` }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <ProductCard product={product} isMobile={false} />
-                  </motion.div>
+                {dailyFinds.map((product) => (
+                  <div key={product.id} className="flex-shrink-0" style={{ width: itemWidthPx }}>
+                    <ProductCard product={product} isMobile={isMobile} />
+                  </div>
                 ))}
               </motion.div>
             )}
 
-            <AnimatePresence>
-              {!isMobile && isHovering && !isDragging && hoverSide === "left" && currentIndex > 0 && (
-                <motion.button
-                  initial={{ opacity: 0, x: -20, scale: 0.8 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -20, scale: 0.8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  onClick={goToPrevious}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white border border-gray-200 text-gray-700 hover:text-gray-900 p-2 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:shadow-xl"
-                  aria-label="Previous products"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </motion.button>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {!isMobile && isHovering && !isDragging && hoverSide === "right" && currentIndex < maxIndex && (
-                <motion.button
-                  initial={{ opacity: 0, x: 20, scale: 0.8 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 20, scale: 0.8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  onClick={goToNext}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white border border-gray-200 text-gray-700 hover:text-gray-900 p-2 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:shadow-xl"
-                  aria-label="Next products"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </motion.button>
-              )}
-            </AnimatePresence>
+            {!isMobile && isHovering && (
+              <>
+                {hoverSide === "left" && currentIndex > 0 && (
+                  <motion.button
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    onClick={goToPrevious}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg z-20"
+                    aria-label="Previous products"
+                  >
+                    <ChevronLeft className="h-5 w-5 text-gray-700" />
+                  </motion.button>
+                )}
+                {hoverSide === "right" && currentIndex < maxIndex && (
+                  <motion.button
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10 }}
+                    onClick={goToNext}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2 shadow-lg z-20"
+                    aria-label="Next products"
+                  >
+                    <ChevronRight className="h-5 w-5 text-gray-700" />
+                  </motion.button>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
