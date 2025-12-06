@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect, useCallback, memo, useRef } from "react"
 import { motion, AnimatePresence, type PanInfo } from "framer-motion"
 import Link from "next/link"
-import { ChevronRight, ChevronLeft, Crown } from "lucide-react"
+import { ChevronRight, ChevronLeft, Crown, Star } from "lucide-react"
 import Image from "next/image"
 import type { Product } from "@/types"
 import { productService } from "@/services/product"
@@ -43,45 +43,45 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
     : 0
 
-  // Handle image load success
   const handleImageLoad = () => {
     setImageLoaded(true)
-    // Add a small delay to show the smooth transition
-    setTimeout(() => {
-      setShowPlaceholder(false)
-    }, 400)
+    setTimeout(() => setShowPlaceholder(false), 300)
   }
 
-  // Handle image load error
   const handleImageError = () => {
     setImageError(true)
     setImageLoaded(false)
-    // Keep placeholder visible on error
   }
 
-  // Determine the image URL to use
+  useEffect(() => {
+    setImageLoaded(false)
+    setImageError(false)
+    setShowPlaceholder(true)
+  }, [product.id])
+
   const imageUrl = getProductImageUrl(product)
+
+  // Generate random rating and reviews for demo
+  const rating = product.rating || 3 + Math.random() * 2
+  const reviewCount = product.review_count || Math.floor(Math.random() * 5000) + 100
 
   return (
     <Link href={`/product/${product.slug || product.id}`} prefetch={false}>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        whileHover={{ y: -4, scale: 1.02, transition: { duration: 0.2, ease: "easeOut" } }}
+        transition={{ duration: 0.3 }}
+        whileHover={{ y: -2 }}
         className="h-full"
       >
-        <div className="group h-full overflow-hidden bg-white transition-all duration-300 ease-out flex-shrink-0 rounded-sm border border-gray-100 hover:shadow-[0_6px_16px_rgba(0,0,0,0.08)] hover:border-gray-200">
-          <div className={`relative overflow-hidden bg-[#f5f5f7] ${isMobile ? "aspect-square" : "aspect-[4/3]"}`}>
+        <div className="group h-full overflow-hidden bg-white border-r border-gray-100 transition-all duration-200 hover:shadow-sm">
+          {/* Image Container - Square aspect ratio */}
+          <div className="relative aspect-square overflow-hidden bg-[#f8f8f8]">
             <AnimatePresence>
               {(showPlaceholder || imageError) && (
                 <motion.div
                   initial={{ opacity: 1 }}
-                  exit={{
-                    opacity: 0,
-                    scale: 1.1,
-                    transition: { duration: 0.6, ease: "easeInOut" },
-                  }}
+                  exit={{ opacity: 0, transition: { duration: 0.3 } }}
                   className="absolute inset-0 z-10"
                 >
                   <LogoPlaceholder />
@@ -90,121 +90,54 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
             </AnimatePresence>
 
             <motion.div
-              initial={{ opacity: 0, scale: 1.1 }}
-              animate={{
-                opacity: imageLoaded ? 1 : 0,
-                scale: imageLoaded ? 1 : 1.1,
-              }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="absolute inset-0 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: imageLoaded ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0"
             >
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="w-full h-full"
-              >
-                <Image
-                  src={imageUrl || "/placeholder.svg"}
-                  alt={product.name}
-                  fill
-                  sizes={
-                    isMobile
-                      ? "25vw"
-                      : "(max-width: 640px) 25vw, (max-width: 768px) 20vw, (max-width: 1024px) 16vw, 14vw"
-                  }
-                  className="object-cover transition-opacity duration-700"
-                  loading="lazy"
-                  onLoad={handleImageLoad}
-                  onError={handleImageError}
-                  placeholder="blur"
-                  blurDataURL="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCIgdmVyc2lvbj0iMS4xIiB4bWxuczpsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSMjZWVlZWVlIiAvPjwvc3ZnPg=="
-                />
-              </motion.div>
+              <Image
+                src={imageUrl || "/placeholder.svg"}
+                alt={product.name}
+                fill
+                sizes={isMobile ? "25vw" : "16vw"}
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                loading="lazy"
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+              />
             </motion.div>
 
-            {/* Sale Badge with Apple-like styling */}
-            {product.sale_price && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5, duration: 0.3 }}
-                className={`absolute left-0 top-1 rounded-full bg-[#fa5252] px-1 py-0.5 font-medium text-white z-20 ${
-                  isMobile ? "text-[8px]" : "text-[10px]"
-                }`}
-              >
+            {/* Discount Badge - Orange like Kilimall */}
+            {product.sale_price && discountPercentage > 0 && (
+              <div className="absolute top-1 left-1 bg-[#f85606] text-white text-[9px] font-medium px-1 py-0.5 rounded-sm z-20">
                 -{discountPercentage}%
-              </motion.div>
+              </div>
             )}
           </div>
 
-          <div className={`space-y-0.5 ${isMobile ? "p-1" : "p-3"}`}>
-            {/* Luxury Badge with Apple-like styling */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3, duration: 0.3 }}
-              className="mb-1"
+          {/* Product Info - Compact like Daily Finds */}
+          <div className={isMobile ? "p-1.5" : "p-2"}>
+            {/* Product Name - 2 lines max */}
+            <h3
+              className={`text-gray-800 line-clamp-2 leading-tight mb-1 ${isMobile ? "text-[10px] min-h-[24px]" : "text-xs min-h-[32px]"}`}
             >
-              <span
-                className={`inline-block rounded-sm bg-amber-50 px-1 py-0.5 font-medium text-amber-700 ${
-                  isMobile ? "text-[8px]" : "text-[10px]"
-                }`}
-              >
-                LUXURY
+              {product.name}
+            </h3>
+
+            {/* Price - Orange/Red like Kilimall */}
+            <div className="mb-1">
+              <span className={`font-semibold text-[#f85606] ${isMobile ? "text-xs" : "text-sm"}`}>
+                KSh {(product.sale_price || product.price).toLocaleString()}
               </span>
-            </motion.div>
-
-            {/* Product details with Apple-like typography and staggered animation */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.3 }}
-              className="space-y-1"
-            >
-              <h3
-                className={`line-clamp-2 font-medium leading-tight text-gray-900 ${isMobile ? "text-xs" : "text-sm"}`}
-              >
-                {product.name}
-              </h3>
-
-              {/* Pricing with Apple-like styling */}
-              <div>
-                <span className={`font-semibold text-gray-900 ${isMobile ? "text-sm" : "text-base"}`}>
-                  KSh {(product.sale_price || product.price).toLocaleString()}
+              {product.sale_price && (
+                <span className={`text-gray-400 line-through ml-1 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>
+                  KSh {product.price.toLocaleString()}
                 </span>
-                {product.sale_price && (
-                  <div className={`text-gray-500 line-through ${isMobile ? "text-xs" : "text-sm"}`}>
-                    KSh {product.price.toLocaleString()}
-                  </div>
-                )}
-              </div>
-            </motion.div>
+              )}
+            </div>
 
-            {/* Apple-like "Available" indicator */}
-            {(product.stock ?? 0) > 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.3 }}
-                className="flex items-center mt-2"
-              >
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500 mr-1.5"></div>
-                <span className={`text-gray-500 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>Available</span>
-              </motion.div>
-            )}
-
-            {/* Out of stock indicator */}
-            {(product.stock ?? 0) === 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.3 }}
-                className="flex items-center mt-2"
-              >
-                <div className="h-1.5 w-1.5 rounded-full bg-gray-300 mr-1.5"></div>
-                <span className={`text-gray-500 ${isMobile ? "text-[8px]" : "text-[10px]"}`}>Out of stock</span>
-              </motion.div>
-            )}
+            {/* Star Rating */}
+            <StarRating rating={rating} reviewCount={reviewCount} />
           </div>
         </div>
       </motion.div>
@@ -213,6 +146,29 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
 })
 
 ProductCard.displayName = "ProductCard"
+
+// Star Rating Component
+const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCount?: number }) => {
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`h-2.5 w-2.5 ${
+              star <= Math.floor(rating)
+                ? "fill-yellow-400 text-yellow-400"
+                : star - 0.5 <= rating
+                  ? "fill-yellow-400/50 text-yellow-400"
+                  : "fill-gray-200 text-gray-200"
+            }`}
+          />
+        ))}
+      </div>
+      {reviewCount > 0 && <span className="text-[9px] text-gray-400">({reviewCount.toLocaleString()})</span>}
+    </div>
+  )
+}
 
 // Helper function to get the best available product image URL
 function getProductImageUrl(product: Product): string {

@@ -53,7 +53,7 @@ const LogoPlaceholder = () => (
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="relative h-8 w-8"
+      className="relative h-12 w-12 sm:h-16 sm:w-16"
     >
       <Image
         src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
@@ -210,21 +210,52 @@ const DailyFindsSkeleton = ({ isMobile }: { isMobile: boolean }) => (
         <div className={`bg-white/20 rounded animate-pulse ${isMobile ? "h-4 w-12" : "h-5 w-16"}`}></div>
       </div>
 
-      <div className="p-1 bg-white border border-t-0 border-gray-100">
-        <div className="flex gap-0">
-          {[...Array(isMobile ? 4 : 6)].map((_, index) => (
-            <div
+      <div className={isMobile ? "p-1" : "p-2"}>
+        <div className="flex gap-[1px] bg-gray-100">
+          {[...Array(isMobile ? 3 : 6)].map((_, index) => (
+            <motion.div
               key={index}
-              className={`bg-white flex-shrink-0 border-r border-gray-100 ${isMobile ? "w-[calc(25vw-8px)]" : "w-[160px]"}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className={`bg-white flex-shrink-0 ${isMobile ? "p-2 w-[calc(33.333%-1px)]" : "p-4 w-[180px]"}`}
             >
-              <div className="aspect-square bg-gray-100 animate-pulse" />
-              <div className="p-1.5 space-y-1.5">
-                <Skeleton className="h-2.5 w-full" />
-                <Skeleton className="h-2.5 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-                <Skeleton className="h-2.5 w-2/3" />
+              <div
+                className={`w-full mb-2 bg-[#f5f5f7] flex items-center justify-center relative overflow-hidden ${isMobile ? "aspect-square" : "aspect-square"}`}
+              >
+                <motion.div
+                  animate={{
+                    backgroundPosition: ["0% 0%", "100% 100%"],
+                    opacity: [0.5, 0.8, 0.5],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "linear",
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-[#f5f5f7] via-[#e0e0e3] to-[#f5f5f7] bg-[length:400%_400%]"
+                />
+                <motion.div
+                  animate={{
+                    scale: [1, 1.05, 1],
+                    opacity: [0.6, 1, 0.6],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "easeInOut",
+                  }}
+                  className="text-center z-10"
+                >
+                  <Sparkles className={`text-cherry-400 mx-auto ${isMobile ? "h-4 w-4" : "h-6 w-6"}`} />
+                </motion.div>
               </div>
-            </div>
+              <Skeleton className={`w-1/3 mb-2 bg-[#f5f5f7] rounded-full ${isMobile ? "h-3" : "h-4"}`} />
+              <Skeleton className={`w-2/3 bg-[#f5f5f7] rounded-full ${isMobile ? "h-3" : "h-4"}`} />
+              <div className="flex gap-1.5 pt-1">
+                <Skeleton className={`bg-[#f5f5f7] rounded-full ${isMobile ? "h-3 w-3" : "h-4 w-4"}`} />
+              </div>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -249,97 +280,10 @@ export function DailyFinds() {
   const isSmallMobile = useMediaQuery("(max-width: 480px)")
   const isTablet = useMediaQuery("(max-width: 1024px)")
 
-  const itemsPerView = isSmallMobile ? 4 : isMobile ? 4 : isTablet ? 5 : 7
-  const itemWidthPx = isSmallMobile ? 90 : isMobile ? 100 : 160
+  const itemsPerView = isSmallMobile ? 3 : isMobile ? 3 : isTablet ? 5 : 6
+  const mobileItemWidth = "calc((100vw - 32px) / 3)"
+  const itemWidthPx = isSmallMobile ? 110 : isMobile ? 120 : 180
 
-  // Track scroll position for mobile indicator
-  const [mobileScrollIndex, setMobileScrollIndex] = useState(0)
-  useEffect(() => {
-    if (!isMobile || !carouselRef.current) return
-    const handleScroll = () => {
-      const scrollLeft = carouselRef.current!.scrollLeft
-      setMobileScrollIndex(Math.round(scrollLeft / itemWidthPx))
-    }
-    const el = carouselRef.current
-    el.addEventListener("scroll", handleScroll)
-    return () => el.removeEventListener("scroll", handleScroll)
-  }, [isMobile, itemWidthPx])
-
-  const fetchDailyFinds = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const products = await productService.getDailyFindProducts(12)
-
-      if (products && products.length > 0) {
-        const processedProducts = products.map((product) => ({
-          ...product,
-          image_urls: (product.image_urls || []).map((url) => {
-            if (typeof url === "string" && !url.startsWith("http")) {
-              return cloudinaryService.generateOptimizedUrl(url)
-            }
-            return url
-          }),
-        }))
-        setDailyFinds(processedProducts.slice(0, 12))
-      } else {
-        setDailyFinds([])
-      }
-    } catch (error) {
-      console.error("Error fetching daily finds:", error)
-      setError("Failed to load daily finds")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    const fetchData = async () => {
-      try {
-        await fetchDailyFinds()
-      } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("Error in daily finds fetch:", error)
-        }
-      }
-    }
-
-    fetchData()
-
-    return () => {
-      controller.abort()
-    }
-  }, [fetchDailyFinds])
-
-  useEffect(() => {
-    const handleProductImagesUpdated = (event: CustomEvent) => {
-      const { productId } = event.detail
-      console.log("[v0] Daily Finds: Product images updated event received for product:", productId)
-
-      setDailyFinds([])
-      setLoading(true)
-
-      setTimeout(() => {
-        fetchDailyFinds()
-      }, 500)
-    }
-
-    window.addEventListener("productImagesUpdated", handleProductImagesUpdated as EventListener)
-
-    return () => {
-      window.removeEventListener("productImagesUpdated", handleProductImagesUpdated as EventListener)
-    }
-  }, [fetchDailyFinds])
-
-  const handleViewAll = (e: React.MouseEvent) => {
-    e.preventDefault()
-    router.push("/daily-finds")
-  }
-
-  // Carousel navigation functions
   const maxIndex = Math.max(0, dailyFinds.length - itemsPerView)
 
   const goToPrevious = useCallback(() => {
@@ -496,6 +440,51 @@ export function DailyFinds() {
     return () => currentCarousel.removeEventListener("wheel", handleWheelEvent)
   }, [currentIndex, maxIndex, goToPrevious, goToNext, isMobile])
 
+  useEffect(() => {
+    const controller = new AbortController()
+
+    const fetchData = async () => {
+      try {
+        await fetchDailyFinds(setLoading, setError, setDailyFinds)
+      } catch (error) {
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Error in daily finds fetch:", error)
+        }
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      controller.abort()
+    }
+  }, [fetchDailyFinds])
+
+  useEffect(() => {
+    const handleProductImagesUpdated = (event: CustomEvent) => {
+      const { productId } = event.detail
+      console.log("[v0] Daily Finds: Product images updated event received for product:", productId)
+
+      setDailyFinds([])
+      setLoading(true)
+
+      setTimeout(() => {
+        fetchDailyFinds(setLoading, setError, setDailyFinds)
+      }, 500)
+    }
+
+    window.addEventListener("productImagesUpdated", handleProductImagesUpdated as EventListener)
+
+    return () => {
+      window.removeEventListener("productImagesUpdated", handleProductImagesUpdated as EventListener)
+    }
+  }, [fetchDailyFinds])
+
+  const handleViewAll = (e: React.MouseEvent) => {
+    e.preventDefault()
+    router.push("/daily-finds")
+  }
+
   if (loading) {
     return <DailyFindsSkeleton isMobile={isMobile} />
   }
@@ -512,7 +501,10 @@ export function DailyFinds() {
           </div>
           <div className="p-6 bg-white border border-t-0 border-gray-100 text-center">
             <p className="text-sm text-gray-600 mb-3">{error}</p>
-            <button onClick={() => fetchDailyFinds()} className="text-sm text-[#f85606] hover:underline font-medium">
+            <button
+              onClick={() => fetchDailyFinds(setLoading, setError, setDailyFinds)}
+              className="text-sm text-[#f85606] hover:underline font-medium"
+            >
               Try again
             </button>
           </div>
@@ -601,7 +593,7 @@ export function DailyFinds() {
                 <div
                   key={product.id}
                   className="flex-shrink-0"
-                  style={{ width: `${itemWidthPx}px`, scrollSnapAlign: "start" }}
+                  style={{ width: mobileItemWidth, scrollSnapAlign: "start" }}
                 >
                   <ProductCard product={product} isMobile={isMobile} />
                 </div>
@@ -630,6 +622,35 @@ export function DailyFinds() {
       </div>
     </section>
   )
+}
+
+const fetchDailyFinds = async (setLoading: any, setError: any, setDailyFinds: any) => {
+  try {
+    setLoading(true)
+    setError(null)
+
+    const products = await productService.getDailyFindProducts(12)
+
+    if (products && products.length > 0) {
+      const processedProducts = products.map((product: any) => ({
+        ...product,
+        image_urls: (product.image_urls || []).map((url: any) => {
+          if (typeof url === "string" && !url.startsWith("http")) {
+            return cloudinaryService.generateOptimizedUrl(url)
+          }
+          return url
+        }),
+      }))
+      setDailyFinds(processedProducts.slice(0, 12))
+    } else {
+      setDailyFinds([])
+    }
+  } catch (error) {
+    console.error("Error fetching daily finds:", error)
+    setError("Failed to load daily finds")
+  } finally {
+    setLoading(false)
+  }
 }
 
 export default DailyFinds
