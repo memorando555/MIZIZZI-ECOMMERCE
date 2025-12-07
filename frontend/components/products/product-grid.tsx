@@ -14,7 +14,7 @@ const LogoPlaceholder = () => (
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="relative h-8 w-8"
+      className="relative h-6 w-6 sm:h-8 sm:w-8"
     >
       <Image
         src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
@@ -28,12 +28,12 @@ const LogoPlaceholder = () => (
 
 const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCount?: number }) => {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5 sm:gap-1">
       <div className="flex">
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${
+            className={`h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5 ${
               star <= Math.floor(rating)
                 ? "fill-yellow-400 text-yellow-400"
                 : star - 0.5 <= rating
@@ -44,7 +44,7 @@ const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCo
         ))}
       </div>
       {reviewCount > 0 && (
-        <span className="text-[10px] sm:text-xs text-gray-400">({reviewCount.toLocaleString()})</span>
+        <span className="text-[8px] sm:text-[10px] md:text-xs text-gray-400">({reviewCount.toLocaleString()})</span>
       )}
     </div>
   )
@@ -91,7 +91,6 @@ const ProductCard = memo(({ product, index }: { product: Product; index: number 
         className="h-full"
       >
         <div className="group h-full overflow-hidden bg-white border-b border-r border-gray-100 transition-all duration-200 hover:shadow-sm">
-          {/* Image Container - Square aspect ratio with consistent sizing */}
           <div className="relative aspect-square overflow-hidden bg-[#f8f8f8]">
             <AnimatePresence>
               {(showPlaceholder || imageError) && (
@@ -115,7 +114,7 @@ const ProductCard = memo(({ product, index }: { product: Product; index: number 
                 src={imageUrl || "/placeholder.svg"}
                 alt={product.name}
                 fill
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
+                sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 16vw"
                 className="object-cover transition-transform duration-300 group-hover:scale-105"
                 loading="lazy"
                 onLoad={handleImageLoad}
@@ -124,24 +123,24 @@ const ProductCard = memo(({ product, index }: { product: Product; index: number 
             </motion.div>
 
             {product.sale_price && discountPercentage > 0 && (
-              <div className="absolute top-1 left-1 bg-[#8B1538] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
+              <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-[#8B1538] text-white text-[8px] sm:text-[10px] md:text-xs font-medium px-1 sm:px-1.5 py-0.5 rounded-sm z-20">
                 -{discountPercentage}%
               </div>
             )}
           </div>
 
-          <div className="p-2 sm:p-3">
-            {/* Product Name - Increased font size to match flash-sales */}
-            <h3 className="text-gray-800 text-xs sm:text-sm line-clamp-2 leading-tight mb-1.5 min-h-[32px] sm:min-h-[40px]">
+          <div className="p-1.5 sm:p-2 md:p-3">
+            {/* Product Name - Smaller text for 3-col mobile */}
+            <h3 className="text-gray-800 text-[10px] sm:text-xs md:text-sm line-clamp-2 leading-tight mb-1 sm:mb-1.5 min-h-[24px] sm:min-h-[32px] md:min-h-[40px]">
               {product.name}
             </h3>
 
-            <div className="mb-1.5">
-              <span className="font-semibold text-[#8B1538] text-sm sm:text-base">
+            <div className="mb-1 sm:mb-1.5">
+              <span className="font-semibold text-[#8B1538] text-[11px] sm:text-sm md:text-base">
                 KSh {(product.sale_price || product.price).toLocaleString()}
               </span>
               {product.sale_price && (
-                <span className="text-gray-400 line-through ml-1.5 text-[10px] sm:text-xs">
+                <span className="text-gray-400 line-through ml-1 sm:ml-1.5 text-[8px] sm:text-[10px] md:text-xs">
                   KSh {product.price.toLocaleString()}
                 </span>
               )}
@@ -159,16 +158,16 @@ const ProductCard = memo(({ product, index }: { product: Product; index: number 
 ProductCard.displayName = "ProductCard"
 
 const ProductGridSkeleton = ({ count = 12 }: { count?: number }) => (
-  <div className="grid grid-cols-2 gap-[1px] bg-gray-100 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+  <div className="grid grid-cols-3 gap-[1px] bg-gray-100 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
     {[...Array(count)].map((_, i) => (
       <motion.div
         key={i}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: i * 0.02, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        className="bg-white p-2 sm:p-3"
+        className="bg-white p-1.5 sm:p-2 md:p-3"
       >
-        <div className="aspect-square w-full bg-[#f5f5f7] flex items-center justify-center relative overflow-hidden mb-2">
+        <div className="aspect-square w-full bg-[#f5f5f7] flex items-center justify-center relative overflow-hidden mb-1.5 sm:mb-2">
           <motion.div
             animate={{
               backgroundPosition: ["0% 0%", "100% 100%"],
@@ -193,14 +192,14 @@ const ProductGridSkeleton = ({ count = 12 }: { count?: number }) => (
             }}
             className="text-center z-10"
           >
-            <Package className="h-6 w-6 text-gray-300 mx-auto" />
+            <Package className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-gray-300 mx-auto" />
           </motion.div>
         </div>
-        <Skeleton className="h-3 sm:h-4 w-3/4 bg-[#f5f5f7] rounded-full mb-2" />
-        <Skeleton className="h-3 sm:h-4 w-1/2 bg-[#f5f5f7] rounded-full mb-2" />
-        <div className="flex gap-1">
+        <Skeleton className="h-2.5 sm:h-3 md:h-4 w-3/4 bg-[#f5f5f7] rounded-full mb-1.5 sm:mb-2" />
+        <Skeleton className="h-2.5 sm:h-3 md:h-4 w-1/2 bg-[#f5f5f7] rounded-full mb-1.5 sm:mb-2" />
+        <div className="flex gap-0.5 sm:gap-1">
           {[...Array(5)].map((_, j) => (
-            <Skeleton key={j} className="h-3 w-3 sm:h-3.5 sm:w-3.5 bg-[#f5f5f7] rounded-full" />
+            <Skeleton key={j} className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5 bg-[#f5f5f7] rounded-full" />
           ))}
         </div>
       </motion.div>
@@ -268,7 +267,6 @@ export function ProductGrid({ limit = 12, category }: ProductGridProps) {
   useEffect(() => {
     const handleProductImagesUpdated = (event: CustomEvent) => {
       const { productId } = event.detail
-      console.log("[v0] ProductGrid: Product images updated event received for product:", productId)
 
       setProducts([])
       setLoading(true)
@@ -316,18 +314,18 @@ export function ProductGrid({ limit = 12, category }: ProductGridProps) {
 
   return (
     <div className="flex flex-col">
-      <div className="grid grid-cols-2 gap-[1px] bg-gray-100 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      <div className="grid grid-cols-3 gap-[1px] bg-gray-100 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         {products.map((product, index) => (
           <ProductCard key={`${product.id}-${index}`} product={product} index={index} />
         ))}
       </div>
 
       {hasMore && (
-        <div className="flex justify-center py-6 bg-white">
+        <div className="flex justify-center py-6 sm:py-8 bg-white border-t border-gray-100">
           <button
             onClick={handleShowMore}
             disabled={loadingMore}
-            className="group relative flex items-center justify-center gap-2 px-8 py-3 bg-[#8B1538] text-white font-medium rounded-full hover:bg-[#6d1029] transition-all duration-300 disabled:opacity-80 disabled:cursor-not-allowed min-w-[160px] shadow-md hover:shadow-lg"
+            className="group relative flex items-center justify-center gap-2 px-8 sm:px-10 py-2.5 sm:py-3 bg-white text-gray-700 font-semibold rounded-full border-2 border-gray-300 hover:border-[#8B1538] hover:text-[#8B1538] hover:bg-[#8B1538]/5 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed min-w-[160px] sm:min-w-[180px] tracking-wide uppercase text-xs sm:text-sm shadow-sm hover:shadow-md"
           >
             <AnimatePresence mode="wait">
               {loadingMore ? (
@@ -336,53 +334,35 @@ export function ProductGrid({ limit = 12, category }: ProductGridProps) {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  className="flex items-center justify-center"
+                  className="flex items-center gap-2 sm:gap-3"
                 >
-                  <div className="relative w-6 h-6">
-                    {/* Outer ring with gradient segments */}
-                    <svg className="w-6 h-6 animate-spin" viewBox="0 0 24 24">
-                      <defs>
-                        <linearGradient id="spinnerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="white" stopOpacity="1" />
-                          <stop offset="50%" stopColor="white" stopOpacity="0.5" />
-                          <stop offset="100%" stopColor="white" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        fill="none"
-                        stroke="url(#spinnerGradient)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeDasharray="50 15"
+                  {/* Apple-like star/segment spinner with color */}
+                  <div className="relative w-5 h-5">
+                    {[...Array(8)].map((_, i) => (
+                      <motion.span
+                        key={i}
+                        className="absolute left-1/2 top-0 w-[2px] h-[6px] rounded-full origin-[50%_10px]"
+                        style={{
+                          transform: `rotate(${i * 45}deg)`,
+                          background: `linear-gradient(to bottom, #8B1538, #c44060)`,
+                        }}
+                        animate={{
+                          opacity: [0.2, 1, 0.2],
+                        }}
+                        transition={{
+                          duration: 0.8,
+                          repeat: Number.POSITIVE_INFINITY,
+                          delay: i * 0.1,
+                          ease: "easeInOut",
+                        }}
                       />
-                    </svg>
+                    ))}
                   </div>
+                  <span className="text-[#8B1538]">Loading...</span>
                 </motion.div>
               ) : (
-                <motion.span
-                  key="text"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center gap-2"
-                >
+                <motion.span key="text" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                   Show More
-                  <motion.svg
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    whileHover={{ y: 2 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </motion.svg>
                 </motion.span>
               )}
             </AnimatePresence>
