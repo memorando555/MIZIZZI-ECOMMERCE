@@ -15,18 +15,15 @@ interface CarouselSlideProps {
 const slideVariants = {
   enter: (direction: number) => ({
     x: direction > 0 ? "100%" : "-100%",
-    opacity: 1, // Keep full opacity - no fade
-    zIndex: 2, // Entering slide on top
+    zIndex: 2,
   }),
   center: {
     x: 0,
-    opacity: 1,
-    zIndex: 1,
+    zIndex: 2,
   },
   exit: (direction: number) => ({
-    x: direction < 0 ? "50%" : "-50%", // Move less distance for parallax effect
-    opacity: 1, // Keep full opacity - no fade
-    zIndex: 0, // Exiting slide behind
+    x: direction < 0 ? "100%" : "-100%",
+    zIndex: 1,
   }),
 }
 
@@ -39,10 +36,13 @@ export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, i
       animate="center"
       exit="exit"
       transition={{
-        x: { type: "tween", duration: 0.7, ease: [0.25, 0.1, 0.25, 1] },
-        opacity: { duration: 0.7 },
+        x: {
+          type: "tween",
+          duration: 0.6,
+          ease: [0.25, 0.1, 0.25, 1],
+        },
       }}
-      className="absolute inset-0 overflow-hidden"
+      className="absolute inset-0"
       style={{
         willChange: "transform",
         backfaceVisibility: "hidden",
@@ -55,10 +55,10 @@ export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, i
           src={item.image || "/placeholder.svg"}
           alt={item.title}
           fill
-          className="object-cover"
+          className="object-contain sm:object-cover"
           priority={index === 0}
           fetchPriority={index === 0 ? "high" : "auto"}
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 70vw"
+          sizes="100vw"
           quality={90}
         />
       </div>

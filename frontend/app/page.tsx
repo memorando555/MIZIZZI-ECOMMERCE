@@ -1,5 +1,4 @@
 "use client"
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import dynamic from "next/dynamic"
 import Link from "next/link"
 import { motion } from "framer-motion"
@@ -101,8 +100,6 @@ const ProductGridSkeleton = () => (
 )
 
 export default function Home() {
-  // currentUrl is only available on the client (this file is a client component)
-  const currentUrl = typeof window !== "undefined" ? window.location.href : undefined
   return (
     <div
       className="flex min-h-screen flex-col pb-8 overflow-x-hidden w-full max-w-full box-border"
@@ -110,15 +107,7 @@ export default function Home() {
     >
       <NetworkStatus className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 pt-2" />
 
-      {/* Vercel Speed Insights (client-only) */}
-      {currentUrl && (
-        <div className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 my-2">
-          {/* SpeedInsights props typed by the library may not include `url`; cast to any to satisfy TypeScript */}
-          <SpeedInsights {...({ url: currentUrl } as any)} />
-        </div>
-      )}
-
-      <div className="mb-2 py-2 overflow-hidden" style={{ backgroundColor: "var(--color-background)" }}>
+      <div className="mb-2 py-0 sm:py-2 overflow-hidden w-full" style={{ backgroundColor: "var(--color-background)" }}>
         <Carousel />
       </div>
 

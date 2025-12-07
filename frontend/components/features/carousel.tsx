@@ -2,7 +2,7 @@
 
 import { AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useCarousel } from "@/hooks/use-carousel"
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout"
 import { CarouselSlide } from "@/components/carousel/carousel-slide"
@@ -12,6 +12,7 @@ import { ContactCTA } from "@/components/carousel/contact-cta"
 import { PremiumCustomerExperience } from "@/components/carousel/premium-customer-experience"
 import { ProductShowcase } from "@/components/carousel/product-showcase"
 import useSWR from "swr"
+import Image from "next/image"
 import type { CarouselItem } from "@/types/carousel"
 
 const API_BASE_URL =
@@ -86,15 +87,16 @@ const carouselFetcher = async (url: string): Promise<CarouselItem[]> => {
 
 export function Carousel() {
   const { sidePanelsVisible, isDesktop } = useResponsiveLayout()
+  const [imagesLoaded, setImagesLoaded] = useState(false)
 
   const { data: carouselItems = FALLBACK_CAROUSEL_ITEMS } = useSWR(
     `${API_BASE_URL}/api/carousel/items?position=homepage`,
     carouselFetcher,
     {
-      fallbackData: FALLBACK_CAROUSEL_ITEMS, // Shows immediately
+      fallbackData: FALLBACK_CAROUSEL_ITEMS,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 60000, // Cache for 1 minute
+      dedupingInterval: 60000,
       errorRetryCount: 2,
     },
   )
@@ -104,18 +106,43 @@ export function Carousel() {
     autoPlay: true,
   })
 
+  const [prevSlideIndex, setPrevSlideIndex] = useState(currentSlide)
+
   useEffect(() => {
-    if (carouselItems.length > 1) {
-      const nextIndex = (currentSlide + 1) % carouselItems.length
-      const img = new Image()
-      img.src = carouselItems[nextIndex].image
+    const timer = setTimeout(() => {
+      setPrevSlideIndex(currentSlide)
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [currentSlide])
+
+  useEffect(() => {
+    if (carouselItems.length > 0) {
+      let loadedCount = 0
+      carouselItems.forEach((item) => {
+        const img = new window.Image()
+        img.crossOrigin = "anonymous"
+        img.onload = () => {
+          loadedCount++
+          if (loadedCount === carouselItems.length) {
+            setImagesLoaded(true)
+          }
+        }
+        img.onerror = () => {
+          loadedCount++
+          if (loadedCount === carouselItems.length) {
+            setImagesLoaded(true)
+          }
+        }
+        img.src = item.image
+      })
     }
-  }, [currentSlide, carouselItems])
+  }, [carouselItems])
 
   const activeItem = carouselItems[currentSlide]
+  const prevItem = carouselItems[prevSlideIndex]
 
   return (
-    <div className="relative w-full overflow-hidden max-w-full">
+    <div className="relative w-full overflow-hidden">
       {isDesktop && sidePanelsVisible && (
         <div className="absolute left-0 top-0 z-10 hidden h-full w-[140px] transform p-2 xl:block xl:w-[220px]">
           <ProductShowcase />
@@ -132,13 +159,13 @@ export function Carousel() {
       <div
         className={cn(
           "relative mx-auto grid w-full max-w-[1200px] gap-3 sm:gap-4 overflow-hidden",
-          isDesktop && sidePanelsVisible ? "xl:grid-cols-[1fr,280px] xl:px-2" : "px-2 sm:px-4",
+          isDesktop && sidePanelsVisible ? "xl:grid-cols-[1fr,280px] xl:px-2" : "px-0 sm:px-4",
           "transition-all duration-300",
         )}
       >
         {/* Enhanced main carousel */}
         <main
-          className="relative h-[300px] overflow-hidden rounded-xl border border-gray-100 shadow-sm sm:h-[400px] md:h-[450px] lg:h-[500px] xl:h-[400px]"
+          className="relative w-full overflow-hidden rounded-none sm:rounded-xl border-0 sm:border sm:border-gray-100 shadow-none sm:shadow-sm aspect-[16/7] sm:aspect-auto sm:h-[400px] md:h-[450px] lg:h-[500px] xl:h-[400px]"
           onMouseEnter={pause}
           onMouseLeave={resume}
           onFocus={pause}
@@ -147,34 +174,31 @@ export function Carousel() {
           aria-label="Featured products carousel"
           aria-live="polite"
         >
-          <div
-            className="absolute inset-0 bg-gray-100"
-            style={{
-              backgroundImage: activeItem ? `url(${activeItem.image})` : undefined,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              filter: "blur(20px)",
-              transform: "scale(1.1)",
-            }}
-          />
-
-          <div className="absolute inset-0">
-            <AnimatePresence mode="sync" initial={false} custom={direction}>
-              {activeItem ? (
-                <CarouselSlide
-                  key={String(currentSlide)}
-                  item={activeItem as any}
-                  isActive={true}
-                  index={currentSlide}
-                  direction={direction}
-                />
-              ) : (
-                <div key="empty" className="flex items-center justify-center h-full">
-                  <p className="text-gray-500">No carousel items available</p>
-                </div>
-              )}
-            </AnimatePresence>
+          <div className="absolute inset-0 z-0">
+            {prevItem && (
+              <Image
+                src={prevItem.image || "/placeholder.svg"}
+                alt=""
+                fill
+                className="object-contain sm:object-cover"
+                priority
+                sizes="100vw"
+                quality={90}
+              />
+            )}
           </div>
+
+          <AnimatePresence initial={false} custom={direction} mode="sync">
+            {activeItem && (
+              <CarouselSlide
+                key={currentSlide}
+                item={activeItem as any}
+                isActive={true}
+                index={currentSlide}
+                direction={direction}
+              />
+            )}
+          </AnimatePresence>
 
           {/* Navigation arrows */}
           {carouselItems.length > 0 && (

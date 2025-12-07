@@ -24,7 +24,7 @@ export function useCarousel({ itemsLength, autoPlay = true, interval = TIMING.au
 
       setTimeout(() => {
         setIsTransitioning(false)
-      }, 600)
+      }, 500)
     },
     [isTransitioning],
   )
