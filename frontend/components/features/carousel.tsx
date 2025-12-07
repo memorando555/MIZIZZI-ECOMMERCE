@@ -142,7 +142,7 @@ export function Carousel() {
   const prevItem = carouselItems[prevSlideIndex]
 
   return (
-    <div className="relative w-full overflow-hidden">
+    <div className="relative overflow-hidden">
       {isDesktop && sidePanelsVisible && (
         <div className="absolute left-0 top-0 z-10 hidden h-full w-[140px] transform p-2 xl:block xl:w-[220px]">
           <ProductShowcase />
@@ -161,7 +161,7 @@ export function Carousel() {
           "relative w-full",
           isDesktop && sidePanelsVisible
             ? "mx-auto max-w-[1200px] grid gap-3 sm:gap-4 xl:grid-cols-[1fr,280px] xl:px-2"
-            : "sm:mx-auto sm:max-w-[1200px] sm:px-4",
+            : "sm:mx-auto sm:max-w-[1200px]",
           "transition-all duration-300",
         )}
       >
@@ -169,8 +169,7 @@ export function Carousel() {
         <main
           className={cn(
             "relative w-full overflow-hidden",
-            "rounded-none border-0 shadow-none",
-            "sm:rounded-xl sm:border sm:border-gray-100 sm:shadow-sm",
+            "rounded-xl border border-gray-100 shadow-sm",
             "h-[140px] xs:h-[160px] sm:h-[400px] md:h-[450px] lg:h-[500px] xl:h-[400px]",
           )}
           onMouseEnter={pause}
