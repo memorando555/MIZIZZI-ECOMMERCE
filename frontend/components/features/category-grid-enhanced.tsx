@@ -11,16 +11,35 @@ import useSWR from "swr"
 
 const CATEGORIES_STORAGE_KEY = "mizizzi_categories_cache"
 const CATEGORIES_TIMESTAMP_KEY = "mizizzi_categories_timestamp"
+const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 const getCachedCategories = (): Category[] => {
   if (typeof window === "undefined") return []
   try {
     const cached = localStorage.getItem(CATEGORIES_STORAGE_KEY)
-    if (cached) {
-      return JSON.parse(cached)
+    const timestamp = localStorage.getItem(CATEGORIES_TIMESTAMP_KEY)
+
+    if (cached && timestamp) {
+      const categories = JSON.parse(cached)
+      console.log("[v0] Loaded cached categories:", categories.length, "items")
+      console.log(
+        "[v0] First few cached categories:",
+        categories.slice(0, 3).map((c: Category) => ({ name: c.name, image_url: c.image_url })),
+      )
+
+      if (Array.isArray(categories)) {
+        categories.slice(0, 10).forEach((cat: Category) => {
+          if (cat.image_url) {
+            const img = new window.Image()
+            img.src = cat.image_url
+          }
+        })
+      }
+
+      return categories
     }
   } catch (e) {
-    console.warn("[v0] Failed to parse cached categories")
+    console.warn("[CategoryCache] Failed to parse cached categories:", e)
   }
   return []
 }
@@ -28,16 +47,58 @@ const getCachedCategories = (): Category[] => {
 const setCachedCategories = (categories: Category[]) => {
   if (typeof window === "undefined") return
   try {
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories))
-    localStorage.setItem(CATEGORIES_TIMESTAMP_KEY, Date.now().toString())
+    if (Array.isArray(categories) && categories.length > 0) {
+      console.log("[v0] Caching categories:", categories.length, "items")
+      console.log(
+        "[v0] Categories to cache:",
+        categories.slice(0, 3).map((c) => ({ name: c.name, image_url: c.image_url })),
+      )
+      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories))
+      localStorage.setItem(CATEGORIES_TIMESTAMP_KEY, Date.now().toString())
+    }
   } catch (e) {
-    console.warn("[v0] Failed to cache categories")
+    if (e instanceof DOMException && e.name === "QuotaExceededError") {
+      try {
+        localStorage.removeItem(CATEGORIES_STORAGE_KEY)
+        localStorage.removeItem(CATEGORIES_TIMESTAMP_KEY)
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories))
+        localStorage.setItem(CATEGORIES_TIMESTAMP_KEY, Date.now().toString())
+      } catch {
+        console.warn("[CategoryCache] Failed to cache categories after clearing")
+      }
+    } else {
+      console.warn("[CategoryCache] Failed to cache categories:", e)
+    }
+  }
+}
+
+const isCacheStale = (): boolean => {
+  if (typeof window === "undefined") return true
+  try {
+    const timestamp = localStorage.getItem(CATEGORIES_TIMESTAMP_KEY)
+    if (!timestamp) return true
+    const age = Date.now() - Number.parseInt(timestamp, 10)
+    return age > CACHE_EXPIRY_MS
+  } catch {
+    return true
+  }
+}
+
+export const clearCategoriesCache = () => {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.removeItem(CATEGORIES_STORAGE_KEY)
+    localStorage.removeItem(CATEGORIES_TIMESTAMP_KEY)
+  } catch (e) {
+    console.warn("[CategoryCache] Failed to clear cache:", e)
   }
 }
 
 const categoriesFetcher = async (): Promise<Category[]> => {
   const baseUrl =
     process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
+
+  console.log("[v0] Fetching categories from:", `${baseUrl}/api/categories?parent_id=null&per_page=100`)
 
   const response = await fetch(`${baseUrl}/api/categories?parent_id=null&per_page=100`, {
     headers: {
@@ -48,34 +109,51 @@ const categoriesFetcher = async (): Promise<Category[]> => {
   if (!response.ok) throw new Error("Failed to fetch categories")
 
   const data = await response.json()
+  console.log("[v0] Raw API response:", data)
+
   let categories = data?.items ?? data ?? []
 
   if (!Array.isArray(categories)) {
     categories = []
   }
 
-  // Normalize image URLs
+  console.log(
+    "[v0] Categories before normalization:",
+    categories.slice(0, 3).map((c: any) => ({ name: c.name, image_url: c.image_url })),
+  )
+
   categories = categories.map((cat: any) => ({
     ...cat,
     image_url: normalizeImageUrl(cat.image_url),
     banner_url: normalizeImageUrl(cat.banner_url),
   }))
 
-  // Cache to localStorage for instant loading next time
+  console.log(
+    "[v0] Categories after normalization:",
+    categories.slice(0, 3).map((c: any) => ({ name: c.name, image_url: c.image_url })),
+  )
+
   setCachedCategories(categories)
 
   return categories
 }
 
 const normalizeImageUrl = (url: string | undefined | null): string | undefined => {
-  if (!url) return undefined
-  if (url.startsWith("http") || url.startsWith("data:")) return url
+  if (!url || url === "null" || url === "undefined" || url.trim() === "") {
+    console.log("[v0] normalizeImageUrl: empty or invalid url:", url)
+    return undefined
+  }
+  if (url.startsWith("http") || url.startsWith("data:")) {
+    return url
+  }
   if (url.startsWith("/")) {
     const baseUrl =
       process.env.NEXT_PUBLIC_API_URL ||
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       "https://mizizzi-ecommerce-1.onrender.com"
-    return `${baseUrl}${url}`
+    const fullUrl = `${baseUrl}${url}`
+    console.log("[v0] normalizeImageUrl: converted relative url", url, "to", fullUrl)
+    return fullUrl
   }
   return url
 }
@@ -122,37 +200,43 @@ const FastCategoryImage = ({
   alt: string
   isPriority: boolean
 }) => {
+  const hasValidSrc = src && src.trim() !== "" && src !== "null" && src !== "undefined"
+  const imageUrl = hasValidSrc ? src : null
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
-  const [showPlaceholder, setShowPlaceholder] = useState(true)
+  const [showPlaceholder, setShowPlaceholder] = useState(!hasValidSrc)
 
-  const imageUrl = src || "/abstract-categories.png"
+  console.log("[v0] FastCategoryImage:", { alt, src, hasValidSrc, imageUrl })
 
-  // Handle image load success
   const handleImageLoad = () => {
+    console.log("[v0] Image loaded successfully:", alt, imageUrl)
     setImageLoaded(true)
-    // Add a small delay to show the smooth transition
-    setTimeout(() => {
-      setShowPlaceholder(false)
-    }, 300)
+    setShowPlaceholder(false)
   }
 
-  // Handle image load error
   const handleImageError = () => {
+    console.log("[v0] Image failed to load:", alt, imageUrl)
     setImageError(true)
     setImageLoaded(false)
+    setShowPlaceholder(true)
   }
 
-  // Reset states when src changes
   useEffect(() => {
     setImageLoaded(false)
     setImageError(false)
-    setShowPlaceholder(true)
-  }, [src])
+    setShowPlaceholder(!hasValidSrc)
+  }, [src, hasValidSrc])
+
+  if (!imageUrl) {
+    return (
+      <div className="aspect-square w-full overflow-hidden bg-white relative">
+        <LogoPlaceholder />
+      </div>
+    )
+  }
 
   return (
     <div className="aspect-square w-full overflow-hidden bg-white relative">
-      {/* Logo placeholder shown while loading - same as flash sales */}
       <AnimatePresence>
         {(showPlaceholder || imageError) && (
           <motion.div
@@ -160,7 +244,7 @@ const FastCategoryImage = ({
             exit={{
               opacity: 0,
               scale: 1.1,
-              transition: { duration: 0.5, ease: "easeInOut" },
+              transition: { duration: 0.3, ease: "easeInOut" },
             }}
             className="absolute inset-0 z-10"
           >
@@ -169,16 +253,7 @@ const FastCategoryImage = ({
         )}
       </AnimatePresence>
 
-      {/* Actual image with fade-in effect */}
-      <motion.div
-        initial={{ opacity: 0, scale: 1.1 }}
-        animate={{
-          opacity: imageLoaded ? 1 : 0,
-          scale: imageLoaded ? 1 : 1.1,
-        }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className="absolute inset-0"
-      >
+      <div className="absolute inset-0">
         <img
           src={imageUrl || "/placeholder.svg"}
           alt={alt}
@@ -189,7 +264,7 @@ const FastCategoryImage = ({
           onLoad={handleImageLoad}
           onError={handleImageError}
         />
-      </motion.div>
+      </div>
     </div>
   )
 }
@@ -234,13 +309,14 @@ const CategoryCard = ({
 
 export function CategoryGrid() {
   const carouselRef = useRef<HTMLDivElement>(null)
+  const [initialCache] = useState<Category[]>(() => getCachedCategories())
 
   const {
     data: categories = [],
     isLoading,
     mutate: refreshCategories,
   } = useSWR<Category[]>("categories-grid", categoriesFetcher, {
-    fallbackData: getCachedCategories(),
+    fallbackData: initialCache,
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
     dedupingInterval: 60000,
@@ -251,15 +327,13 @@ export function CategoryGrid() {
   })
 
   useEffect(() => {
-    if (categories.length > 0) {
-      const imagesToPreload = categories.slice(0, 6)
-      imagesToPreload.forEach((cat) => {
+    const categoriesToPreload = initialCache.length > 0 ? initialCache : categories
+    if (categoriesToPreload.length > 0) {
+      categoriesToPreload.slice(0, 10).forEach((cat) => {
         if (cat.image_url) {
-          // Use Image constructor for faster preloading
-          const img = new (window.Image as any)()
+          const img = new window.Image()
           img.src = cat.image_url
 
-          // Also add link preload hint
           const existingLink = document.querySelector(`link[href="${cat.image_url}"]`)
           if (!existingLink) {
             const link = document.createElement("link")
@@ -271,7 +345,7 @@ export function CategoryGrid() {
         }
       })
     }
-  }, [categories])
+  }, [initialCache, categories])
 
   const scrollCarousel = useCallback((direction: "left" | "right") => {
     if (!carouselRef.current) return
@@ -285,9 +359,7 @@ export function CategoryGrid() {
 
   useEffect(() => {
     const handleCategoryUpdate = async () => {
-      // Clear localStorage cache
-      localStorage.removeItem(CATEGORIES_STORAGE_KEY)
-      // Revalidate SWR cache
+      clearCategoriesCache()
       refreshCategories()
     }
 
@@ -306,7 +378,8 @@ export function CategoryGrid() {
     return Array.isArray(categories) ? categories : []
   }, [categories])
 
-  const showSkeleton = isLoading && memoizedCategories.length === 0
+  const showSkeleton = isLoading && memoizedCategories.length === 0 && initialCache.length === 0
+  const displayCategories = memoizedCategories.length > 0 ? memoizedCategories : initialCache
 
   return (
     <div className="w-full max-w-full">
@@ -337,7 +410,7 @@ export function CategoryGrid() {
         >
           {showSkeleton
             ? [...Array(6)].map((_, index) => <CategoryCardSkeleton key={`skeleton-${index}`} index={index} />)
-            : memoizedCategories.map((category, index) => (
+            : displayCategories.map((category, index) => (
                 <CategoryCard
                   key={category.id || `category-${index}`}
                   category={category}
