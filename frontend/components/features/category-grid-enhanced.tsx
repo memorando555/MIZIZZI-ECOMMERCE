@@ -240,12 +240,12 @@ export function CategoryGrid() {
     isLoading,
     mutate: refreshCategories,
   } = useSWR<Category[]>("categories-grid", categoriesFetcher, {
-    fallbackData: getCachedCategories(), // Show cached data instantly
-    revalidateOnFocus: false, // Don't refetch on window focus
+    fallbackData: getCachedCategories(),
+    revalidateOnFocus: false,
     revalidateOnReconnect: true,
-    dedupingInterval: 60000, // Dedupe requests for 1 minute
-    refreshInterval: 0, // No auto-refresh, only manual
-    keepPreviousData: true, // Keep showing old data while fetching new
+    dedupingInterval: 60000,
+    refreshInterval: 0,
+    keepPreviousData: true,
     revalidateIfStale: true,
     revalidateOnMount: true,
   })
@@ -309,25 +309,25 @@ export function CategoryGrid() {
   const showSkeleton = isLoading && memoizedCategories.length === 0
 
   return (
-    <div className="w-full overflow-hidden max-w-full">
-      <div className="bg-gradient-to-r from-cherry-900 to-cherry-800 py-4 mb-4 rounded-t-lg">
-        <div className="flex items-center justify-between px-4 sm:px-6">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Shop By Category</h2>
+    <div className="w-full max-w-full">
+      <div className="bg-gradient-to-r from-cherry-900 to-cherry-800 py-3 sm:py-4 mb-3 sm:mb-4 rounded-t-lg mx-1 sm:mx-0">
+        <div className="flex items-center justify-between px-3 sm:px-6">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Shop By Category</h2>
           <Link
             href="/categories"
-            className="flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm font-medium transition-colors duration-200"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full text-xs sm:text-sm font-medium transition-colors duration-200"
             prefetch={true}
           >
             <span>View All</span>
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4" />
           </Link>
         </div>
       </div>
 
-      <div className="relative px-2 group overflow-hidden">
+      <div className="relative px-3 sm:px-4 group overflow-hidden">
         <div
           ref={carouselRef}
-          className="flex overflow-x-auto scrollbar-hide gap-2 pb-3 w-full overscroll-x-contain max-w-full"
+          className="flex overflow-x-auto scrollbar-hide gap-3 sm:gap-4 pb-4 w-full overscroll-x-contain max-w-full"
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
@@ -342,7 +342,7 @@ export function CategoryGrid() {
                   key={category.id || `category-${index}`}
                   category={category}
                   index={index}
-                  isPriority={index < 6} // First 6 items load with high priority
+                  isPriority={index < 6}
                 />
               ))}
         </div>

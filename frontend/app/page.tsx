@@ -107,13 +107,16 @@ export default function Home() {
     >
       <NetworkStatus className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 pt-2" />
 
-      <div className="w-full sm:py-2 overflow-hidden" style={{ backgroundColor: "var(--color-background)" }}>
+      <div
+        className="w-full mt-2 sm:mt-3 sm:py-2 overflow-hidden"
+        style={{ backgroundColor: "var(--color-background)" }}
+      >
         <Carousel />
       </div>
 
-      <div className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 overflow-x-hidden box-border mt-1 sm:mt-0">
+      <div className="mx-auto w-full max-w-[1200px] px-2 sm:px-3 md:px-4 overflow-x-hidden box-border mt-3 sm:mt-4">
         <motion.div
-          className="mb-2 rounded-lg bg-white overflow-hidden shadow-sm"
+          className="mb-3 rounded-lg bg-white overflow-hidden shadow-sm"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
@@ -122,8 +125,8 @@ export default function Home() {
         </motion.div>
       </div>
 
-      <div className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 overflow-x-hidden box-border">
-        <div className="grid gap-2 sm:gap-4 md:gap-8 py-2 sm:py-4">
+      <div className="mx-auto w-full max-w-[1200px] px-2 sm:px-3 md:px-4 overflow-x-hidden box-border">
+        <div className="grid gap-3 sm:gap-4 md:gap-8 py-2 sm:py-4">
           <section className="rounded-lg bg-white shadow-sm overflow-hidden">
             <FlashSales />
           </section>
