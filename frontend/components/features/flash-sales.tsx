@@ -7,11 +7,10 @@ import Link from "next/link"
 import { ChevronRight, ChevronLeft, Zap, Star } from "lucide-react"
 import Image from "next/image"
 import type { Product } from "@/types"
-import { productService } from "@/services/product"
-import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter } from "next/navigation"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cloudinaryService } from "@/services/cloudinary-service"
+import { useFlashSales, invalidateFlashSales } from "@/hooks/use-swr-flash-sales"
 
 const LogoPlaceholder = () => (
   <div className="absolute inset-0 flex items-center justify-center bg-white">
@@ -55,6 +54,28 @@ const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCo
   )
 }
 
+function getProductImageUrl(product: Product): string {
+  if (product.image_urls && product.image_urls.length > 0) {
+    if (typeof product.image_urls[0] === "string" && !product.image_urls[0].startsWith("http")) {
+      return cloudinaryService.generateOptimizedUrl(product.image_urls[0])
+    }
+    return product.image_urls[0]
+  }
+  if (product.thumbnail_url) {
+    if (typeof product.thumbnail_url === "string" && !product.thumbnail_url.startsWith("http")) {
+      return cloudinaryService.generateOptimizedUrl(product.thumbnail_url)
+    }
+    return product.thumbnail_url
+  }
+  if (product.images && product.images.length > 0 && product.images[0].url) {
+    if (typeof product.images[0].url === "string" && !product.images[0].url.startsWith("http")) {
+      return cloudinaryService.generateOptimizedUrl(product.images[0].url)
+    }
+    return product.images[0].url
+  }
+  return "/placeholder.svg?height=300&width=300"
+}
+
 const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: boolean }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
@@ -81,8 +102,6 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
   }, [product.id])
 
   const imageUrl = getProductImageUrl(product)
-
-  // Generate random rating for demo
   const rating = product.rating || 3 + Math.random() * 2
   const reviewCount = product.review_count || Math.floor(Math.random() * 5000) + 100
 
@@ -109,7 +128,6 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
                 </motion.div>
               )}
             </AnimatePresence>
-
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: imageLoaded ? 1 : 0 }}
@@ -127,23 +145,22 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
                 onError={handleImageError}
               />
             </motion.div>
-
+            {/* Discount Badge - Dark Cherry Red */}
             {product.sale_price && discountPercentage > 0 && (
               <div className="absolute top-1 left-1 bg-[#8B1538] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
                 -{discountPercentage}%
               </div>
             )}
           </div>
-
-          {/* Product Info - Compact like Daily Finds */}
+          {/* Product Info - Compact */}
           <div className={isMobile ? "p-2" : "p-3"}>
-            {/* Product Name - Increased font size */}
+            {/* Product Name - 2 lines max */}
             <h3
               className={`text-gray-800 line-clamp-2 leading-tight mb-1.5 ${isMobile ? "text-xs min-h-[32px]" : "text-sm min-h-[40px]"}`}
             >
               {product.name}
             </h3>
-
+            {/* Price - Dark Cherry Red */}
             <div className="mb-1.5">
               <span className={`font-semibold text-[#8B1538] ${isMobile ? "text-sm" : "text-base"}`}>
                 KSh {(product.sale_price || product.price).toLocaleString()}
@@ -154,7 +171,6 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
                 </span>
               )}
             </div>
-
             {/* Star Rating */}
             <StarRating rating={rating} reviewCount={reviewCount} />
           </div>
@@ -171,75 +187,62 @@ const FlashSalesSkeleton = ({ isMobile }: { isMobile: boolean }) => (
     <div className="w-full">
       <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
         <div className="flex items-center gap-1 sm:gap-2">
-          <div className={`bg-white/20 rounded animate-pulse ${isMobile ? "h-4 w-16" : "h-5 w-20"}`}></div>
+          <Zap className={`text-yellow-300 fill-yellow-300 ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
+          <span className={`font-bold ${isMobile ? "text-sm" : "text-base"}`}>Flash Sales</span>
         </div>
-        <div className={`bg-white/20 rounded animate-pulse ${isMobile ? "h-4 w-12" : "h-5 w-16"}`}></div>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="bg-white/20 rounded px-1.5 py-0.5 min-w-[24px] text-center">
+                <span className="text-xs font-mono">--</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-
       <div className={isMobile ? "p-1" : "p-2"}>
-        <div className="flex gap-[1px] bg-gray-100">
+        <div className="flex gap-[1px] bg-gray-100 overflow-hidden">
           {[...Array(isMobile ? 4 : 6)].map((_, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className={`bg-white flex-shrink-0 ${isMobile ? "p-2 w-[calc(25%-1px)]" : "p-4 w-[200px]"}`}
-            >
+            <div key={index} className={`bg-white flex-shrink-0 ${isMobile ? "p-2 w-[calc(25%-1px)]" : "p-3 flex-1"}`}>
               <div
-                className={`w-full mb-2 bg-[#f5f5f7] flex items-center justify-center relative overflow-hidden ${isMobile ? "aspect-square" : "aspect-[4/3]"}`}
+                className={`w-full mb-2 bg-gray-100 relative overflow-hidden ${isMobile ? "aspect-square" : "aspect-square"}`}
               >
-                <motion.div
-                  animate={{
-                    backgroundPosition: ["0% 0%", "100% 100%"],
-                    opacity: [0.5, 0.8, 0.5],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "linear",
-                  }}
-                  className="absolute inset-0 bg-gradient-to-r from-[#f5f5f7] via-[#e0e0e3] to-[#f5f5f7] bg-[length:400%_400%]"
-                />
-                <motion.div
-                  animate={{
-                    scale: [1, 1.05, 1],
-                    opacity: [0.6, 1, 0.6],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                  }}
-                  className="text-center z-10"
-                >
-                  <Zap className={`text-red-400 mx-auto ${isMobile ? "h-4 w-4" : "h-6 w-6"}`} />
-                </motion.div>
+                <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
               </div>
-              <Skeleton className={`w-1/3 mb-2 bg-[#f5f5f7] rounded-full ${isMobile ? "h-3" : "h-4"}`} />
-              <Skeleton className={`w-2/3 bg-[#f5f5f7] rounded-full ${isMobile ? "h-3" : "h-4"}`} />
-              <div className="flex gap-1.5 pt-1">
-                <Skeleton className={`bg-[#f5f5f7] rounded-full ${isMobile ? "h-3 w-3" : "h-4 w-4"}`} />
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-100 rounded w-3/4 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
+                </div>
+                <div className="h-3 bg-gray-100 rounded w-1/2 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
+                </div>
+                <div className="h-4 bg-gray-100 rounded w-2/3 relative overflow-hidden">
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100" />
+                </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
     </div>
+    <style jsx>{`
+      @keyframes shimmer {
+        100% {
+          transform: translateX(100%);
+        }
+      }
+    `}</style>
   </section>
 )
 
 export function FlashSales() {
-  const [flashSales, setFlashSales] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { flashSales, isLoading, isError, mutate, hasCachedData } = useFlashSales()
+
   const [timeLeft, setTimeLeft] = useState({ hours: 1, minutes: 17, seconds: 1 })
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isHovering, setIsHovering] = useState(false)
   const [hoverSide, setHoverSide] = useState<"left" | "right" | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
-  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null)
   const carouselRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -248,115 +251,18 @@ export function FlashSales() {
   const isTablet = useMediaQuery("(max-width: 1024px)")
 
   const itemsPerView = isSmallMobile ? 3 : isMobile ? 3 : isTablet ? 5 : 6
-  // Use calc to fit 3 items with gaps on mobile
   const mobileItemWidth = "calc((100vw - 32px) / 3)"
   const itemWidthPx = isSmallMobile ? 110 : isMobile ? 120 : 180
 
-  // Track scroll position for mobile indicator
-  const [mobileScrollIndex, setMobileScrollIndex] = useState(0)
   useEffect(() => {
-    if (!isMobile || !carouselRef.current) return
-    const handleScroll = () => {
-      const scrollLeft = carouselRef.current!.scrollLeft
-      setMobileScrollIndex(Math.round(scrollLeft / itemWidthPx))
+    const handleProductImagesUpdated = () => {
+      invalidateFlashSales()
     }
-    const el = carouselRef.current
-    el.addEventListener("scroll", handleScroll)
-    return () => el.removeEventListener("scroll", handleScroll)
-  }, [isMobile, itemWidthPx])
-
-  const fetchFlashSales = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      // Use the correct API endpoint for flash sale products
-      const products = await productService.getFlashSaleProducts()
-
-      if (products && products.length > 0) {
-        const processedProducts = products.map((product) => ({
-          ...product,
-          image_urls: (product.image_urls || []).map((url) => {
-            // If it's a Cloudinary public ID, generate URL:
-            if (typeof url === "string" && !url.startsWith("http")) {
-              return cloudinaryService.generateOptimizedUrl(url)
-            }
-            return url
-          }),
-        }))
-        setFlashSales(processedProducts.slice(0, 12)) // Limit to 12 products max
-      } else {
-        // Fallback to regular products if no flash sales
-        const regularProducts = await productService.getProducts({
-          limit: 12,
-          sort_by: "price",
-          sort_order: "asc",
-        })
-        const processedProducts = regularProducts.map((product) => ({
-          ...product,
-          image_urls: (product.image_urls || []).map((url) => {
-            // If it's a Cloudinary public ID, generate URL:
-            if (typeof url === "string" && !url.startsWith("http")) {
-              return cloudinaryService.generateOptimizedUrl(url)
-            }
-            return url
-          }),
-        }))
-        setFlashSales(processedProducts || [])
-      }
-    } catch (error) {
-      console.error("Error fetching flash sales:", error)
-      setError("Failed to load flash sales")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    // Use AbortController for cleanup
-    const controller = new AbortController()
-
-    const fetchData = async () => {
-      try {
-        await fetchFlashSales()
-      } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("Error in flash sales fetch:", error)
-        }
-      }
-    }
-
-    fetchData()
-
-    return () => {
-      controller.abort()
-    }
-  }, [fetchFlashSales])
-
-  useEffect(() => {
-    const handleProductImagesUpdated = (event: CustomEvent) => {
-      const { productId } = event.detail
-      console.log("[v0] Flash Sales: Product images updated event received for product:", productId)
-
-      // This ensures we get fresh data from the database
-      console.log("[v0] Flash Sales: Refetching all products due to image update")
-
-      // Clear the flash sales state first to force a fresh fetch
-      setFlashSales([])
-      setLoading(true)
-
-      // Refetch after a small delay to ensure database is updated
-      setTimeout(() => {
-        fetchFlashSales()
-      }, 500)
-    }
-
     window.addEventListener("productImagesUpdated", handleProductImagesUpdated as EventListener)
-
     return () => {
       window.removeEventListener("productImagesUpdated", handleProductImagesUpdated as EventListener)
     }
-  }, [fetchFlashSales])
+  }, [])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -381,7 +287,6 @@ export function FlashSales() {
     router.push("/flash-sales")
   }
 
-  // Carousel navigation functions
   const maxIndex = Math.max(0, flashSales.length - itemsPerView)
 
   const goToPrevious = useCallback(() => {
@@ -395,21 +300,17 @@ export function FlashSales() {
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!carouselRef.current || isDragging || isMobile) return
-
       const rect = carouselRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
       const width = rect.width
       const leftHalf = x < width / 2
-
       setHoverSide(leftHalf ? "left" : "right")
     },
     [isDragging, isMobile],
   )
 
   const handleMouseEnter = useCallback(() => {
-    if (!isMobile) {
-      setIsHovering(true)
-    }
+    if (!isMobile) setIsHovering(true)
   }, [isMobile])
 
   const handleMouseLeave = useCallback(() => {
@@ -417,99 +318,24 @@ export function FlashSales() {
     setHoverSide(null)
   }, [])
 
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (!isMobile) return
-
-      const touch = e.touches[0]
-      setTouchStart({
-        x: touch.clientX,
-        y: touch.clientY,
-      })
-      setTouchEnd(null)
-      setIsDragging(true)
-    },
-    [isMobile],
-  )
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (!isMobile || !touchStart) return
-
-      const touch = e.touches[0]
-      setTouchEnd({
-        x: touch.clientX,
-        y: touch.clientY,
-      })
-
-      // Prevent vertical scrolling if horizontal swipe is detected
-      const deltaX = Math.abs(touch.clientX - touchStart.x)
-      const deltaY = Math.abs(touch.clientY - touchStart.y)
-
-      if (deltaX > deltaY && deltaX > 10) {
-        e.preventDefault()
-      }
-    },
-    [isMobile, touchStart],
-  )
-
-  const handleTouchEnd = useCallback(() => {
-    if (!isMobile || !touchStart || !touchEnd) {
-      setIsDragging(false)
-      return
-    }
-
-    const deltaX = touchStart.x - touchEnd.x
-    const deltaY = touchStart.y - touchEnd.y
-    const minSwipeDistance = 50
-
-    // Check if it's a horizontal swipe
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
-      if (deltaX > 0) {
-        // Swiped left, go to next
-        if (currentIndex < maxIndex) {
-          goToNext()
-        }
-      } else {
-        // Swiped right, go to previous
-        if (currentIndex > 0) {
-          goToPrevious()
-        }
-      }
-    }
-
-    setTouchStart(null)
-    setTouchEnd(null)
-    setIsDragging(false)
-  }, [isMobile, touchStart, touchEnd, currentIndex, maxIndex, goToPrevious, goToNext])
-
   const handleDragStart = useCallback(() => {
-    if (isMobile) return // Use touch events for mobile
+    if (isMobile) return
     setIsDragging(true)
-    setHoverSide(null) // Hide arrows while dragging
+    setHoverSide(null)
   }, [isMobile])
 
   const handleDragEnd = useCallback(
     (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      if (isMobile) return // Use touch events for mobile
+      if (isMobile) return
       setIsDragging(false)
-
-      const threshold = 50 // Minimum drag distance to trigger navigation
+      const threshold = 50
       const velocity = info.velocity.x
       const offset = info.offset.x
-
-      // Determine direction based on drag distance and velocity
       if (Math.abs(offset) > threshold || Math.abs(velocity) > 300) {
         if (offset > 0 || velocity > 0) {
-          // Dragged right, go to previous
-          if (currentIndex > 0) {
-            goToPrevious()
-          }
+          if (currentIndex > 0) goToPrevious()
         } else {
-          // Dragged left, go to next
-          if (currentIndex < maxIndex) {
-            goToNext()
-          }
+          if (currentIndex < maxIndex) goToNext()
         }
       }
     },
@@ -519,46 +345,29 @@ export function FlashSales() {
   useEffect(() => {
     const currentCarousel = carouselRef.current
     if (!currentCarousel || isMobile) return
-
-    // Handle wheel event with proper passive option
     const handleWheelEvent = (e: WheelEvent) => {
-      // Only handle horizontal scrolling or when shift is pressed for vertical scrolling
       if (Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey) {
         e.preventDefault()
-
-        const threshold = 10 // Minimum scroll amount to trigger navigation
+        const threshold = 10
         const delta = e.deltaX || e.deltaY
-
         if (Math.abs(delta) > threshold) {
-          if (delta > 0) {
-            // Scrolled right, go to next
-            if (currentIndex < maxIndex) {
-              goToNext()
-            }
-          } else {
-            // Scrolled left, go to previous
-            if (currentIndex > 0) {
-              goToPrevious()
-            }
+          if (delta > 0 && currentIndex < maxIndex) {
+            goToNext()
+          } else if (delta < 0 && currentIndex > 0) {
+            goToPrevious()
           }
         }
       }
     }
-
-    // Add event listener with { passive: false } to allow preventDefault()
     currentCarousel.addEventListener("wheel", handleWheelEvent, { passive: false })
-
-    // Clean up
-    return () => {
-      currentCarousel.removeEventListener("wheel", handleWheelEvent)
-    }
+    return () => currentCarousel.removeEventListener("wheel", handleWheelEvent)
   }, [currentIndex, maxIndex, goToPrevious, goToNext, isMobile])
 
-  if (loading) {
+  if (isLoading && !hasCachedData) {
     return <FlashSalesSkeleton isMobile={isMobile} />
   }
 
-  if (error) {
+  if (isError && flashSales.length === 0) {
     return (
       <section className="w-full mb-4 sm:mb-8">
         <div className="w-full p-1 sm:p-2">
@@ -569,9 +378,9 @@ export function FlashSales() {
             <div className="mx-auto w-12 h-12 mb-2 text-red-500">
               <Zap className="w-full h-full" />
             </div>
-            <p className="mb-2">{error}</p>
+            <p className="mb-2">Failed to load flash sales</p>
             <button
-              onClick={fetchFlashSales}
+              onClick={() => mutate()}
               className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
             >
               Try Again
@@ -589,42 +398,40 @@ export function FlashSales() {
   return (
     <section className="w-full mb-4 sm:mb-8">
       <div className="w-full">
+        {/* Header */}
         <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
           <div className="flex items-center gap-1 sm:gap-2">
             <Zap className={`text-yellow-300 fill-yellow-300 ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
             <h2 className={`font-bold whitespace-nowrap ${isMobile ? "text-sm" : "text-base sm:text-lg"}`}>
-              {isMobile ? "Flash Sale" : "Flash Sale | Limited Time Only!"}
+              {isMobile ? "Flash Sales" : "Flash Sales | Hot Deals!"}
             </h2>
-            {/* Timer */}
-            <div
-              className={`flex items-center gap-0.5 sm:gap-1 ml-1 sm:ml-2 ${isMobile ? "text-[10px]" : "text-xs sm:text-sm"}`}
-            >
-              <span className="hidden sm:inline">Time Left:</span>
-              <div className="flex items-center gap-0.5 font-semibold sm:gap-1">
-                <span>{String(timeLeft.hours).padStart(2, "0")}</span>
-                <span>h</span>
-                <span>:</span>
-                <span>{String(timeLeft.minutes).padStart(2, "0")}</span>
-                <span>m</span>
-                <span>:</span>
-                <span>{String(timeLeft.seconds).padStart(2, "0")}</span>
-                <span>s</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              <div className="bg-white/20 rounded px-1.5 py-0.5 min-w-[24px] text-center">
+                <span className="text-xs font-mono">{String(timeLeft.hours).padStart(2, "0")}</span>
+              </div>
+              <span className="text-xs">:</span>
+              <div className="bg-white/20 rounded px-1.5 py-0.5 min-w-[24px] text-center">
+                <span className="text-xs font-mono">{String(timeLeft.minutes).padStart(2, "0")}</span>
+              </div>
+              <span className="text-xs">:</span>
+              <div className="bg-white/20 rounded px-1.5 py-0.5 min-w-[24px] text-center">
+                <span className="text-xs font-mono">{String(timeLeft.seconds).padStart(2, "0")}</span>
               </div>
             </div>
+            <button
+              onClick={handleViewAll}
+              className={`flex items-center gap-0.5 sm:gap-1 font-medium hover:underline whitespace-nowrap ${
+                isMobile ? "text-xs" : "text-sm"
+              }`}
+            >
+              See All
+              <ChevronRight className={isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} />
+            </button>
           </div>
-
-          <button
-            onClick={handleViewAll}
-            className={`flex items-center gap-0.5 sm:gap-1 font-medium hover:underline whitespace-nowrap ${
-              isMobile ? "text-xs" : "text-sm"
-            }`}
-          >
-            See All
-            <ChevronRight className={isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} />
-          </button>
         </div>
 
-        {/* Carousel Container - Responsive */}
         <div className={isMobile ? "p-1" : "p-2"}>
           <div
             ref={carouselRef}
@@ -636,9 +443,6 @@ export function FlashSales() {
             onMouseMove={handleMouseMove}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
             {/* Carousel Track */}
             {isMobile ? (
@@ -650,7 +454,7 @@ export function FlashSales() {
                   paddingBottom: "8px",
                 }}
               >
-                {flashSales.map((product, index) => (
+                {flashSales.map((product) => (
                   <div
                     key={product.id}
                     className="flex-shrink-0 pointer-events-auto"
@@ -666,7 +470,7 @@ export function FlashSales() {
                 ))}
               </div>
             ) : (
-              // Desktop carousel
+              // Desktop: Motion animation
               <motion.div
                 className="flex gap-[1px]"
                 drag="x"
@@ -739,36 +543,4 @@ export function FlashSales() {
       </div>
     </section>
   )
-}
-
-function getProductImageUrl(product: Product): string {
-  // Check for image_urls array first
-  if (product.image_urls && product.image_urls.length > 0) {
-    // If it's a Cloudinary public ID, generate URL:
-    if (typeof product.image_urls[0] === "string" && !product.image_urls[0].startsWith("http")) {
-      return cloudinaryService.generateOptimizedUrl(product.image_urls[0])
-    }
-    return product.image_urls[0]
-  }
-
-  // Then check for thumbnail_url
-  if (product.thumbnail_url) {
-    // If it's a Cloudinary public ID, generate URL:
-    if (typeof product.thumbnail_url === "string" && !product.thumbnail_url.startsWith("http")) {
-      return cloudinaryService.generateOptimizedUrl(product.thumbnail_url)
-    }
-    return product.thumbnail_url
-  }
-
-  // Check for images array with url property
-  if (product.images && product.images.length > 0 && product.images[0].url) {
-    // If it's a Cloudinary public ID, generate URL:
-    if (typeof product.images[0].url === "string" && !product.images[0].url.startsWith("http")) {
-      return cloudinaryService.generateOptimizedUrl(product.images[0].url)
-    }
-    return product.images[0].url
-  }
-
-  // Fallback to placeholder
-  return "/placeholder.svg?height=300&width=300"
 }
