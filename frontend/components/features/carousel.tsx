@@ -149,7 +149,7 @@ export function Carousel() {
           style={{ backgroundColor: "var(--color-background, #FFFFFF)" }}
         >
           <div className="absolute inset-0">
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="sync" initial={false}>
               {activeItem ? (
                 <CarouselSlide
                   key={String(currentSlide)}
