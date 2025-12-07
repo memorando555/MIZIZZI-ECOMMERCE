@@ -1,18 +1,17 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback, memo, useRef } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { motion, AnimatePresence, type PanInfo } from "framer-motion"
-import Link from "next/link"
-import { ChevronRight, ChevronLeft, TrendingUp } from "lucide-react"
-import Image from "next/image"
-import type { Product } from "@/types"
-import { productService } from "@/services/product"
-import { Skeleton } from "@/components/ui/skeleton"
+import { ChevronRight, ChevronLeft, TrendingUp, Star } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
+import Link from "next/link"
+
+import type { Product } from "@/types"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { cloudinaryService } from "@/services/cloudinary-service"
-import { Star } from "lucide-react"
+import { useTrending } from "@/hooks/use-swr-trending"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const LogoPlaceholder = () => (
   <div className="absolute inset-0 flex items-center justify-center bg-white">
@@ -21,7 +20,6 @@ const LogoPlaceholder = () => (
       animate={{ scale: 1, opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="relative h-12 w-12 sm:h-16 sm:w-16"
-      style={{ position: "relative" }}
     >
       <Image
         src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
@@ -57,14 +55,16 @@ const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCo
   )
 }
 
-const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: boolean }) => {
+const ProductCard = ({ product, isMobile }: { product: Product; isMobile: boolean }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [showPlaceholder, setShowPlaceholder] = useState(true)
 
   const discountPercentage = product.sale_price
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
-    : 0
+    : product.compare_at_price && product.price
+      ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
+      : 0
 
   const handleImageLoad = () => {
     setImageLoaded(true)
@@ -82,11 +82,11 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
     setShowPlaceholder(true)
   }, [product.id])
 
-  const imageUrl = getProductImageUrl(product)
-
-  // Generate random rating and reviews for demo
+  const imageUrl = product.image_urls?.[0] || product.image_url || product.thumbnail_url || "/placeholder.svg"
   const rating = product.rating || 3 + Math.random() * 2
   const reviewCount = product.review_count || Math.floor(Math.random() * 5000) + 100
+  const displayPrice = product.sale_price || product.price || 0
+  const originalPrice = product.sale_price ? product.price : product.compare_at_price
 
   return (
     <Link href={`/product/${product.slug || product.id}`} prefetch={false}>
@@ -131,16 +131,15 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
             </motion.div>
 
             {/* Discount Badge - Dark Cherry Red */}
-            {product.sale_price && discountPercentage > 0 && (
+            {discountPercentage > 0 && (
               <div className="absolute top-1 left-1 bg-[#8B1538] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
                 -{discountPercentage}%
               </div>
             )}
           </div>
 
-          {/* Product Info - Compact like Daily Finds */}
+          {/* Product Info */}
           <div className={isMobile ? "p-2" : "p-3"}>
-            {/* Product Name - 2 lines max */}
             <h3
               className={`text-gray-800 line-clamp-2 leading-tight mb-1.5 ${isMobile ? "text-xs min-h-[32px]" : "text-sm min-h-[40px]"}`}
             >
@@ -150,56 +149,21 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
             {/* Price - Dark Cherry Red */}
             <div className="mb-1.5">
               <span className={`font-semibold text-[#8B1538] ${isMobile ? "text-sm" : "text-base"}`}>
-                KSh {(product.sale_price || product.price).toLocaleString()}
+                KSh {displayPrice.toLocaleString()}
               </span>
-              {product.sale_price && (
+              {originalPrice && originalPrice > displayPrice && (
                 <span className={`text-gray-400 line-through ml-1.5 ${isMobile ? "text-[10px]" : "text-xs"}`}>
-                  KSh {product.price.toLocaleString()}
+                  KSh {originalPrice.toLocaleString()}
                 </span>
               )}
             </div>
 
-            {/* Star Rating */}
             <StarRating rating={rating} reviewCount={reviewCount} />
           </div>
         </div>
       </motion.div>
     </Link>
   )
-})
-
-ProductCard.displayName = "ProductCard"
-
-function getProductImageUrl(product: Product): string {
-  // Check for image_urls array first
-  if (product.image_urls && product.image_urls.length > 0) {
-    // If it's a Cloudinary public ID, generate URL:
-    if (typeof product.image_urls[0] === "string" && !product.image_urls[0].startsWith("http")) {
-      return cloudinaryService.generateOptimizedUrl(product.image_urls[0])
-    }
-    return product.image_urls[0]
-  }
-
-  // Then check for thumbnail_url
-  if (product.thumbnail_url) {
-    // If it's a Cloudinary public ID, generate URL:
-    if (typeof product.thumbnail_url === "string" && !product.thumbnail_url.startsWith("http")) {
-      return cloudinaryService.generateOptimizedUrl(product.thumbnail_url)
-    }
-    return product.thumbnail_url
-  }
-
-  // Check for images array with url property
-  if (product.images && product.images.length > 0 && product.images[0].url) {
-    // If it's a Cloudinary public ID, generate URL:
-    if (typeof product.images[0].url === "string" && !product.images[0].url.startsWith("http")) {
-      return cloudinaryService.generateOptimizedUrl(product.images[0].url)
-    }
-    return product.images[0].url
-  }
-
-  // Fallback to placeholder
-  return "/placeholder.svg?height=300&width=300"
 }
 
 const TrendingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
@@ -226,18 +190,37 @@ const TrendingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
                 className={`w-full mb-2 bg-[#f5f5f7] flex items-center justify-center relative overflow-hidden ${isMobile ? "aspect-square" : "aspect-[4/3]"}`}
               >
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="relative h-12 w-12 sm:h-16 sm:w-16"
-                  style={{ position: "relative" }}
+                  animate={{
+                    backgroundPosition: ["0% 0%", "100% 100%"],
+                    opacity: [0.5, 0.8, 0.5],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "linear",
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-[#f5f5f7] via-[#e0e0e3] to-[#f5f5f7] bg-[length:400%_400%]"
+                />
+                <motion.div
+                  animate={{
+                    scale: [1, 1.05, 1],
+                    opacity: [0.6, 1, 0.6],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "easeInOut",
+                  }}
+                  className="relative z-10"
                 >
-                  <Image
-                    src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
-                    alt="Loading"
-                    fill
-                    className="object-contain opacity-50"
-                  />
+                  <div className={`relative ${isMobile ? "h-6 w-6" : "h-8 w-8"}`}>
+                    <Image
+                      src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
+                      alt="Loading"
+                      fill
+                      className="object-contain opacity-60"
+                    />
+                  </div>
                 </motion.div>
               </div>
               <Skeleton className={`w-1/3 mb-2 bg-[#f5f5f7] rounded-full ${isMobile ? "h-3" : "h-4"}`} />
@@ -254,15 +237,11 @@ const TrendingSkeleton = ({ isMobile }: { isMobile: boolean }) => (
 )
 
 export function TrendingNow() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { trending, isLoading, mutate } = useTrending()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isHovering, setIsHovering] = useState(false)
   const [hoverSide, setHoverSide] = useState<"left" | "right" | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
-  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null)
   const carouselRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -271,83 +250,9 @@ export function TrendingNow() {
   const isTablet = useMediaQuery("(max-width: 1024px)")
 
   const itemsPerView = isSmallMobile ? 3 : isMobile ? 3 : isTablet ? 5 : 6
-  const itemWidthPx = isSmallMobile ? "calc(33.333% - 6px)" : isMobile ? "calc(33.333% - 6px)" : 180
+  const mobileItemWidth = "calc((100vw - 32px) / 3)"
 
-  // Track scroll position for mobile indicator
-  const [mobileScrollIndex, setMobileScrollIndex] = useState(0)
-  useEffect(() => {
-    if (!isMobile || !carouselRef.current) return
-    const handleScroll = () => {
-      const scrollLeft = carouselRef.current!.scrollLeft
-      const containerWidth = carouselRef.current!.clientWidth
-      const itemWidth = containerWidth / 3
-      setMobileScrollIndex(Math.round(scrollLeft / itemWidth))
-    }
-    const el = carouselRef.current
-    el.addEventListener("scroll", handleScroll)
-    return () => el.removeEventListener("scroll", handleScroll)
-  }, [isMobile])
-
-  const fetchTrending = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const res = await productService.getProducts({
-        limit: 12,
-        trending: true,
-      })
-
-      if (res && res.length > 0) {
-        const processedProducts = res.map((product) => ({
-          ...product,
-          image_urls: (product.image_urls || []).map((url) => {
-            // If it's a Cloudinary public ID, generate URL:
-            if (typeof url === "string" && !url.startsWith("http")) {
-              return cloudinaryService.generateOptimizedUrl(url)
-            }
-            return url
-          }),
-        }))
-        setProducts(processedProducts)
-      } else {
-        setProducts([])
-      }
-    } catch (e) {
-      console.error("Trending fetch error:", e)
-      setError("Failed to load trending products")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    // Use AbortController for cleanup
-    const controller = new AbortController()
-
-    const fetchData = async () => {
-      try {
-        await fetchTrending()
-      } catch (error) {
-        if (error instanceof Error && error.name !== "AbortError") {
-          console.error("Error in trending fetch:", error)
-        }
-      }
-    }
-
-    fetchData()
-
-    return () => {
-      controller.abort()
-    }
-  }, [fetchTrending])
-
-  const handleViewAll = (e: React.MouseEvent) => {
-    e.preventDefault()
-    router.push("/trending")
-  }
-
-  // Carousel navigation functions
-  const maxIndex = Math.max(0, products.length - itemsPerView)
+  const maxIndex = Math.max(0, trending.length - itemsPerView)
 
   const goToPrevious = useCallback(() => {
     setCurrentIndex((prev) => Math.max(0, prev - 1))
@@ -360,21 +265,16 @@ export function TrendingNow() {
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!carouselRef.current || isDragging || isMobile) return
-
       const rect = carouselRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
       const width = rect.width
-      const leftHalf = x < width / 2
-
-      setHoverSide(leftHalf ? "left" : "right")
+      setHoverSide(x < width / 2 ? "left" : "right")
     },
     [isDragging, isMobile],
   )
 
   const handleMouseEnter = useCallback(() => {
-    if (!isMobile) {
-      setIsHovering(true)
-    }
+    if (!isMobile) setIsHovering(true)
   }, [isMobile])
 
   const handleMouseLeave = useCallback(() => {
@@ -382,183 +282,42 @@ export function TrendingNow() {
     setHoverSide(null)
   }, [])
 
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (!isMobile) return
-
-      const touch = e.touches[0]
-      setTouchStart({
-        x: touch.clientX,
-        y: touch.clientY,
-      })
-      setTouchEnd(null)
-      setIsDragging(true)
-    },
-    [isMobile],
-  )
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (!isMobile || !touchStart) return
-
-      const touch = e.touches[0]
-      setTouchEnd({
-        x: touch.clientX,
-        y: touch.clientY,
-      })
-
-      // Prevent vertical scrolling if horizontal swipe is detected
-      const deltaX = Math.abs(touch.clientX - touchStart.x)
-      const deltaY = Math.abs(touch.clientY - touchStart.y)
-
-      if (deltaX > deltaY && deltaX > 10) {
-        e.preventDefault()
-      }
-    },
-    [isMobile, touchStart],
-  )
-
-  const handleTouchEnd = useCallback(() => {
-    if (!isMobile || !touchStart || !touchEnd) {
-      setIsDragging(false)
-      return
-    }
-
-    const deltaX = touchStart.x - touchEnd.x
-    const deltaY = touchStart.y - touchEnd.y
-    const minSwipeDistance = 50
-
-    // Check if it's a horizontal swipe
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
-      if (deltaX > 0) {
-        // Swiped left, go to next
-        if (currentIndex < maxIndex) {
-          goToNext()
-        }
-      } else {
-        // Swiped right, go to previous
-        if (currentIndex > 0) {
-          goToPrevious()
-        }
-      }
-    }
-
-    setTouchStart(null)
-    setTouchEnd(null)
-    setIsDragging(false)
-  }, [isMobile, touchStart, touchEnd, currentIndex, maxIndex, goToPrevious, goToNext])
-
-  const handleDragStart = useCallback(() => {
-    if (isMobile) return // Use touch events for mobile
-    setIsDragging(true)
-    setHoverSide(null) // Hide arrows while dragging
-  }, [isMobile])
-
   const handleDragEnd = useCallback(
     (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      if (isMobile) return // Use touch events for mobile
+      if (isMobile) return
       setIsDragging(false)
-
-      const threshold = 50 // Minimum drag distance to trigger navigation
+      const threshold = 50
       const velocity = info.velocity.x
       const offset = info.offset.x
 
-      // Determine direction based on drag distance and velocity
       if (Math.abs(offset) > threshold || Math.abs(velocity) > 300) {
         if (offset > 0 || velocity > 0) {
-          // Dragged right, go to previous
-          if (currentIndex > 0) {
-            goToPrevious()
-          }
+          if (currentIndex > 0) goToPrevious()
         } else {
-          // Dragged left, go to next
-          if (currentIndex < maxIndex) {
-            goToNext()
-          }
+          if (currentIndex < maxIndex) goToNext()
         }
       }
     },
     [currentIndex, maxIndex, goToPrevious, goToNext, isMobile],
   )
 
-  useEffect(() => {
-    const currentCarousel = carouselRef.current
-    if (!currentCarousel || isMobile) return
+  const handleViewAll = (e: React.MouseEvent) => {
+    e.preventDefault()
+    router.push("/trending")
+  }
 
-    // Handle wheel event with proper passive option
-    const handleWheelEvent = (e: WheelEvent) => {
-      // Only handle horizontal scrolling or when shift is pressed for vertical scrolling
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) || e.shiftKey) {
-        e.preventDefault()
-
-        const threshold = 10 // Minimum scroll amount to trigger navigation
-        const delta = e.deltaX || e.deltaY
-
-        if (Math.abs(delta) > threshold) {
-          if (delta > 0) {
-            // Scrolled right, go to next
-            if (currentIndex < maxIndex) {
-              goToNext()
-            }
-          } else {
-            // Scrolled left, go to previous
-            if (currentIndex > 0) {
-              goToPrevious()
-            }
-          }
-        }
-      }
-    }
-
-    // Add event listener with { passive: false } to allow preventDefault()
-    currentCarousel.addEventListener("wheel", handleWheelEvent, { passive: false })
-
-    // Clean up
-    return () => {
-      currentCarousel.removeEventListener("wheel", handleWheelEvent)
-    }
-  }, [currentIndex, maxIndex, goToPrevious, goToNext, isMobile])
-
-  if (loading) {
+  if (isLoading) {
     return <TrendingSkeleton isMobile={isMobile} />
   }
 
-  if (!loading && products.length === 0) {
-    return null
-  }
-
-  if (error) {
-    return (
-      <section className="w-full mb-4 sm:mb-8">
-        <div className="w-full p-1 sm:p-2">
-          <div className="mb-2 sm:mb-4">
-            <h2 className="text-base sm:text-lg lg:text-xl font-bold">Trending Now</h2>
-          </div>
-          <div className="bg-purple-50 p-3 sm:p-4 rounded-md text-purple-700 text-center text-sm">
-            <div className="mx-auto w-12 h-12 mb-2 text-purple-500">
-              <TrendingUp className="w-full h-full" />
-            </div>
-            <p className="mb-2">{error}</p>
-            <button
-              onClick={fetchTrending}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </section>
-    )
-  }
-
-  if (!products || products.length === 0) {
+  if (trending.length === 0) {
     return null
   }
 
   return (
     <section className="w-full mb-4 sm:mb-8">
       <div className="w-full">
-        {/* Trending Header - Responsive */}
+        {/* Header - Dark Cherry Red matching reference */}
         <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
           <div className="flex items-center gap-1 sm:gap-2">
             <TrendingUp className={`text-yellow-300 ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
@@ -578,23 +337,16 @@ export function TrendingNow() {
           </button>
         </div>
 
-        {/* Carousel Container - Responsive */}
+        {/* Carousel Container */}
         <div className={isMobile ? "p-1" : "p-2"}>
           <div
             ref={carouselRef}
             className={`relative bg-gray-100 ${isMobile ? "overflow-x-auto overflow-y-hidden scrollbar-hide" : "overflow-hidden"}`}
-            style={{
-              maxWidth: "100%",
-              width: "100%",
-            }}
+            style={{ maxWidth: "100%", width: "100%" }}
             onMouseMove={handleMouseMove}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
           >
-            {/* Carousel Track */}
             {isMobile ? (
               <div
                 className="flex gap-2 w-max px-2"
@@ -604,90 +356,69 @@ export function TrendingNow() {
                   paddingBottom: "8px",
                 }}
               >
-                {products.map((product, index) => (
+                {trending.map((product, index) => (
                   <div
                     key={product.id}
-                    className="flex-shrink-0 pointer-events-auto"
                     style={{
-                      width: "calc((100vw - 32px) / 3)",
-                      minWidth: "calc((100vw - 32px) / 3)",
-                      maxWidth: "calc((100vw - 32px) / 3)",
+                      width: mobileItemWidth,
+                      flexShrink: 0,
                       scrollSnapAlign: "start",
                     }}
                   >
-                    <ProductCard product={product} isMobile={true} />
+                    <ProductCard product={product} isMobile={isMobile} />
                   </div>
                 ))}
               </div>
             ) : (
-              // Desktop carousel
               <motion.div
                 className="flex gap-[1px]"
+                animate={{ x: `-${currentIndex * (100 / itemsPerView)}%` }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.1}
-                onDragStart={handleDragStart}
+                onDragStart={() => setIsDragging(true)}
                 onDragEnd={handleDragEnd}
-                animate={{
-                  x: `-${currentIndex * (isTablet ? 20 : 16.666)}%`,
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30,
-                  mass: 0.8,
-                }}
-                style={{
-                  cursor: isDragging ? "grabbing" : "grab",
-                }}
               >
-                {products.map((product, index) => (
-                  <motion.div
-                    key={product.id}
-                    className="flex-shrink-0 pointer-events-auto"
-                    style={{ width: `${isTablet ? 20 : 16.666}%` }}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <ProductCard product={product} isMobile={false} />
-                  </motion.div>
+                {trending.map((product) => (
+                  <div key={product.id} className="flex-shrink-0" style={{ width: `${100 / itemsPerView}%` }}>
+                    <ProductCard product={product} isMobile={isMobile} />
+                  </div>
                 ))}
               </motion.div>
             )}
 
             {/* Navigation Arrows - Desktop only */}
-            <AnimatePresence>
-              {!isMobile && isHovering && !isDragging && hoverSide === "left" && currentIndex > 0 && (
-                <motion.button
-                  initial={{ opacity: 0, x: -20, scale: 0.8 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -20, scale: 0.8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  onClick={goToPrevious}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white border border-gray-200 text-gray-700 hover:text-gray-900 p-2 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:shadow-xl"
-                  aria-label="Previous products"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </motion.button>
-              )}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {!isMobile && isHovering && !isDragging && hoverSide === "right" && currentIndex < maxIndex && (
-                <motion.button
-                  initial={{ opacity: 0, x: 20, scale: 0.8 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 20, scale: 0.8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  onClick={goToNext}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white border border-gray-200 text-gray-700 hover:text-gray-900 p-2 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:shadow-xl"
-                  aria-label="Next products"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </motion.button>
-              )}
-            </AnimatePresence>
+            {!isMobile && trending.length > itemsPerView && (
+              <>
+                <AnimatePresence>
+                  {isHovering && hoverSide === "left" && currentIndex > 0 && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={goToPrevious}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg hover:bg-white hover:scale-110 transition-all z-20"
+                    >
+                      <ChevronLeft className="w-5 h-5 text-gray-700" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+                <AnimatePresence>
+                  {isHovering && hoverSide === "right" && currentIndex < maxIndex && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={goToNext}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg hover:bg-white hover:scale-110 transition-all z-20"
+                    >
+                      <ChevronRight className="w-5 h-5 text-gray-700" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </>
+            )}
           </div>
         </div>
       </div>

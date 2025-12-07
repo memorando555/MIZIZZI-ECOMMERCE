@@ -90,6 +90,7 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+const THEME_STORAGE_KEY = "mizizzi_active_theme"
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme | null>(null)
@@ -151,6 +152,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--color-carousel-badge-text", colors.carousel.badgeText)
 
     setTheme(themeData)
+
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(themeData))
+    } catch (error) {
+      console.error("[v0] Error saving theme to localStorage:", error)
+    }
   }, [])
 
   const refreshTheme = useCallback(async () => {
@@ -177,6 +184,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [applyTheme])
 
   useEffect(() => {
+    try {
+      const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+      if (cachedTheme) {
+        const parsedTheme = JSON.parse(cachedTheme) as Theme
+        applyTheme(parsedTheme)
+      }
+    } catch (error) {
+      console.error("[v0] Error loading cached theme:", error)
+    }
+
+    // Then fetch fresh theme from API (will update if changed)
     refreshTheme()
 
     const unsubscribe = websocketService.on("theme_updated", (data: any) => {
