@@ -107,11 +107,11 @@ export default function Home() {
     >
       <NetworkStatus className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 pt-2" />
 
-      <div className="mb-2 py-0 sm:py-2 overflow-hidden w-full" style={{ backgroundColor: "var(--color-background)" }}>
+      <div className="w-full sm:py-2 overflow-hidden" style={{ backgroundColor: "var(--color-background)" }}>
         <Carousel />
       </div>
 
-      <div className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 overflow-x-hidden box-border">
+      <div className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 overflow-x-hidden box-border mt-1 sm:mt-0">
         <motion.div
           className="mb-2 rounded-lg bg-white overflow-hidden shadow-sm"
           initial={{ opacity: 0, y: 20 }}

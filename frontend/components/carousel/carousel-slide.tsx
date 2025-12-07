@@ -55,7 +55,7 @@ export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, i
           src={item.image || "/placeholder.svg"}
           alt={item.title}
           fill
-          className="object-contain sm:object-cover"
+          className="object-cover"
           priority={index === 0}
           fetchPriority={index === 0 ? "high" : "auto"}
           sizes="100vw"

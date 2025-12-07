@@ -158,14 +158,21 @@ export function Carousel() {
       {/* Main carousel content */}
       <div
         className={cn(
-          "relative mx-auto grid w-full max-w-[1200px] gap-3 sm:gap-4 overflow-hidden",
-          isDesktop && sidePanelsVisible ? "xl:grid-cols-[1fr,280px] xl:px-2" : "px-0 sm:px-4",
+          "relative w-full",
+          isDesktop && sidePanelsVisible
+            ? "mx-auto max-w-[1200px] grid gap-3 sm:gap-4 xl:grid-cols-[1fr,280px] xl:px-2"
+            : "sm:mx-auto sm:max-w-[1200px] sm:px-4",
           "transition-all duration-300",
         )}
       >
         {/* Enhanced main carousel */}
         <main
-          className="relative w-full overflow-hidden rounded-none sm:rounded-xl border-0 sm:border sm:border-gray-100 shadow-none sm:shadow-sm aspect-[16/7] sm:aspect-auto sm:h-[400px] md:h-[450px] lg:h-[500px] xl:h-[400px]"
+          className={cn(
+            "relative w-full overflow-hidden",
+            "rounded-none border-0 shadow-none",
+            "sm:rounded-xl sm:border sm:border-gray-100 sm:shadow-sm",
+            "h-[140px] xs:h-[160px] sm:h-[400px] md:h-[450px] lg:h-[500px] xl:h-[400px]",
+          )}
           onMouseEnter={pause}
           onMouseLeave={resume}
           onFocus={pause}
@@ -180,7 +187,7 @@ export function Carousel() {
                 src={prevItem.image || "/placeholder.svg"}
                 alt=""
                 fill
-                className="object-contain sm:object-cover"
+                className="object-cover"
                 priority
                 sizes="100vw"
                 quality={90}
