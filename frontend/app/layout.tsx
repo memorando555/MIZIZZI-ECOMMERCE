@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/* Suppress React DevTools warning in development */}
         {process.env.NODE_ENV === "development" && (
@@ -53,10 +53,7 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body
-        className={`${inter.className} ${inter.variable} overflow-x-hidden max-w-full w-full`}
-        suppressHydrationWarning
-      >
+      <body className={`${inter.className} ${inter.variable}`} suppressHydrationWarning>
         <Script src="https://accounts.google.com/gsi/client" strategy="beforeInteractive" />
 
         <ThemeProvider>
