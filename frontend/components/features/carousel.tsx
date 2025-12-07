@@ -18,60 +18,49 @@ import type { CarouselItem } from "@/types/carousel"
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
-const FALLBACK_CAROUSEL_ITEMS: CarouselItem[] = [
-  {
-    image: "https://images.pexels.com/photos/5632399/pexels-photo-5632399.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750",
-    title: "Summer Collection 2025",
-    description: "Discover the latest trends in fashion with our exclusive summer collection",
-    buttonText: "Shop Now",
-    href: "/products?category=fashion",
-    badge: "NEW",
-    discount: "20% OFF",
-  },
-  {
-    image: "https://images.pexels.com/photos/5632381/pexels-photo-5632381.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750",
-    title: "Premium Streetwear",
-    description: "Urban style meets premium quality in our streetwear collection",
-    buttonText: "Explore",
-    href: "/products?category=streetwear",
-    badge: "TRENDING",
-    discount: "15% OFF",
-  },
-  {
-    image: "https://images.pexels.com/photos/5709661/pexels-photo-5709661.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750",
-    title: "Luxury Accessories",
-    description: "Complete your look with our handpicked luxury accessories",
-    buttonText: "View Collection",
-    href: "/products?category=accessories",
-    badge: "EXCLUSIVE",
-    discount: "",
-  },
-  {
-    image: "https://images.pexels.com/photos/6567607/pexels-photo-6567607.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750",
-    title: "Athletic Performance",
-    description: "Gear up with our high-performance athletic wear",
-    buttonText: "Shop Athletic",
-    href: "/products?category=athletic",
-    badge: "POPULAR",
-    discount: "25% OFF",
-  },
-  {
-    image: "https://images.pexels.com/photos/5868722/pexels-photo-5868722.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750",
-    title: "Evening Elegance",
-    description: "Make a statement with our stunning evening wear collection",
-    buttonText: "Discover",
-    href: "/products?category=evening",
-    badge: "LIMITED",
-    discount: "30% OFF",
-  },
-]
+const CAROUSEL_CACHE_KEY = "mizizzi_carousel_cache"
+const CAROUSEL_CACHE_EXPIRY_KEY = "mizizzi_carousel_cache_expiry"
+const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
+const getCachedCarousel = (): CarouselItem[] | null => {
+  if (typeof window === "undefined") return null
+
+  try {
+    const expiry = localStorage.getItem(CAROUSEL_CACHE_EXPIRY_KEY)
+    if (expiry && Date.now() > Number.parseInt(expiry, 10)) {
+      // Cache expired, clear it
+      localStorage.removeItem(CAROUSEL_CACHE_KEY)
+      localStorage.removeItem(CAROUSEL_CACHE_EXPIRY_KEY)
+      return null
+    }
+
+    const cached = localStorage.getItem(CAROUSEL_CACHE_KEY)
+    if (cached) {
+      return JSON.parse(cached)
+    }
+  } catch (e) {
+    console.error("Error reading carousel cache:", e)
+  }
+  return null
+}
+
+const setCachedCarousel = (items: CarouselItem[]) => {
+  if (typeof window === "undefined") return
+
+  try {
+    localStorage.setItem(CAROUSEL_CACHE_KEY, JSON.stringify(items))
+    localStorage.setItem(CAROUSEL_CACHE_EXPIRY_KEY, String(Date.now() + CACHE_DURATION))
+  } catch (e) {
+    console.error("Error saving carousel cache:", e)
+  }
+}
 
 const carouselFetcher = async (url: string): Promise<CarouselItem[]> => {
   const response = await fetch(url)
   const data = await response.json()
 
   if (data.success && data.items && data.items.length > 0) {
-    return data.items.map((item: any) => ({
+    const items = data.items.map((item: any) => ({
       image: item.image_url,
       title: item.title,
       description: item.description,
@@ -80,30 +69,36 @@ const carouselFetcher = async (url: string): Promise<CarouselItem[]> => {
       badge: item.badge_text,
       discount: item.discount,
     }))
+    setCachedCarousel(items)
+    return items
   }
-  // Return fallback if API returns empty
-  return FALLBACK_CAROUSEL_ITEMS
+
+  const cached = getCachedCarousel()
+  return cached || []
 }
 
 export function Carousel() {
   const { sidePanelsVisible, isDesktop } = useResponsiveLayout()
   const [imagesLoaded, setImagesLoaded] = useState(false)
 
-  const { data: carouselItems = FALLBACK_CAROUSEL_ITEMS } = useSWR(
+  const [initialData] = useState<CarouselItem[]>(() => getCachedCarousel() || [])
+
+  const { data: carouselItems = initialData, isLoading } = useSWR(
     `${API_BASE_URL}/api/carousel/items?position=homepage`,
     carouselFetcher,
     {
-      fallbackData: FALLBACK_CAROUSEL_ITEMS,
+      fallbackData: initialData.length > 0 ? initialData : undefined,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 60000,
       errorRetryCount: 2,
+      keepPreviousData: true,
     },
   )
 
   const { currentSlide, direction, isPaused, nextSlide, prevSlide, pause, resume } = useCarousel({
-    itemsLength: carouselItems.length,
-    autoPlay: true,
+    itemsLength: carouselItems.length || 1,
+    autoPlay: carouselItems.length > 0,
   })
 
   const [prevSlideIndex, setPrevSlideIndex] = useState(currentSlide)
@@ -140,6 +135,37 @@ export function Carousel() {
 
   const activeItem = carouselItems[currentSlide]
   const prevItem = carouselItems[prevSlideIndex]
+
+  if (carouselItems.length === 0 && isLoading) {
+    return (
+      <div className="relative overflow-hidden">
+        <div
+          className={cn(
+            "relative w-full",
+            isDesktop && sidePanelsVisible
+              ? "mx-auto max-w-[1200px] grid gap-3 sm:gap-4 xl:grid-cols-[1fr,280px] xl:px-2"
+              : "sm:mx-auto sm:max-w-[1200px]",
+          )}
+        >
+          <div
+            className={cn(
+              "relative w-full overflow-hidden animate-pulse",
+              "rounded-xl border border-gray-100 bg-gray-200",
+              "h-[200px] xs:h-[220px] sm:h-[400px] md:h-[450px] lg:h-[500px] xl:h-[400px]",
+            )}
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-gray-400 text-sm">Loading banners...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (carouselItems.length === 0) {
+    return null
+  }
 
   return (
     <div className="relative overflow-hidden">
@@ -207,7 +233,7 @@ export function Carousel() {
           </AnimatePresence>
 
           {/* Navigation arrows */}
-          {carouselItems.length > 0 && (
+          {carouselItems.length > 1 && (
             <CarouselNavigation
               onPrevious={prevSlide}
               onNext={nextSlide}
