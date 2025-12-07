@@ -310,7 +310,7 @@ export function CategoryGrid() {
 
   return (
     <div className="w-full max-w-full">
-      <div className="bg-gradient-to-r from-cherry-900 to-cherry-800 py-3 sm:py-4 mb-3 sm:mb-4 rounded-t-lg mx-1 sm:mx-0">
+      <div className="bg-gradient-to-r from-cherry-900 to-cherry-800 py-3 sm:py-4 mb-3 sm:mb-4 sm:rounded-t-lg">
         <div className="flex items-center justify-between px-3 sm:px-6">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white">Shop By Category</h2>
           <Link
@@ -324,7 +324,7 @@ export function CategoryGrid() {
         </div>
       </div>
 
-      <div className="relative px-3 sm:px-4 group overflow-hidden">
+      <div className="relative px-2 sm:px-4 group overflow-hidden">
         <div
           ref={carouselRef}
           className="flex overflow-x-auto scrollbar-hide gap-3 sm:gap-4 pb-4 w-full overscroll-x-contain max-w-full"

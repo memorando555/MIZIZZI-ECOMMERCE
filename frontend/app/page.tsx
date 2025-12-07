@@ -108,9 +108,9 @@ export default function Home() {
         <Carousel />
       </div>
 
-      <div className="mx-auto w-full max-w-[1200px] px-2 sm:px-3 md:px-4 mt-3 sm:mt-4">
+      <div className="mx-auto w-full max-w-[1200px] px-0 sm:px-3 md:px-4 mt-3 sm:mt-4">
         <motion.div
-          className="mb-3 rounded-lg bg-white overflow-hidden shadow-sm"
+          className="mb-3 sm:rounded-lg bg-white overflow-hidden shadow-sm"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
