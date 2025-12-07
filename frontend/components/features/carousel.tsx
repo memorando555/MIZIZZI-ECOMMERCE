@@ -99,7 +99,7 @@ export function Carousel() {
     },
   )
 
-  const { currentSlide, isPaused, nextSlide, prevSlide, pause, resume } = useCarousel({
+  const { currentSlide, direction, isPaused, nextSlide, prevSlide, pause, resume } = useCarousel({
     itemsLength: carouselItems.length,
     autoPlay: true,
   })
@@ -146,16 +146,27 @@ export function Carousel() {
           role="region"
           aria-label="Featured products carousel"
           aria-live="polite"
-          style={{ backgroundColor: "var(--color-background, #FFFFFF)" }}
         >
+          <div
+            className="absolute inset-0 bg-gray-100"
+            style={{
+              backgroundImage: activeItem ? `url(${activeItem.image})` : undefined,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "blur(20px)",
+              transform: "scale(1.1)",
+            }}
+          />
+
           <div className="absolute inset-0">
-            <AnimatePresence mode="sync" initial={false}>
+            <AnimatePresence mode="sync" initial={false} custom={direction}>
               {activeItem ? (
                 <CarouselSlide
                   key={String(currentSlide)}
                   item={activeItem as any}
                   isActive={true}
                   index={currentSlide}
+                  direction={direction}
                 />
               ) : (
                 <div key="empty" className="flex items-center justify-center h-full">

@@ -9,24 +9,25 @@ interface UseCarouselProps {
   interval?: number
 }
 
-export function useCarousel({ itemsLength, autoPlay = true, interval = TIMING.slideInterval }: UseCarouselProps) {
-  const [currentSlide, setCurrentSlide] = useState(0)
+export function useCarousel({ itemsLength, autoPlay = true, interval = TIMING.autoSlideInterval }: UseCarouselProps) {
+  const [[currentSlide, direction], setSlideState] = useState<[number, number]>([0, 0])
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const changeSlide = useCallback((newIndex: number) => {
-    setIsTransitioning((prev) => {
-      if (prev) return prev // Don't change if already transitioning
+  const changeSlide = useCallback(
+    (newIndex: number, newDirection: number) => {
+      if (isTransitioning) return
 
-      setCurrentSlide(newIndex)
+      setIsTransitioning(true)
+      setSlideState([newIndex, newDirection])
+
       setTimeout(() => {
         setIsTransitioning(false)
-      }, TIMING.animationDuration)
-
-      return true // Set transitioning to true
-    })
-  }, [])
+      }, 600)
+    },
+    [isTransitioning],
+  )
 
   const currentSlideRef = useRef(currentSlide)
   const itemsLengthRef = useRef(itemsLength)
@@ -41,12 +42,12 @@ export function useCarousel({ itemsLength, autoPlay = true, interval = TIMING.sl
 
   const nextSlide = useCallback(() => {
     const next = (currentSlideRef.current + 1) % itemsLengthRef.current
-    changeSlide(next)
+    changeSlide(next, 1)
   }, [changeSlide])
 
   const prevSlide = useCallback(() => {
     const prev = (currentSlideRef.current - 1 + itemsLengthRef.current) % itemsLengthRef.current
-    changeSlide(prev)
+    changeSlide(prev, -1)
   }, [changeSlide])
 
   const pause = useCallback(() => {
@@ -97,6 +98,7 @@ export function useCarousel({ itemsLength, autoPlay = true, interval = TIMING.sl
 
   return {
     currentSlide,
+    direction,
     isTransitioning,
     isPaused,
     nextSlide,

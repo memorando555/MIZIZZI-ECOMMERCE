@@ -9,19 +9,45 @@ interface CarouselSlideProps {
   item: CarouselItem
   isActive: boolean
   index: number
+  direction: number
 }
 
-export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, index }) => {
+const slideVariants = {
+  enter: (direction: number) => ({
+    x: direction > 0 ? "100%" : "-100%",
+    opacity: 1, // Keep full opacity - no fade
+    zIndex: 2, // Entering slide on top
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    zIndex: 1,
+  },
+  exit: (direction: number) => ({
+    x: direction < 0 ? "50%" : "-50%", // Move less distance for parallax effect
+    opacity: 1, // Keep full opacity - no fade
+    zIndex: 0, // Exiting slide behind
+  }),
+}
+
+export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, index, direction }) => {
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      custom={direction}
+      variants={slideVariants}
+      initial="enter"
+      animate="center"
+      exit="exit"
       transition={{
-        duration: 0.8,
-        ease: [0.25, 0.1, 0.25, 1],
+        x: { type: "tween", duration: 0.7, ease: [0.25, 0.1, 0.25, 1] },
+        opacity: { duration: 0.7 },
       }}
       className="absolute inset-0 overflow-hidden"
+      style={{
+        willChange: "transform",
+        backfaceVisibility: "hidden",
+        WebkitBackfaceVisibility: "hidden",
+      }}
     >
       {/* Background Image */}
       <div className="relative h-full w-full">
