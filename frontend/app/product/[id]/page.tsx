@@ -141,9 +141,14 @@ async function ProductDetails({ id }: { id: string }) {
     }
 
     return <ProductDetailsEnhanced product={product} />
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error loading product:", error)
-    return notFound()
+    // If it's a 404 from the API, return notFound so Next serves the 404 page
+    if (error?.response?.status === 404) {
+      return notFound()
+    }
+    // Re-throw other errors so Next.js can show an error boundary / surface the issue
+    throw error
   }
 }
 

@@ -566,7 +566,44 @@ export const productService = {
         return cachedItem.data[0] // Return the first product from the array
       }
 
-      const response = await api.get(`/api/products/${slug}`)
+      // Try common endpoints (slug-specific first, then fallback)
+      const endpoints = [
+        `${API_BASE_URL}/api/products/slug/${encodeURIComponent(slug)}`,
+        `${API_BASE_URL}/api/products/${encodeURIComponent(slug)}`,
+      ]
+
+      let response: any = null
+      let lastError: any = null
+
+      for (const url of endpoints) {
+        try {
+          response = await api.get(url)
+          if (response && response.data) break
+        } catch (err: any) {
+          lastError = err
+          // If 404, try next endpoint
+          if (err?.response?.status === 404) {
+            continue
+          }
+          // Network issues -> return null (caller can decide)
+          if (err?.code === "ERR_NETWORK" || err?.message === "Network Error") {
+            console.warn(`Network error fetching product by slug ${slug}:`, err)
+            return null
+          }
+          // Re-throw unexpected errors
+          throw err
+        }
+      }
+
+      if (!response) {
+        // If last attempt returned 404, treat as not found
+        if (lastError?.response?.status === 404) {
+          return null
+        }
+        // Otherwise return null as a safe fallback
+        return null
+      }
+
       let product = response.data
 
       // Ensure the product has valid data
@@ -683,38 +720,7 @@ export const productService = {
    * @returns Promise resolving to an array of products
    */
   async getFlashSaleProducts(): Promise<Product[]> {
-    try {
-      // Try several possible endpoint variations (singular/plural/alternate forms)
-      const candidatePaths = [
-        "/api/products/featured/flash-sale",
-        "/api/products/featured/flash-sales",
-        "/api/products/featured/flash_sale",
-        "/api/products/featured/flashsales",
-      ]
-
-      for (const path of candidatePaths) {
-        try {
-          const url = `${API_BASE_URL}${path}`
-          const response = await api.get(url)
-          const items =
-            Array.isArray(response.data) ? response.data : response.data.items || response.data.products || []
-          return Array.isArray(items) ? items : []
-        } catch (e: any) {
-          // If the endpoint is not found, try the next candidate; otherwise rethrow
-          if (e?.response?.status === 404) {
-            continue
-          }
-          throw e
-        }
-      }
-
-      // If none of the endpoints exist, fall back to the filtered products endpoint
-      console.warn("[v0] Flash sales endpoint(s) not found, falling back to filter")
-      return this.getProducts({ flash_sale: true })
-    } catch (e: any) {
-      console.error("Error fetching flash sale products:", e)
-      return []
-    }
+    return this.getProducts({ flash_sale: true })
   },
 
   /**
@@ -722,18 +728,7 @@ export const productService = {
    * @returns Promise resolving to an array of products
    */
   async getLuxuryDealProducts(): Promise<Product[]> {
-    try {
-      const url = `${API_BASE_URL}/api/products/featured/luxury-deals`
-      const response = await api.get(url)
-      const items = Array.isArray(response.data) ? response.data : response.data.items || response.data.products || []
-      return Array.isArray(items) ? items : []
-    } catch (e: any) {
-      if (e.response?.status === 404) {
-        return this.getProducts({ luxury_deal: true })
-      }
-      console.error("Error fetching luxury deal products:", e)
-      return []
-    }
+    return this.getProducts({ luxury_deal: true })
   },
 
   /**
@@ -742,19 +737,7 @@ export const productService = {
    * @returns Promise resolving to an array of products
    */
   async getDailyFindProducts(limit = 12): Promise<Product[]> {
-    try {
-      const url = `${API_BASE_URL}/api/products/featured/daily-finds`
-      const response = await api.get(url)
-      const items = Array.isArray(response.data) ? response.data : response.data.items || response.data.products || []
-      const products = Array.isArray(items) ? items : []
-      return products.slice(0, limit)
-    } catch (e: any) {
-      if (e.response?.status === 404) {
-        return this.getProducts({ daily_find: true, limit })
-      }
-      console.error("Error fetching daily find products:", e)
-      return []
-    }
+    return this.getProducts({ daily_find: true, limit })
   },
 
   /**
@@ -762,19 +745,7 @@ export const productService = {
    * @returns Promise resolving to an array of products
    */
   async getTopPicks(limit = 12): Promise<Product[]> {
-    try {
-      const url = `${API_BASE_URL}/api/products/featured/top-picks`
-      const response = await api.get(url)
-      const items = Array.isArray(response.data) ? response.data : response.data.items || response.data.products || []
-      const products = Array.isArray(items) ? items : []
-      return products.slice(0, limit)
-    } catch (e: any) {
-      if (e.response?.status === 404) {
-        return this.getProducts({ top_pick: true, limit })
-      }
-      console.error("Error fetching top picks:", e)
-      return []
-    }
+    return this.getProducts({ top_pick: true, limit })
   },
 
   /**
@@ -783,19 +754,7 @@ export const productService = {
    * @returns Promise resolving to an array of products
    */
   async getTrendingProducts(limit = 12): Promise<Product[]> {
-    try {
-      const url = `${API_BASE_URL}/api/products/featured/trending`
-      const response = await api.get(url)
-      const items = Array.isArray(response.data) ? response.data : response.data.items || response.data.products || []
-      const products = Array.isArray(items) ? items : []
-      return products.slice(0, limit)
-    } catch (e: any) {
-      if (e.response?.status === 404) {
-        return this.getProducts({ trending: true, limit })
-      }
-      console.error("Error fetching trending products:", e)
-      return []
-    }
+    return this.getProducts({ trending: true, limit })
   },
 
   /**
@@ -804,20 +763,10 @@ export const productService = {
    * @returns Promise resolving to an array of products
    */
   async getNewArrivalProducts(limit = 12): Promise<Product[]> {
-    try {
-      const url = `${API_BASE_URL}/api/products/featured/new_arrivals`
-      const response = await api.get(url)
-      const items = Array.isArray(response.data) ? response.data : response.data.items || response.data.products || []
-      const products = Array.isArray(items) ? items : []
-      return products.slice(0, limit)
-    } catch (e: any) {
-      if (e.response?.status === 404) {
-        const products = await this.getProducts({ new_arrival: true, limit: 50 })
-        return products.slice(0, limit)
-      }
-      console.error("Error fetching new arrivals:", e)
-      return []
-    }
+    // Fetch more items initially to handle cases where backend filtering might be partial
+    // or when we need to filter client-side from a larger pool
+    const products = await this.getProducts({ new_arrival: true, limit: 50 })
+    return products.slice(0, limit)
   },
 
   /**
@@ -1091,9 +1040,9 @@ export const productService = {
   },
 
   /**
-   * Get product by category
+   * Prefetch products by category
    * @param categoryId The category ID
-   * @returns Promise resolving to an array of products
+   * @returns Promise resolving to a boolean
    */
   async prefetchProductsByCategory(categoryId: string): Promise<boolean> {
     return prefetchData("/api/products", { category_id: categoryId, limit: 12 })

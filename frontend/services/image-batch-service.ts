@@ -205,7 +205,8 @@ export const imageBatchService = {
 
       // Create a controller for timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+      // Provide a reason when aborting to avoid "signal is aborted without reason" in some runtimes
+      const timeoutId = setTimeout(() => controller.abort("timeout"), REQUEST_TIMEOUT)
 
       // Get auth token if available
       const token =
@@ -320,7 +321,8 @@ export const imageBatchService = {
 
         // Create a controller for timeout
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 3000) // Shorter timeout for testing
+        // Provide a reason when aborting to avoid runtime errors
+        const timeoutId = setTimeout(() => controller.abort("timeout"), 3000) // Shorter timeout for testing
 
         try {
           // Make a test request with a single product ID
@@ -414,7 +416,8 @@ export const imageBatchService = {
 
             // Create a controller for timeout
             const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+            // Provide a reason when aborting to avoid runtime AbortError message
+            const timeoutId = setTimeout(() => controller.abort("timeout"), REQUEST_TIMEOUT)
 
             const response = await fetch(url, {
               headers: {
