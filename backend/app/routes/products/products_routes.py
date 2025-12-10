@@ -1,22 +1,29 @@
 """
 User-facing products routes for Mizizzi E-commerce platform.
 Handles public product viewing, searching, and browsing functionality.
-OPTIMIZED with Redis caching and lightweight JSON responses.
+OPTIMIZED with Upstash Redis caching and lightweight JSON responses.
 """
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, Response
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from sqlalchemy import or_, func, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import load_only, joinedload
 from datetime import datetime
 import re
+import time
 
 from app.configuration.extensions import db, limiter
 from app.models.models import (
     Product, ProductVariant, ProductImage, Category, Brand,
     User, UserRole
 )
-from app.utils.redis_cache import product_cache, cached_response, invalidate_on_change
+from app.utils.redis_cache import (
+    product_cache,
+    cached_response,
+    fast_cached_response,
+    invalidate_on_change,
+    fast_json_dumps
+)
 
 # Create blueprint for user-facing product routes
 products_routes = Blueprint('products_routes', __name__, url_prefix='/api/products')
@@ -40,7 +47,7 @@ def serialize_product_lightweight(product):
                 image_url = product.image_urls[0]
             elif isinstance(product.image_urls, str):
                 image_url = product.image_urls.split(',')[0]
-        
+
         return {
             'id': product.id,
             'name': product.name,
@@ -72,12 +79,12 @@ def serialize_product_lightweight(product):
 def serialize_product(product, include_variants=False, include_images=False):
     """
     Serialize a product to dictionary format.
-    
+
     Args:
         product: Product instance
         include_variants: Whether to include variants
         include_images: Whether to include images
-    
+
     Returns:
         Dictionary representation of the product
     """
@@ -87,16 +94,16 @@ def serialize_product(product, include_variants=False, include_images=False):
             ProductImage.is_primary.desc(),
             ProductImage.sort_order.asc()
         ).all()
-        
+
         # Extract URLs from ProductImage records
         image_urls_from_db = [img.url for img in product_images if img.url]
-        
+
         # If we have images in the database, use those instead of product.get_image_urls()
         if image_urls_from_db:
             image_urls = image_urls_from_db
         else:
             image_urls = product.get_image_urls()
-        
+
         data = {
             'id': product.id,
             'name': product.name,
@@ -166,7 +173,7 @@ def serialize_product(product, include_variants=False, include_images=False):
             'created_at': product.created_at.isoformat() if product.created_at else None,
             'updated_at': product.updated_at.isoformat() if product.updated_at else None
         }
-        
+
         # Include category and brand details if available
         if product.category:
             data['category'] = {
@@ -174,22 +181,22 @@ def serialize_product(product, include_variants=False, include_images=False):
                 'name': product.category.name,
                 'slug': product.category.slug
             }
-        
+
         if product.brand:
             data['brand'] = {
                 'id': product.brand.id,
                 'name': product.brand.name,
                 'slug': product.brand.slug
             }
-        
+
         # Include variants if requested
         if include_variants and product.variants:
             data['variants'] = [serialize_variant(variant) for variant in product.variants]
-        
+
         # Include images if requested
         if include_images and product.images:
             data['images'] = [serialize_image(image) for image in product.images]
-        
+
         return data
     except Exception as e:
         current_app.logger.error(f"Error serializing product {product.id}: {str(e)}")
@@ -230,10 +237,10 @@ def is_admin_user():
     try:
         verify_jwt_in_request(optional=True)
         current_user_id = get_jwt_identity()
-        
+
         if not current_user_id:
             return False
-            
+
         user = db.session.get(User, current_user_id)
         return user and user.role == UserRole.ADMIN
     except Exception:
@@ -250,6 +257,7 @@ def health_check():
         'status': 'ok',
         'service': 'products_routes',
         'cache_connected': product_cache.is_connected,
+        'cache_type': 'upstash' if product_cache.is_connected else 'memory',
         'timestamp': datetime.utcnow().isoformat()
     }), 200
 
@@ -263,7 +271,7 @@ def cache_status():
     """Get cache status and info."""
     return jsonify({
         'connected': product_cache.is_connected,
-        'type': 'redis' if product_cache.is_connected else 'memory',
+        'type': 'upstash' if product_cache.is_connected else 'memory',
         'stats': product_cache.stats,
         'timestamp': datetime.utcnow().isoformat()
     }), 200
@@ -274,14 +282,13 @@ def invalidate_cache():
     """Invalidate all product caches (admin only)."""
     if not is_admin_user():
         return jsonify({'error': 'Admin access required'}), 403
-    
-    products_cleared = product_cache.invalidate_products()
-    featured_cleared = product_cache.invalidate_featured()
-    
+
+    total_cleared = product_cache.invalidate_all_products()
+
     return jsonify({
         'success': True,
-        'products_cleared': products_cleared,
-        'featured_cleared': featured_cleared
+        'total_cleared': total_cleared,
+        'cache_type': 'upstash' if product_cache.is_connected else 'memory'
     }), 200
 
 
@@ -319,20 +326,20 @@ def get_products():
         sort_by = request.args.get('sort_by', 'created_at')
         sort_order = request.args.get('sort_order', 'desc')
         include_inactive = request.args.get('include_inactive', False, type=bool)
-        
+
         # Convert string booleans
         def str_to_bool(val):
             if val is None:
                 return None
             return val.lower() in ('true', '1', 'yes')
-        
+
         is_featured = str_to_bool(is_featured)
         is_new = str_to_bool(is_new)
         is_sale = str_to_bool(is_sale)
         is_flash_sale = str_to_bool(is_flash_sale)
         is_luxury_deal = str_to_bool(is_luxury_deal)
         is_new_arrival = str_to_bool(is_new_arrival)
-        
+
         query = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -345,43 +352,43 @@ def get_products():
                 Product.brand_id, Product.created_at, Product.sort_order
             )
         )
-        
+
         # Filter by active status (unless admin requests inactive products)
         if not (include_inactive and is_admin_user()):
             query = query.filter(Product.is_active == True)
-        
+
         # Only show visible products for non-admin users
         if not is_admin_user():
             query = query.filter(Product.is_visible == True)
-        
+
         # Apply filters using indexed columns
         if category_id:
             query = query.filter(Product.category_id == category_id)
-        
+
         if brand_id:
             query = query.filter(Product.brand_id == brand_id)
-        
+
         if min_price is not None:
             query = query.filter(Product.price >= min_price)
-        
+
         if max_price is not None:
             query = query.filter(Product.price <= max_price)
-        
+
         if is_featured is not None:
             query = query.filter(Product.is_featured == is_featured)
-        
+
         if is_new is not None:
             query = query.filter(Product.is_new == is_new)
-        
+
         if is_sale is not None:
             query = query.filter(Product.is_sale == is_sale)
-        
+
         if is_flash_sale is not None:
             query = query.filter(Product.is_flash_sale == is_flash_sale)
-        
+
         if is_luxury_deal is not None:
             query = query.filter(Product.is_luxury_deal == is_luxury_deal)
-        
+
         if is_new_arrival is not None:
             query = query.filter(Product.is_new_arrival == is_new_arrival)
 
@@ -395,7 +402,7 @@ def get_products():
                     Product.short_description.ilike(search_term)
                 )
             )
-        
+
         # Sorting (using indexed columns for speed)
         valid_sort_fields = ['name', 'price', 'created_at', 'updated_at', 'stock', 'sort_order']
         if sort_by in valid_sort_fields:
@@ -406,7 +413,7 @@ def get_products():
                 query = query.order_by(sort_column.asc())
         else:
             query = query.order_by(Product.created_at.desc())
-        
+
         # Execute query with pagination
         try:
             pagination = query.paginate(
@@ -417,13 +424,13 @@ def get_products():
         except SQLAlchemyError as e:
             current_app.logger.error(f"Database error during pagination: {str(e)}")
             return jsonify({'error': 'Database error occurred'}), 500
-        
+
         products = []
         for product in pagination.items:
             serialized = serialize_product_lightweight(product)
             if serialized:
                 products.append(serialized)
-        
+
         return jsonify({
             'items': products,
             'pagination': {
@@ -435,7 +442,7 @@ def get_products():
                 'has_prev': pagination.has_prev
             }
         }), 200
-        
+
     except SQLAlchemyError as e:
         current_app.logger.error(f"Database error getting products: {str(e)}")
         return jsonify({'error': 'Database error occurred'}), 500
@@ -458,7 +465,7 @@ def get_flash_sale_products():
     """
     try:
         limit = min(request.args.get('limit', 20, type=int), 50)
-        
+
         # Optimized query with indexed column is_flash_sale
         products = Product.query.options(
             load_only(
@@ -474,13 +481,13 @@ def get_flash_sale_products():
         ).order_by(
             Product.discount_percentage.desc()
         ).limit(limit).all()
-        
+
         return jsonify({
             'items': [serialize_product_lightweight(p) for p in products if p],
             'total': len(products),
             'cached_at': datetime.utcnow().isoformat()
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting flash sale products: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -500,7 +507,7 @@ def get_luxury_deals_products():
     """
     try:
         limit = min(request.args.get('limit', 20, type=int), 50)
-        
+
         # Optimized query with indexed column is_luxury_deal
         products = Product.query.options(
             load_only(
@@ -516,13 +523,13 @@ def get_luxury_deals_products():
         ).order_by(
             Product.created_at.desc()
         ).limit(limit).all()
-        
+
         return jsonify({
             'items': [serialize_product_lightweight(p) for p in products if p],
             'total': len(products),
             'cached_at': datetime.utcnow().isoformat()
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting luxury deals products: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -542,24 +549,24 @@ def get_product_by_id(product_id):
         if cached:
             current_app.logger.info(f"[CACHE HIT] product:{product_id}")
             return jsonify(cached), 200
-        
+
         product = db.session.get(Product, product_id)
-        
+
         if not product:
             return jsonify({'error': 'Product not found'}), 404
-        
+
         # Check if product is active and visible (unless admin)
         if not is_admin_user():
             if not product.is_active or not product.is_visible:
                 return jsonify({'error': 'Product not found'}), 404
-        
+
         serialized = serialize_product(product, include_variants=True, include_images=True)
-        
+
         # Cache for 60 seconds (single products can be cached longer)
         product_cache.set(cache_key, serialized, ttl=60)
-        
+
         return jsonify(serialized), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting product {product_id}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -579,24 +586,24 @@ def get_product_by_slug(slug):
         if cached:
             current_app.logger.info(f"[CACHE HIT] product:slug:{slug}")
             return jsonify(cached), 200
-        
+
         product = Product.query.filter_by(slug=slug).first()
-        
+
         if not product:
             return jsonify({'error': 'Product not found'}), 404
-        
+
         # Check if product is active and visible (unless admin)
         if not is_admin_user():
             if not product.is_active or not product.is_visible:
                 return jsonify({'error': 'Product not found'}), 404
-        
+
         serialized = serialize_product(product, include_variants=True, include_images=True)
-        
+
         # Cache for 60 seconds
         product_cache.set(cache_key, serialized, ttl=60)
-        
+
         return jsonify(serialized), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting product by slug {slug}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -611,19 +618,19 @@ def get_product_variants(product_id):
     """Get variants for a product."""
     try:
         product = db.session.get(Product, product_id)
-        
+
         if not product:
             return jsonify({'error': 'Product not found'}), 404
-        
+
         # Check if product is accessible to user
         if not is_admin_user():
             if not product.is_active or not product.is_visible:
                 return jsonify({'error': 'Product not found'}), 404
-        
+
         variants = ProductVariant.query.filter_by(product_id=product_id).all()
-        
+
         return jsonify([serialize_variant(variant) for variant in variants]), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting variants for product {product_id}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -638,24 +645,24 @@ def get_product_images(product_id):
     """Get images for a product."""
     try:
         product = db.session.get(Product, product_id)
-        
+
         if not product:
             return jsonify({'error': 'Product not found'}), 404
-        
+
         # Check if product is accessible to user
         if not is_admin_user():
             if not product.is_active or not product.is_visible:
                 return jsonify({'error': 'Product not found'}), 404
-        
+
         images = ProductImage.query.filter_by(product_id=product_id).order_by(
             ProductImage.is_primary.desc(),
             ProductImage.sort_order.asc()
         ).all()
-        
+
         return jsonify({
             'items': [serialize_image(image) for image in images]
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting images for product {product_id}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -666,18 +673,18 @@ def get_product_image(image_id):
     """Get a specific product image."""
     try:
         image = db.session.get(ProductImage, image_id)
-        
+
         if not image:
             return jsonify({'error': 'Image not found'}), 404
-        
+
         # Check if the product is accessible to user
         if not is_admin_user():
             product = db.session.get(Product, image.product_id)
             if not product or not product.is_active or not product.is_visible:
                 return jsonify({'error': 'Image not found'}), 404
-        
+
         return jsonify(serialize_image(image)), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting image {image_id}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -696,10 +703,10 @@ def search_products():
         query_text = request.args.get('q', '').strip()
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 20, type=int), 100)
-        
+
         if not query_text:
             return jsonify({'error': 'Search query is required'}), 400
-        
+
         # Build search query with optimized columns
         search_term = f"%{query_text}%"
         query = Product.query.options(
@@ -719,17 +726,17 @@ def search_products():
                 Product.sku.ilike(search_term)
             )
         )
-        
+
         # Execute query with pagination
         pagination = query.paginate(
             page=page,
             per_page=per_page,
             error_out=False
         )
-        
+
         # Serialize products
         products = [serialize_product_lightweight(p) for p in pagination.items if p]
-        
+
         return jsonify({
             'query': query_text,
             'items': products,
@@ -742,7 +749,7 @@ def search_products():
                 'has_prev': pagination.has_prev
             }
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error searching products: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -755,7 +762,7 @@ def get_featured_products():
     try:
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 12, type=int), 50)
-        
+
         query = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -767,15 +774,15 @@ def get_featured_products():
             Product.is_visible == True,
             Product.is_featured == True
         ).order_by(Product.sort_order.asc(), Product.created_at.desc())
-        
+
         pagination = query.paginate(
             page=page,
             per_page=per_page,
             error_out=False
         )
-        
+
         products = [serialize_product_lightweight(p) for p in pagination.items if p]
-        
+
         return jsonify({
             'items': products,
             'pagination': {
@@ -787,7 +794,7 @@ def get_featured_products():
                 'has_prev': pagination.has_prev
             }
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting featured products: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -800,7 +807,7 @@ def get_new_products():
     try:
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 12, type=int), 50)
-        
+
         query = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -812,15 +819,15 @@ def get_new_products():
             Product.is_visible == True,
             Product.is_new == True
         ).order_by(Product.created_at.desc())
-        
+
         pagination = query.paginate(
             page=page,
             per_page=per_page,
             error_out=False
         )
-        
+
         products = [serialize_product_lightweight(p) for p in pagination.items if p]
-        
+
         return jsonify({
             'items': products,
             'pagination': {
@@ -832,7 +839,7 @@ def get_new_products():
                 'has_prev': pagination.has_prev
             }
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting new products: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -845,7 +852,7 @@ def get_sale_products():
     try:
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get('per_page', 12, type=int), 50)
-        
+
         query = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -857,15 +864,15 @@ def get_sale_products():
             Product.is_visible == True,
             Product.is_sale == True
         ).order_by(Product.discount_percentage.desc(), Product.created_at.desc())
-        
+
         pagination = query.paginate(
             page=page,
             per_page=per_page,
             error_out=False
         )
-        
+
         products = [serialize_product_lightweight(p) for p in pagination.items if p]
-        
+
         return jsonify({
             'items': products,
             'pagination': {
@@ -877,7 +884,7 @@ def get_sale_products():
                 'has_prev': pagination.has_prev
             }
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting sale products: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -893,7 +900,7 @@ def get_trending_products():
     """Get trending products with caching."""
     try:
         limit = min(request.args.get('limit', 12, type=int), 50)
-        
+
         products = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -905,7 +912,7 @@ def get_trending_products():
             Product.is_visible == True,
             Product.is_trending == True
         ).limit(limit).all()
-        
+
         # Fallback to random products if no trending
         if not products:
             products = Product.query.options(
@@ -918,12 +925,12 @@ def get_trending_products():
                 Product.is_active == True,
                 Product.is_visible == True
             ).order_by(func.random()).limit(limit).all()
-        
+
         return jsonify({
             'items': [serialize_product_lightweight(p) for p in products if p],
             'total': len(products)
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting trending products: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -939,7 +946,7 @@ def get_top_picks_products():
     """Get top pick products with caching."""
     try:
         limit = min(request.args.get('limit', 12, type=int), 50)
-        
+
         products = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -951,7 +958,7 @@ def get_top_picks_products():
             Product.is_visible == True,
             Product.is_top_pick == True
         ).limit(limit).all()
-        
+
         # Fallback to highest priced if no top picks
         if not products:
             products = Product.query.options(
@@ -964,12 +971,12 @@ def get_top_picks_products():
                 Product.is_active == True,
                 Product.is_visible == True
             ).order_by(Product.price.desc()).limit(limit).all()
-        
+
         return jsonify({
             'items': [serialize_product_lightweight(p) for p in products if p],
             'total': len(products)
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting top picks: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -985,7 +992,7 @@ def get_daily_finds_products():
     """Get daily find products with caching."""
     try:
         limit = min(request.args.get('limit', 12, type=int), 50)
-        
+
         products = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -997,7 +1004,7 @@ def get_daily_finds_products():
             Product.is_visible == True,
             Product.is_daily_find == True
         ).limit(limit).all()
-        
+
         # Fallback to flash sales if no daily finds
         if not products:
             products = Product.query.options(
@@ -1011,12 +1018,12 @@ def get_daily_finds_products():
                 Product.is_visible == True,
                 Product.is_flash_sale == True
             ).limit(limit).all()
-        
+
         return jsonify({
             'items': [serialize_product_lightweight(p) for p in products if p],
             'total': len(products)
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting daily finds: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -1032,7 +1039,7 @@ def get_new_arrivals_products():
     """Get new arrival products with caching."""
     try:
         limit = min(request.args.get('limit', 12, type=int), 50)
-        
+
         products = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -1044,12 +1051,12 @@ def get_new_arrivals_products():
             Product.is_visible == True,
             Product.is_new_arrival == True
         ).order_by(Product.created_at.desc()).limit(limit).all()
-        
+
         return jsonify({
             'items': [serialize_product_lightweight(p) for p in products if p],
             'total': len(products)
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting new arrivals: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
@@ -1065,7 +1072,7 @@ def get_recent_searches():
     """Get recent search terms with actual products."""
     try:
         limit = min(request.args.get('limit', 8, type=int), 20)
-        
+
         # Get trending products as suggestions
         trending_products = Product.query.options(
             load_only(
@@ -1084,7 +1091,7 @@ def get_recent_searches():
         ).order_by(
             Product.created_at.desc()
         ).limit(limit).all()
-        
+
         # Get popular categories
         popular_categories = db.session.query(
             Category.name
@@ -1094,15 +1101,15 @@ def get_recent_searches():
         ).group_by(Category.id, Category.name).order_by(
             func.count(Product.id).desc()
         ).limit(5).all()
-        
+
         recent_searches = []
-        
+
         for product in trending_products:
             image_url = product.thumbnail_url
             if not image_url and hasattr(product, 'image_urls') and product.image_urls:
                 if isinstance(product.image_urls, list):
                     image_url = product.image_urls[0] if product.image_urls else None
-            
+
             recent_searches.append({
                 'id': product.id,
                 'name': product.name,
@@ -1112,25 +1119,142 @@ def get_recent_searches():
                 'slug': f'/product/{product.id}',
                 'search_term': product.name
             })
-        
+
         for category_name, in popular_categories:
             recent_searches.append({
                 'name': category_name,
                 'type': 'category',
                 'search_term': category_name
             })
-        
+
         recent_searches = recent_searches[:limit]
-        
+
         return jsonify({
             'items': recent_searches,
             'total': len(recent_searches),
             'timestamp': datetime.utcnow().isoformat()
         }), 200
-        
+
     except Exception as e:
         current_app.logger.error(f"Error getting recent searches: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+# ----------------------
+# FAST Public Products List (NEW - Ultra-optimized with Upstash)
+# ----------------------
+
+@products_routes.route('/fast', methods=['GET'])
+@limiter.limit("600 per minute")
+def get_products_fast():
+    """
+    ULTRA-FAST: Get products with minimal overhead.
+    Uses pre-serialized JSON caching for maximum speed.
+    """
+    start = time.perf_counter()
+
+    try:
+        # Get query parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 20, type=int), 100)
+        category_id = request.args.get('category_id', type=int)
+        brand_id = request.args.get('brand_id', type=int)
+        is_featured = request.args.get('is_featured', type=str)
+        is_sale = request.args.get('is_sale', type=str)
+        sort_by = request.args.get('sort_by', 'created_at')
+        sort_order = request.args.get('sort_order', 'desc')
+
+        # Build cache key
+        cache_key = f"mizizzi:products:fast:{page}:{per_page}:{category_id}:{brand_id}:{is_featured}:{is_sale}:{sort_by}:{sort_order}"
+
+        # Try cache first
+        cached = product_cache.get_raw(cache_key)
+        if cached:
+            cache_time = (time.perf_counter() - start) * 1000
+            response = Response(cached, status=200, mimetype='application/json')
+            response.headers['X-Cache'] = 'HIT'
+            response.headers['X-Cache-Time-Ms'] = str(round(cache_time, 2))
+            return response
+
+        # Convert string booleans
+        def str_to_bool(val):
+            if val is None:
+                return None
+            return val.lower() in ('true', '1', 'yes')
+
+        is_featured = str_to_bool(is_featured)
+        is_sale = str_to_bool(is_sale)
+
+        # Optimized query with minimal columns
+        query = Product.query.options(
+            load_only(
+                Product.id, Product.name, Product.slug, Product.price,
+                Product.sale_price, Product.stock, Product.thumbnail_url,
+                Product.image_urls, Product.discount_percentage,
+                Product.is_featured, Product.is_new, Product.is_sale,
+                Product.category_id, Product.brand_id
+            )
+        ).filter(
+            Product.is_active == True,
+            Product.is_visible == True
+        )
+
+        # Apply filters
+        if category_id:
+            query = query.filter(Product.category_id == category_id)
+        if brand_id:
+            query = query.filter(Product.brand_id == brand_id)
+        if is_featured is not None:
+            query = query.filter(Product.is_featured == is_featured)
+        if is_sale is not None:
+            query = query.filter(Product.is_sale == is_sale)
+
+        # Sorting
+        valid_sort_fields = ['name', 'price', 'created_at', 'stock']
+        if sort_by in valid_sort_fields:
+            sort_column = getattr(Product, sort_by)
+            query = query.order_by(sort_column.desc() if sort_order == 'desc' else sort_column.asc())
+        else:
+            query = query.order_by(Product.created_at.desc())
+
+        # Execute with pagination
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        products = []
+        for product in pagination.items:
+            serialized = serialize_product_lightweight(product)
+            if serialized:
+                products.append(serialized)
+
+        data = {
+            'items': products,
+            'pagination': {
+                'page': pagination.page,
+                'per_page': pagination.per_page,
+                'total_items': pagination.total,
+                'total_pages': pagination.pages,
+                'has_next': pagination.has_next,
+                'has_prev': pagination.has_prev
+            },
+            'cached_at': datetime.utcnow().isoformat()
+        }
+
+        # Cache the pre-serialized JSON
+        json_str = fast_json_dumps(data)
+        product_cache.set_raw(cache_key, json_str, ttl=30)
+
+        total_time = (time.perf_counter() - start) * 1000
+        response = Response(json_str, status=200, mimetype='application/json')
+        response.headers['X-Cache'] = 'MISS'
+        response.headers['X-Response-Time-Ms'] = str(round(total_time, 2))
+        return response
+
+    except Exception as e:
+        current_app.logger.error(f"Error in fast products: {str(e)}")
+        return Response(
+            fast_json_dumps({'error': 'Internal server error'}),
+            status=500,
+            mimetype='application/json'
+        )
 
 
 # ----------------------
@@ -1156,6 +1280,7 @@ def get_recent_searches():
 @products_routes.route('/recent-searches', methods=['OPTIONS'])
 @products_routes.route('/cache/status', methods=['OPTIONS'])
 @products_routes.route('/cache/invalidate', methods=['OPTIONS'])
+@products_routes.route('/fast', methods=['OPTIONS'])
 def handle_options():
     """Handle OPTIONS requests for CORS."""
     return '', 200
