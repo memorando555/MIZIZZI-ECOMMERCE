@@ -11,19 +11,51 @@ from sqlalchemy.orm import load_only, joinedload
 from datetime import datetime
 import re
 import time
+import logging
 
 from app.configuration.extensions import db, limiter
 from app.models.models import (
     Product, ProductVariant, ProductImage, Category, Brand,
     User, UserRole
 )
-from app.utils.redis_cache import (
-    product_cache,
-    cached_response,
-    fast_cached_response,
-    invalidate_on_change,
-    fast_json_dumps
-)
+
+logger = logging.getLogger(__name__)
+
+try:
+    from app.utils.redis_cache import (
+        product_cache,
+        cached_response,
+        fast_cached_response,
+        invalidate_on_change,
+        fast_json_dumps
+    )
+    CACHE_AVAILABLE = True
+    logger.info("✅ Redis cache available for products routes")
+except ImportError as e:
+    logger.warning(f"Redis cache not available: {e}")
+    CACHE_AVAILABLE = False
+    product_cache = None
+    
+    # Fallback no-op decorators
+    def cached_response(prefix, ttl=30, key_params=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def fast_cached_response(prefix, ttl=30, key_params=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def invalidate_on_change(prefixes):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def fast_json_dumps(data):
+        import json
+        return json.dumps(data)
+
 
 # Create blueprint for user-facing product routes
 products_routes = Blueprint('products_routes', __name__, url_prefix='/api/products')
@@ -256,8 +288,8 @@ def health_check():
     return jsonify({
         'status': 'ok',
         'service': 'products_routes',
-        'cache_connected': product_cache.is_connected,
-        'cache_type': 'upstash' if product_cache.is_connected else 'memory',
+        'cache_connected': product_cache.is_connected if CACHE_AVAILABLE else False,
+        'cache_type': 'upstash' if CACHE_AVAILABLE and product_cache.is_connected else 'memory',
         'timestamp': datetime.utcnow().isoformat()
     }), 200
 
@@ -270,9 +302,9 @@ def health_check():
 def cache_status():
     """Get cache status and info."""
     return jsonify({
-        'connected': product_cache.is_connected,
-        'type': 'upstash' if product_cache.is_connected else 'memory',
-        'stats': product_cache.stats,
+        'connected': product_cache.is_connected if CACHE_AVAILABLE else False,
+        'type': 'upstash' if CACHE_AVAILABLE and product_cache.is_connected else 'memory',
+        'stats': product_cache.stats if CACHE_AVAILABLE else {},
         'timestamp': datetime.utcnow().isoformat()
     }), 200
 
@@ -282,6 +314,9 @@ def invalidate_cache():
     """Invalidate all product caches (admin only)."""
     if not is_admin_user():
         return jsonify({'error': 'Admin access required'}), 403
+    
+    if not CACHE_AVAILABLE:
+        return jsonify({'error': 'Cache not available'}), 500
 
     total_cleared = product_cache.invalidate_all_products()
 
@@ -545,7 +580,7 @@ def get_product_by_id(product_id):
     try:
         # Check cache first
         cache_key = f"mizizzi:product:{product_id}"
-        cached = product_cache.get(cache_key)
+        cached = product_cache.get(cache_key) if CACHE_AVAILABLE else None
         if cached:
             current_app.logger.info(f"[CACHE HIT] product:{product_id}")
             return jsonify(cached), 200
@@ -563,7 +598,8 @@ def get_product_by_id(product_id):
         serialized = serialize_product(product, include_variants=True, include_images=True)
 
         # Cache for 60 seconds (single products can be cached longer)
-        product_cache.set(cache_key, serialized, ttl=60)
+        if CACHE_AVAILABLE:
+            product_cache.set(cache_key, serialized, ttl=60)
 
         return jsonify(serialized), 200
 
@@ -582,7 +618,7 @@ def get_product_by_slug(slug):
     try:
         # Check cache first
         cache_key = f"mizizzi:product:slug:{slug}"
-        cached = product_cache.get(cache_key)
+        cached = product_cache.get(cache_key) if CACHE_AVAILABLE else None
         if cached:
             current_app.logger.info(f"[CACHE HIT] product:slug:{slug}")
             return jsonify(cached), 200
@@ -600,7 +636,8 @@ def get_product_by_slug(slug):
         serialized = serialize_product(product, include_variants=True, include_images=True)
 
         # Cache for 60 seconds
-        product_cache.set(cache_key, serialized, ttl=60)
+        if CACHE_AVAILABLE:
+            product_cache.set(cache_key, serialized, ttl=60)
 
         return jsonify(serialized), 200
 
@@ -1167,7 +1204,7 @@ def get_products_fast():
         cache_key = f"mizizzi:products:fast:{page}:{per_page}:{category_id}:{brand_id}:{is_featured}:{is_sale}:{sort_by}:{sort_order}"
 
         # Try cache first
-        cached = product_cache.get_raw(cache_key)
+        cached = product_cache.get_raw(cache_key) if CACHE_AVAILABLE else None
         if cached:
             cache_time = (time.perf_counter() - start) * 1000
             response = Response(cached, status=200, mimetype='application/json')
@@ -1240,7 +1277,8 @@ def get_products_fast():
 
         # Cache the pre-serialized JSON
         json_str = fast_json_dumps(data)
-        product_cache.set_raw(cache_key, json_str, ttl=30)
+        if CACHE_AVAILABLE:
+            product_cache.set_raw(cache_key, json_str, ttl=30)
 
         total_time = (time.perf_counter() - start) * 1000
         response = Response(json_str, status=200, mimetype='application/json')

@@ -1,6 +1,6 @@
 """
-Theme Management Routes - Admin and Public
-Allows admins to manage themes and users to fetch active theme
+Theme Management Routes
+Handles theme settings, presets, and customization
 OPTIMIZED with Upstash Redis caching for fast frontend responses.
 """
 from flask import Blueprint, request, jsonify, g, current_app
@@ -25,17 +25,40 @@ try:
         fast_json_dumps
     )
     CACHE_AVAILABLE = True
+    logger.info("✅ Redis cache available for theme routes")
 except ImportError as e:
     logger.warning(f"Redis cache not available: {e}")
     CACHE_AVAILABLE = False
+    product_cache = None
+    
+    # Fallback no-op decorators
+    def cached_response(prefix, ttl=30, key_params=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def fast_cached_response(prefix, ttl=30, key_params=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def invalidate_on_change(prefixes):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def fast_json_dumps(data):
+        import json
+        return json.dumps(data)
 
-# ============================================
-# PUBLIC ROUTES - Get Active Theme (OPTIMIZED with Redis)
-# ============================================
+
+# ============================================================================
+# PUBLIC ROUTES - Theme data for frontend (OPTIMIZED with Redis)
+# ============================================================================
 
 @theme_routes.route('/active', methods=['GET'])
 @cross_origin()
-@cached_response("theme_active", ttl=300, key_params=[]) if CACHE_AVAILABLE else lambda f: f
+@cached_response("theme_active", ttl=300, key_params=[])
 def get_active_theme():
     """
     Get currently active theme settings
@@ -560,7 +583,7 @@ def delete_theme(theme_id):
 
 @theme_routes.route('/presets', methods=['GET'])
 @cross_origin()
-@cached_response("theme_presets", ttl=600, key_params=[]) if CACHE_AVAILABLE else lambda f: f
+@cached_response("theme_presets", ttl=600, key_params=[])
 def get_theme_presets():
     """Get all available theme presets. OPTIMIZED: Redis cached."""
     try:

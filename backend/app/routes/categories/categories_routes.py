@@ -27,16 +27,42 @@ from ...models.models import Category, Product, User, UserRole
 # Schemas
 from ...schemas.schemas import category_schema, categories_schema
 
-from ...utils.redis_cache import (
-    product_cache,
-    cached_response,
-    fast_cached_response,
-    invalidate_on_change,
-    fast_json_dumps
-)
-
-# Setup logger
 logger = logging.getLogger(__name__)
+
+try:
+    from ...utils.redis_cache import (
+        product_cache,
+        cached_response,
+        fast_cached_response,
+        invalidate_on_change,
+        fast_json_dumps
+    )
+    CACHE_AVAILABLE = True
+    logger.info("✅ Redis cache available for categories routes")
+except ImportError as e:
+    logger.warning(f"Redis cache not available: {e}")
+    CACHE_AVAILABLE = False
+    product_cache = None
+    
+    # Fallback no-op decorators
+    def cached_response(prefix, ttl=30, key_params=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def fast_cached_response(prefix, ttl=30, key_params=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def invalidate_on_change(prefixes):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def fast_json_dumps(data):
+        import json
+        return json.dumps(data)
 
 # Create blueprint
 categories_routes = Blueprint('categories_routes', __name__)
@@ -652,8 +678,8 @@ def health_check():
 def categories_cache_status():
     """Get cache status for categories."""
     return jsonify({
-        'connected': product_cache.is_connected,
-        'type': 'upstash' if product_cache.is_connected else 'memory',
-        'stats': product_cache.stats,
+        'connected': product_cache.is_connected if product_cache else False,
+        'type': 'upstash' if product_cache else 'memory',
+        'stats': product_cache.stats if product_cache else {},
         'timestamp': datetime.utcnow().isoformat()
     }), 200
