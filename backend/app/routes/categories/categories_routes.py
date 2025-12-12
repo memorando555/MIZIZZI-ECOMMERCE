@@ -1,7 +1,6 @@
-"""
-User-facing Category routes for Mizizzi E-commerce platform.
+"""User-facing Category routes for Mizizzi E-commerce platform.
 Handles public category browsing and viewing operations.
-"""
+OPTIMIZED with Upstash Redis caching for fast responses."""
 
 # Standard Libraries
 import logging
@@ -27,6 +26,14 @@ from ...models.models import Category, Product, User, UserRole
 
 # Schemas
 from ...schemas.schemas import category_schema, categories_schema
+
+from ...utils.redis_cache import (
+    product_cache,
+    cached_response,
+    fast_cached_response,
+    invalidate_on_change,
+    fast_json_dumps
+)
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -101,6 +108,7 @@ def build_category_query(search_params: Dict[str, Any]):
     # Search functionality
     if search_params['search']:
         search_term = f"%{search_params['search']}%"
+        logger.debug(f"Building search query with term: {search_term}")
         query = query.filter(
             or_(
                 Category.name.ilike(search_term),
@@ -116,9 +124,10 @@ def build_category_query(search_params: Dict[str, Any]):
     # Parent category filter
     if search_params['parent_id'] is not None:
         query = query.filter_by(parent_id=search_params['parent_id'])
-    elif search_params['parent_id'] is None and not search_params['search']:
-        # Default to top-level categories if no parent specified and no search
-        query = query.filter_by(parent_id=None)
+    # Now only filter by parent_id if explicitly provided
+    elif search_params['search']:
+        # Only filter by parent when doing a search, return all matching categories
+        pass
 
     # Sorting
     sort_column = Category.name  # default
@@ -141,23 +150,22 @@ def build_category_query(search_params: Dict[str, Any]):
 def get_category_with_stats(category):
     """Get category with additional statistics."""
     category_data = category_schema.dump(category)
-
+    
     # Add product count
     category_data['products_count'] = Product.query.filter_by(category_id=category.id).count()
-
+    
     # Add subcategories count
     category_data['subcategories_count'] = Category.query.filter_by(parent_id=category.id).count()
-
+    
     # Add breadcrumb
     category_data['breadcrumb'] = get_category_breadcrumb(category)
-
+    
     return category_data
 
 def get_category_breadcrumb(category):
     """Get category breadcrumb trail."""
     breadcrumb = []
     current = category
-
     while current:
         breadcrumb.insert(0, {
             'id': current.id,
@@ -165,23 +173,22 @@ def get_category_breadcrumb(category):
             'slug': current.slug
         })
         current = current.parent if hasattr(current, 'parent') else None
-
     return breadcrumb
 
 def get_category_tree(parent_id=None, max_depth=3, current_depth=0):
     """Get category tree structure."""
     if current_depth >= max_depth:
         return []
-
+    
     categories = Category.query.filter_by(parent_id=parent_id).order_by(Category.name).all()
     tree = []
-
+    
     for category in categories:
         category_data = category_schema.dump(category)
         category_data['products_count'] = Product.query.filter_by(category_id=category.id).count()
         category_data['subcategories'] = get_category_tree(category.id, max_depth, current_depth + 1)
         tree.append(category_data)
-
+    
     return tree
 
 # ----------------------
@@ -190,19 +197,14 @@ def get_category_tree(parent_id=None, max_depth=3, current_depth=0):
 
 @categories_routes.route('/', methods=['GET', 'OPTIONS'])
 @cross_origin()
+@cached_response("categories", ttl=60, key_params=[
+    "page", "per_page", "search", "featured", "parent_id", 
+    "include_subcategories", "sort_by", "sort_order"
+])
 def get_categories():
     """
     Get all categories with pagination and filtering.
-
-    Query Parameters:
-    - page: Page number (default: 1)
-    - per_page: Items per page (default: 12, max: 100)
-    - search: Search term for name, description, or slug
-    - featured: Filter featured categories (true/false)
-    - parent_id: Filter by parent category ID
-    - include_subcategories: Include subcategories in response
-    - sort_by: Sort field (name, created_at, updated_at, products_count)
-    - sort_order: Sort order (asc, desc)
+    OPTIMIZED: Redis cached for fast responses.
     """
     if request.method == 'OPTIONS':
         return handle_options_request()
@@ -229,53 +231,49 @@ def get_categories():
                     subcategories = Category.query.filter_by(parent_id=category.id).order_by(Category.name).all()
                     item['subcategories'] = categories_schema.dump(subcategories)
 
-        # Add cache headers for public endpoints
-        response = jsonify(result)
-        response.headers['Cache-Control'] = 'public, max-age=300'  # 5 minutes
-        return response, 200
+        return result, 200
 
     except Exception as e:
         logger.error(f"Error fetching categories: {str(e)}")
-        return jsonify({
+        return {
             "error": "Failed to retrieve categories",
             "details": str(e) if current_app.debug else "Internal server error"
-        }), 500
+        }, 500
 
 @categories_routes.route('/tree', methods=['GET', 'OPTIONS'])
 @cross_origin()
+@cached_response("categories_tree", ttl=120, key_params=["max_depth"])
 def get_category_tree_endpoint():
-    """Get complete category tree structure."""
+    """Get complete category tree structure. OPTIMIZED: Redis cached."""
     if request.method == 'OPTIONS':
         return handle_options_request()
 
     try:
         max_depth = min(5, request.args.get('max_depth', 3, type=int))
         tree = get_category_tree(max_depth=max_depth)
-
-        response = jsonify({
+        
+        return {
             "tree": tree,
             "total_categories": len(tree)
-        })
-        response.headers['Cache-Control'] = 'public, max-age=600'  # 10 minutes
-        return response, 200
+        }, 200
 
     except Exception as e:
         logger.error(f"Error fetching category tree: {str(e)}")
-        return jsonify({
+        return {
             "error": "Failed to retrieve category tree",
             "details": str(e) if current_app.debug else "Internal server error"
-        }), 500
+        }, 500
 
 @categories_routes.route('/featured', methods=['GET', 'OPTIONS'])
 @cross_origin()
+@cached_response("categories_featured", ttl=120, key_params=["limit"])
 def get_featured_categories():
-    """Get featured categories."""
+    """Get featured categories. OPTIMIZED: Redis cached."""
     if request.method == 'OPTIONS':
         return handle_options_request()
 
     try:
         limit = min(20, request.args.get('limit', 8, type=int))
-
         categories = Category.query.filter_by(is_featured=True)\
                                  .order_by(Category.name)\
                                  .limit(limit)\
@@ -287,31 +285,30 @@ def get_featured_categories():
             category_data['products_count'] = Product.query.filter_by(category_id=category.id).count()
             result.append(category_data)
 
-        response = jsonify({
+        return {
             "items": result,
             "total": len(result)
-        })
-        response.headers['Cache-Control'] = 'public, max-age=600'  # 10 minutes
-        return response, 200
+        }, 200
 
     except Exception as e:
         logger.error(f"Error fetching featured categories: {str(e)}")
-        return jsonify({
+        return {
             "error": "Failed to retrieve featured categories",
             "details": str(e) if current_app.debug else "Internal server error"
-        }), 500
+        }, 500
 
 @categories_routes.route('/<int:category_id>', methods=['GET', 'OPTIONS'])
 @cross_origin()
+@cached_response("category_detail", ttl=60, key_params=[])
 def get_category(category_id):
-    """Get category by ID with detailed information."""
+    """Get category by ID with detailed information. OPTIMIZED: Redis cached."""
     if request.method == 'OPTIONS':
         return handle_options_request()
 
     try:
         category = Category.query.get(category_id)
         if not category:
-            return jsonify({"error": "Category not found"}), 404
+            return {"error": "Category not found"}, 404
 
         category_data = get_category_with_stats(category)
 
@@ -319,28 +316,27 @@ def get_category(category_id):
         subcategories = Category.query.filter_by(parent_id=category.id).order_by(Category.name).all()
         category_data['subcategories'] = categories_schema.dump(subcategories)
 
-        response = jsonify(category_data)
-        response.headers['Cache-Control'] = 'public, max-age=300'  # 5 minutes
-        return response, 200
+        return category_data, 200
 
     except Exception as e:
         logger.error(f"Error fetching category {category_id}: {str(e)}")
-        return jsonify({
+        return {
             "error": "Failed to retrieve category",
             "details": str(e) if current_app.debug else "Internal server error"
-        }), 500
+        }, 500
 
 @categories_routes.route('/slug/<string:slug>', methods=['GET', 'OPTIONS'])
 @cross_origin()
+@cached_response("category_slug", ttl=60, key_params=[])
 def get_category_by_slug(slug):
-    """Get category by slug with detailed information."""
+    """Get category by slug with detailed information. OPTIMIZED: Redis cached."""
     if request.method == 'OPTIONS':
         return handle_options_request()
 
     try:
         category = Category.query.filter_by(slug=slug).first()
         if not category:
-            return jsonify({"error": "Category not found"}), 404
+            return {"error": "Category not found"}, 404
 
         category_data = get_category_with_stats(category)
 
@@ -348,21 +344,22 @@ def get_category_by_slug(slug):
         subcategories = Category.query.filter_by(parent_id=category.id).order_by(Category.name).all()
         category_data['subcategories'] = categories_schema.dump(subcategories)
 
-        response = jsonify(category_data)
-        response.headers['Cache-Control'] = 'public, max-age=300'  # 5 minutes
-        return response, 200
+        return category_data, 200
 
     except Exception as e:
         logger.error(f"Error fetching category by slug {slug}: {str(e)}")
-        return jsonify({
+        return {
             "error": "Failed to retrieve category",
             "details": str(e) if current_app.debug else "Internal server error"
-        }), 500
+        }, 500
 
 @categories_routes.route('/<int:category_id>/products', methods=['GET', 'OPTIONS'])
 @cross_origin()
+@cached_response("category_products", ttl=30, key_params=[
+    "page", "per_page", "include_subcategories", "sort_by"
+])
 def get_category_products(category_id):
-    """Get products in a specific category."""
+    """Get products in a specific category. OPTIMIZED: Redis cached."""
     if request.method == 'OPTIONS':
         return handle_options_request()
 
@@ -370,7 +367,7 @@ def get_category_products(category_id):
         # Verify category exists
         category = Category.query.get(category_id)
         if not category:
-            return jsonify({"error": "Category not found"}), 404
+            return {"error": "Category not found"}, 404
 
         page, per_page = get_pagination_params()
         include_subcategories = request.args.get('include_subcategories', '').lower() == 'true'
@@ -417,41 +414,38 @@ def get_category_products(category_id):
             }
         }
 
-        response = jsonify(result)
-        response.headers['Cache-Control'] = 'public, max-age=300'  # 5 minutes
-        return response, 200
+        return result, 200
 
     except Exception as e:
         logger.error(f"Error fetching products for category {category_id}: {str(e)}")
-        return jsonify({
+        return {
             "error": "Failed to retrieve category products",
             "details": str(e) if current_app.debug else "Internal server error"
-        }), 500
+        }, 500
 
 @categories_routes.route('/<int:category_id>/breadcrumb', methods=['GET', 'OPTIONS'])
 @cross_origin()
+@cached_response("category_breadcrumb", ttl=300, key_params=[])
 def get_category_breadcrumb_endpoint(category_id):
-    """Get category breadcrumb trail."""
+    """Get category breadcrumb trail. OPTIMIZED: Redis cached."""
     if request.method == 'OPTIONS':
         return handle_options_request()
 
     try:
         category = Category.query.get(category_id)
         if not category:
-            return jsonify({"error": "Category not found"}), 404
+            return {"error": "Category not found"}, 404
 
         breadcrumb = get_category_breadcrumb(category)
 
-        response = jsonify({"breadcrumb": breadcrumb})
-        response.headers['Cache-Control'] = 'public, max-age=600'  # 10 minutes
-        return response, 200
+        return {"breadcrumb": breadcrumb}, 200
 
     except Exception as e:
         logger.error(f"Error fetching breadcrumb for category {category_id}: {str(e)}")
-        return jsonify({
+        return {
             "error": "Failed to retrieve category breadcrumb",
             "details": str(e) if current_app.debug else "Internal server error"
-        }), 500
+        }, 500
 
 @categories_routes.route('/search', methods=['GET', 'OPTIONS'])
 @cross_origin()
@@ -461,6 +455,9 @@ def search_categories():
         return handle_options_request()
 
     try:
+        # Ensure any pending database transactions are visible
+        db.session.commit()
+        
         search_term = request.args.get('q', '').strip()
         if not search_term:
             return jsonify({
@@ -471,78 +468,77 @@ def search_categories():
 
         page, per_page = get_pagination_params()
 
-        # Build search query
-        #query = Category.query.filter(
-        #    or_(
-        #        Category.name.ilike(f'%{search_term}%'),
-        #        Category.description.ilike(f'%{search_term}%')
-        #    )
-        #).order_by(Category.name)
-
-        # Get all categories
+        # Debug logging
+        logger.debug(f"Searching for categories with term: '{search_term}'")
+        
+        # Get all categories first for debugging and fallback
         all_categories = Category.query.all()
-
-        # Prepare search
-        search_words = search_term.lower().split()
+        logger.debug(f"Total categories in database: {len(all_categories)}")
+        for cat in all_categories:
+            logger.debug(f"Category: id={cat.id}, name='{cat.name}', slug='{cat.slug}'")
+        
+        # Try multiple search approaches for better compatibility
         matching_categories = []
-
-        # Python string matching - require better matching for search terms
+        
+        # Split search term into words for better matching
+        search_words = [word.lower().strip() for word in search_term.split() if word.strip()]
+        logger.debug(f"Search words: {search_words}")
+        
+        # Python string matching - match any word in the search term
         for category in all_categories:
             category_name = (category.name or '').lower()
             category_desc = (category.description or '').lower()
             category_slug = (category.slug or '').lower()
+            
             logger.debug(f"Checking category {category.id}: name='{category_name}', desc='{category_desc}', slug='{category_slug}'")
-
-            # Calculate relevance score for this category
-            relevance_score = 0
-
-            # Exact match on full search term gets highest score
-            if search_term.lower() in category_name:
-                relevance_score += 100
-            elif search_term.lower() in category_desc:
-                relevance_score += 50
-            elif search_term.lower() in category_slug:
-                relevance_score += 40
-
-            # Check individual words - must match all words to be considered
-            words_matched = 0
-            for word in search_words:
-                if word in category_name:
-                    words_matched += 1
-                    relevance_score += 10
-                elif word in category_desc:
-                    words_matched += 1
-                    relevance_score += 5
-                elif word in category_slug:
-                    words_matched += 1
-                    relevance_score += 4
-
-            # Only include if all words matched or we have a direct match
-            all_words_matched = words_matched == len(search_words) and len(search_words) > 0
-            exact_match = relevance_score >= 40  # Direct match in name/desc/slug
-
-            if all_words_matched or exact_match:
-                logger.debug(f"  -> MATCHED category {category.id} with score {relevance_score}")
-                category.search_relevance = relevance_score  # Add score for sorting
+            
+            # Check if any search word matches any category field
+            name_match = any(word in category_name for word in search_words)
+            desc_match = any(word in category_desc for word in search_words)
+            slug_match = any(word in category_slug for word in search_words)
+            
+            logger.debug(f"  name_match: {name_match}, desc_match: {desc_match}, slug_match: {slug_match}")
+            
+            if name_match or desc_match or slug_match:
+                logger.debug(f"  -> MATCHED category {category.id}")
                 matching_categories.append(category)
-
-        # Use Python matching results
-        if matching_categories:
-            # Sort by relevance score (highest first)
-            matching_categories.sort(key=lambda c: getattr(c, 'search_relevance', 0), reverse=True)
-            matching_ids = [cat.id for cat in matching_categories]
-            query = Category.query.filter(Category.id.in_(matching_ids))
-            # Preserve the sorted order from Python matching
-            from sqlalchemy import case
-            if matching_ids:
-                query = query.order_by(case(
-                    {id_val: idx for idx, id_val in enumerate(matching_ids)},
-                    value=Category.id
-                ))
-            logger.debug("Using Python matching results")
-        else:
-            query = Category.query.filter(Category.id == -1)  # Empty result
-            logger.debug("No matches found")
+        
+        logger.debug(f"Word-based matching found {len(matching_categories)} categories")
+        
+        # Try SQL approach as secondary option
+        try:
+            search_pattern = f'%{search_term}%'
+            sql_query = Category.query.filter(
+                or_(
+                    Category.name.ilike(search_pattern),
+                    Category.description.ilike(search_pattern),
+                    Category.slug.ilike(search_pattern)
+                )
+            )
+            sql_count = sql_query.count()
+            logger.debug(f"SQL query found {sql_count} categories")
+            
+            # Use SQL results if they match Python results or if Python found nothing
+            if sql_count > 0 and (sql_count == len(matching_categories) or len(matching_categories) == 0):
+                query = sql_query.order_by(Category.name)
+                logger.debug("Using SQL query results")
+            else:
+                # Use Python matching results
+                if matching_categories:
+                    matching_ids = [cat.id for cat in matching_categories]
+                    query = Category.query.filter(Category.id.in_(matching_ids)).order_by(Category.name)
+                    logger.debug("Using Python matching results")
+                else:
+                    query = Category.query.filter(Category.id == -1)  # Empty result
+                    logger.debug("No matches found")
+        except Exception as e:
+            logger.warning(f"SQL search failed: {str(e)}, falling back to Python matching")
+            # Fallback to Python matching
+            if matching_categories:
+                matching_ids = [cat.id for cat in matching_categories]
+                query = Category.query.filter(Category.id.in_(matching_ids)).order_by(Category.name)
+            else:
+                query = Category.query.filter(Category.id == -1)  # Empty result
 
         # Get paginated results
         result = paginate_response(query, categories_schema, page, per_page)
@@ -552,6 +548,9 @@ def search_categories():
             category = Category.query.get(item['id'])
             if category:
                 item['products_count'] = Product.query.filter_by(category_id=category.id).count()
+
+        # Debug logging
+        logger.debug(f"Returning {len(result['items'])} categories in search results")
 
         response = jsonify(result)
         response.headers['Cache-Control'] = 'public, max-age=300'  # 5 minutes
@@ -647,3 +646,14 @@ def health_check():
             "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
         }), 503
+
+@categories_routes.route('/cache/status', methods=['GET'])
+@cross_origin()
+def categories_cache_status():
+    """Get cache status for categories."""
+    return jsonify({
+        'connected': product_cache.is_connected,
+        'type': 'upstash' if product_cache.is_connected else 'memory',
+        'stats': product_cache.stats,
+        'timestamp': datetime.utcnow().isoformat()
+    }), 200

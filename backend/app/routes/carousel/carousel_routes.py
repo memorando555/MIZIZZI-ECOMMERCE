@@ -1,6 +1,7 @@
 """
 Carousel Management Routes
 Handles carousel banner CRUD operations and carousel display
+OPTIMIZED with Upstash Redis caching for fast frontend responses.
 """
 
 from flask import Blueprint, request, jsonify, current_app
@@ -11,6 +12,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 carousel_routes = Blueprint('carousel_routes', __name__)
+
+try:
+    from ...utils.redis_cache import (
+        product_cache,
+        cached_response,
+        fast_cached_response,
+        invalidate_on_change,
+        fast_json_dumps
+    )
+    CACHE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Redis cache not available: {e}")
+    CACHE_AVAILABLE = False
 
 try:
     from ...models.carousel_model import CarouselBanner
@@ -38,13 +52,15 @@ def init_carousel_tables():
 
 
 # ============================================================================
-# PUBLIC ROUTES - Get carousel items for display
+# PUBLIC ROUTES - Get carousel items for display (OPTIMIZED with Redis)
 # ============================================================================
 
 @carousel_routes.route('/items', methods=['GET'])
+@cached_response("carousel_items", ttl=60, key_params=["position"]) if CACHE_AVAILABLE else lambda f: f
 def get_carousel_items():
     """
     Get active carousel items for a specific position.
+    OPTIMIZED: Redis cached for instant frontend loading.
     Query params: position (homepage, category_page, flash_sales, luxury_deals)
     """
     try:
@@ -52,12 +68,12 @@ def get_carousel_items():
         
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             logger.warning(f"Carousel system not available, returning empty items")
-            return jsonify({
+            return {
                 "success": False,
                 "error": "Carousel system not available",
                 "items": [],
                 "position": position
-            }), 503
+            }, 503
         
         # Get active carousel items for the position, ordered by sort_order
         items = CarouselBanner.query.filter_by(
@@ -80,54 +96,56 @@ def get_carousel_items():
             "sort_order": item.sort_order
         } for item in items]
         
-        return jsonify({
+        return {
             "success": True,
             "position": position,
             "items": carousel_data,
-            "count": len(carousel_data)
-        }), 200
+            "count": len(carousel_data),
+            "cached_at": datetime.utcnow().isoformat()
+        }, 200
         
     except Exception as e:
         logger.error(f"❌ Error fetching carousel items: {str(e)}", exc_info=True)
-        return jsonify({
+        return {
             "success": False,
             "error": str(e),
             "items": []
-        }), 500
+        }, 500
 
 
 @carousel_routes.route('/item/<int:item_id>', methods=['GET'])
+@cached_response("carousel_item", ttl=60, key_params=[]) if CACHE_AVAILABLE else lambda f: f
 def get_carousel_item(item_id):
-    """Get a specific carousel item by ID."""
+    """Get a specific carousel item by ID. OPTIMIZED: Redis cached."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
-            return jsonify({
+            return {
                 "success": False,
                 "error": "Carousel system not available"
-            }), 503
+            }, 503
         
         item = CarouselBanner.query.get(item_id)
         if not item:
-            return jsonify({
+            return {
                 "success": False,
                 "error": "Carousel item not found"
-            }), 404
+            }, 404
         
-        return jsonify({
+        return {
             "success": True,
             "item": item.to_dict()
-        }), 200
+        }, 200
         
     except Exception as e:
         logger.error(f"❌ Error fetching carousel item: {str(e)}")
-        return jsonify({
+        return {
             "success": False,
             "error": str(e)
-        }), 500
+        }, 500
 
 
 # ============================================================================
-# ADMIN ROUTES - Manage carousel items
+# ADMIN ROUTES - Manage carousel items (with cache invalidation)
 # ============================================================================
 
 @carousel_routes.route('/admin/all', methods=['GET'])
@@ -171,8 +189,9 @@ def get_all_carousel_items():
 
 @carousel_routes.route('/admin', methods=['POST'])
 @jwt_required()
+@invalidate_on_change(["carousel_items", "carousel_item"]) if CACHE_AVAILABLE else lambda f: f
 def create_carousel_item():
-    """Create a new carousel item."""
+    """Create a new carousel item. Invalidates carousel cache."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -233,8 +252,9 @@ def create_carousel_item():
 
 @carousel_routes.route('/admin/<int:item_id>', methods=['PUT'])
 @jwt_required()
+@invalidate_on_change(["carousel_items", "carousel_item"]) if CACHE_AVAILABLE else lambda f: f
 def update_carousel_item(item_id):
-    """Update a carousel item."""
+    """Update a carousel item. Invalidates carousel cache."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -296,8 +316,9 @@ def update_carousel_item(item_id):
 
 @carousel_routes.route('/admin/<int:item_id>', methods=['DELETE'])
 @jwt_required()
+@invalidate_on_change(["carousel_items", "carousel_item"]) if CACHE_AVAILABLE else lambda f: f
 def delete_carousel_item(item_id):
-    """Delete a carousel item."""
+    """Delete a carousel item. Invalidates carousel cache."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -333,8 +354,9 @@ def delete_carousel_item(item_id):
 
 @carousel_routes.route('/admin/reorder', methods=['POST'])
 @jwt_required()
+@invalidate_on_change(["carousel_items"]) if CACHE_AVAILABLE else lambda f: f
 def reorder_carousel_items():
-    """Reorder carousel items."""
+    """Reorder carousel items. Invalidates carousel cache."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -370,8 +392,9 @@ def reorder_carousel_items():
 
 @carousel_routes.route('/admin/bulk-update', methods=['POST'])
 @jwt_required()
+@invalidate_on_change(["carousel_items", "carousel_item"]) if CACHE_AVAILABLE else lambda f: f
 def bulk_update_carousel_items():
-    """Bulk update carousel items (e.g., activate/deactivate multiple)."""
+    """Bulk update carousel items. Invalidates carousel cache."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -451,10 +474,16 @@ def get_carousel_stats():
 @carousel_routes.route('/health', methods=['GET'])
 def carousel_health():
     """Health check for carousel system."""
+    cache_status = {
+        "connected": product_cache.is_connected if CACHE_AVAILABLE else False,
+        "type": "upstash" if (CACHE_AVAILABLE and product_cache.is_connected) else "none"
+    }
+    
     return jsonify({
         "status": "ok",
         "service": "carousel",
         "database_available": CAROUSEL_AVAILABLE,
+        "cache": cache_status,
         "endpoints": [
             "GET /api/carousel/items",
             "GET /api/carousel/item/<id>",

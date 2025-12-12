@@ -1,6 +1,7 @@
 """
 TopBar Management Routes
 Handles topbar slide CRUD operations and display
+OPTIMIZED with Upstash Redis caching for fast frontend responses.
 """
 
 from flask import Blueprint, request, jsonify
@@ -12,6 +13,19 @@ from ...utils.auth_utils import admin_required
 logger = logging.getLogger(__name__)
 
 topbar_routes = Blueprint('topbar_routes', __name__)
+
+try:
+    from ...utils.redis_cache import (
+        product_cache,
+        cached_response,
+        fast_cached_response,
+        invalidate_on_change,
+        fast_json_dumps
+    )
+    CACHE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Redis cache not available: {e}")
+    CACHE_AVAILABLE = False
 
 try:
     from ...models.topbar_model import TopBarSlide
@@ -39,20 +53,24 @@ def init_topbar_tables():
 
 
 # ============================================================================
-# PUBLIC ROUTES - Get topbar slides for display
+# PUBLIC ROUTES - Get topbar slides for display (OPTIMIZED with Redis)
 # ============================================================================
 
 @topbar_routes.route('/slides', methods=['GET'])
+@cached_response("topbar_slides", ttl=120, key_params=[]) if CACHE_AVAILABLE else lambda f: f
 def get_topbar_slides():
-    """Get active topbar slides for display."""
+    """
+    Get active topbar slides for display.
+    OPTIMIZED: Redis cached with 2 minute TTL for instant loading.
+    """
     try:
         if not TOPBAR_AVAILABLE or TopBarSlide is None:
             logger.warning(f"TopBar system not available, returning empty slides")
-            return jsonify({
+            return {
                 "success": False,
                 "error": "TopBar system not available",
                 "slides": []
-            }), 503
+            }, 503
         
         # Get active slides, ordered by sort_order
         slides = TopBarSlide.query.filter_by(is_active=True).order_by(
@@ -63,53 +81,55 @@ def get_topbar_slides():
         
         slides_data = [slide.to_dict() for slide in slides]
         
-        return jsonify({
+        return {
             "success": True,
             "slides": slides_data,
-            "count": len(slides_data)
-        }), 200
+            "count": len(slides_data),
+            "cached_at": datetime.utcnow().isoformat()
+        }, 200
         
     except Exception as e:
         logger.error(f"❌ Error fetching topbar slides: {str(e)}", exc_info=True)
-        return jsonify({
+        return {
             "success": False,
             "error": str(e),
             "slides": []
-        }), 500
+        }, 500
 
 
 @topbar_routes.route('/slide/<int:slide_id>', methods=['GET'])
+@cached_response("topbar_slide", ttl=120, key_params=[]) if CACHE_AVAILABLE else lambda f: f
 def get_topbar_slide(slide_id):
-    """Get a specific topbar slide by ID."""
+    """Get a specific topbar slide by ID. OPTIMIZED: Redis cached."""
     try:
         if not TOPBAR_AVAILABLE or TopBarSlide is None:
-            return jsonify({
+            return {
                 "success": False,
                 "error": "TopBar system not available"
-            }), 503
+            }, 503
         
         slide = TopBarSlide.query.get(slide_id)
         if not slide:
-            return jsonify({
+            return {
                 "success": False,
                 "error": "Slide not found"
-            }), 404
+            }, 404
         
-        return jsonify({
+        return {
             "success": True,
             "slide": slide.to_dict()
-        }), 200
+        }, 200
         
     except Exception as e:
         logger.error(f"❌ Error fetching topbar slide: {str(e)}")
-        return jsonify({
+        return {
             "success": False,
             "error": str(e)
-        }), 500
+        }, 500
 
 
 # ============================================================================
-# ADMIN ROUTES - Manage topbar slides
+# ADMIN ROUTES - Manage topbar slides (with cache invalidation)
 # ============================================================================
 
 @topbar_routes.route('/admin/all', methods=['GET'])
@@ -150,8 +170,9 @@ def get_all_topbar_slides():
 @topbar_routes.route('/admin', methods=['POST'])
 @jwt_required()
 @admin_required
+@invalidate_on_change(["topbar_slides", "topbar_slide"]) if CACHE_AVAILABLE else lambda f: f
 def create_topbar_slide():
-    """Create a new topbar slide."""
+    """Create a new topbar slide. Invalidates topbar cache."""
     try:
         if not TOPBAR_AVAILABLE or TopBarSlide is None:
             return jsonify({
@@ -211,8 +232,9 @@ def create_topbar_slide():
 @topbar_routes.route('/admin/<int:slide_id>', methods=['PUT'])
 @jwt_required()
 @admin_required
+@invalidate_on_change(["topbar_slides", "topbar_slide"]) if CACHE_AVAILABLE else lambda f: f
 def update_topbar_slide(slide_id):
-    """Update a topbar slide."""
+    """Update a topbar slide. Invalidates topbar cache."""
     try:
         if not TOPBAR_AVAILABLE or TopBarSlide is None:
             return jsonify({
@@ -277,8 +299,9 @@ def update_topbar_slide(slide_id):
 @topbar_routes.route('/admin/<int:slide_id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
+@invalidate_on_change(["topbar_slides", "topbar_slide"]) if CACHE_AVAILABLE else lambda f: f
 def delete_topbar_slide(slide_id):
-    """Delete a topbar slide."""
+    """Delete a topbar slide. Invalidates topbar cache."""
     try:
         if not TOPBAR_AVAILABLE or TopBarSlide is None:
             return jsonify({
@@ -315,8 +338,9 @@ def delete_topbar_slide(slide_id):
 @topbar_routes.route('/admin/reorder', methods=['POST'])
 @jwt_required()
 @admin_required
+@invalidate_on_change(["topbar_slides"]) if CACHE_AVAILABLE else lambda f: f
 def reorder_topbar_slides():
-    """Reorder topbar slides."""
+    """Reorder topbar slides. Invalidates topbar cache."""
     try:
         if not TOPBAR_AVAILABLE or TopBarSlide is None:
             return jsonify({
@@ -353,8 +377,9 @@ def reorder_topbar_slides():
 @topbar_routes.route('/admin/bulk-update', methods=['POST'])
 @jwt_required()
 @admin_required
+@invalidate_on_change(["topbar_slides", "topbar_slide"]) if CACHE_AVAILABLE else lambda f: f
 def bulk_update_topbar_slides():
-    """Bulk update topbar slides (e.g., activate/deactivate multiple)."""
+    """Bulk update topbar slides. Invalidates topbar cache."""
     try:
         if not TOPBAR_AVAILABLE or TopBarSlide is None:
             return jsonify({
@@ -450,10 +475,16 @@ def get_topbar_stats():
 @topbar_routes.route('/health', methods=['GET'])
 def topbar_health():
     """Health check for topbar system."""
+    cache_status = {
+        "connected": product_cache.is_connected if CACHE_AVAILABLE else False,
+        "type": "upstash" if (CACHE_AVAILABLE and product_cache.is_connected) else "none"
+    }
+    
     return jsonify({
         "status": "ok",
         "service": "topbar",
         "database_available": TOPBAR_AVAILABLE,
+        "cache": cache_status,
         "endpoints": [
             "GET /api/topbar/slides",
             "GET /api/topbar/slide/<id>",

@@ -1,12 +1,13 @@
 """
 Footer Management Routes
 Handles footer content, styling, and configuration
+OPTIMIZED with Upstash Redis caching for fast frontend responses.
 """
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.footer_settings import FooterSettings
 from app.configuration.extensions import db
+from datetime import datetime
 import logging
 
 # Configure logging
@@ -14,28 +15,62 @@ logger = logging.getLogger(__name__)
 
 footer_routes = Blueprint('footer_routes', __name__)
 
+try:
+    from app.utils.redis_cache import (
+        product_cache,
+        cached_response,
+        fast_cached_response,
+        invalidate_on_change,
+        fast_json_dumps
+    )
+    CACHE_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"Redis cache not available: {e}")
+    CACHE_AVAILABLE = False
+
+# Import FooterSettings model
+try:
+    from app.models.footer_settings import FooterSettings
+    FOOTER_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"FooterSettings not available: {e}")
+    FOOTER_AVAILABLE = False
+    FooterSettings = None
+
 # ============================================================================
-# PUBLIC ROUTES - Get footer settings
+# PUBLIC ROUTES - Get footer settings (OPTIMIZED with Redis)
 # ============================================================================
 
 @footer_routes.route('/settings', methods=['GET'])
+@cached_response("footer_settings", ttl=300, key_params=[]) if CACHE_AVAILABLE else lambda f: f
 def get_footer_settings_public():
-    """Get current footer settings - Public endpoint"""
+    """
+    Get current footer settings - Public endpoint
+    OPTIMIZED: Redis cached with 5 minute TTL for instant loading.
+    """
     try:
         logger.info('[Footer] GET /api/footer/settings - Fetching settings')
+        
+        if not FOOTER_AVAILABLE or FooterSettings is None:
+            return {
+                'success': False,
+                'message': 'Footer system not available'
+            }, 503
+        
         settings = FooterSettings.get_or_create_default()
         data = settings.to_dict()
         
-        return jsonify({
+        return {
             'success': True,
-            'data': data
-        }), 200
+            'data': data,
+            'cached_at': datetime.utcnow().isoformat()
+        }, 200
     except Exception as e:
         logger.error(f'[Footer] Error fetching settings: {str(e)}')
-        return jsonify({
+        return {
             'success': False,
             'message': f'Error fetching footer settings: {str(e)}'
-        }), 500
+        }, 500
 
 # ============================================================================
 # ADMIN ROUTES - Manage footer settings (require JWT authentication)
@@ -48,6 +83,12 @@ def get_footer_settings_admin():
     try:
         current_user_id = get_jwt_identity()
         logger.info(f'[Footer] Admin GET - User: {current_user_id}')
+        
+        if not FOOTER_AVAILABLE or FooterSettings is None:
+            return jsonify({
+                'success': False,
+                'message': 'Footer system not available'
+            }), 503
         
         settings = FooterSettings.get_or_create_default()
         data = settings.to_dict()
@@ -65,11 +106,18 @@ def get_footer_settings_admin():
 
 @footer_routes.route('/admin/settings', methods=['PUT'])
 @jwt_required()
+@invalidate_on_change(["footer_settings"]) if CACHE_AVAILABLE else lambda f: f
 def update_footer_settings():
-    """Update footer settings - Admin only"""
+    """Update footer settings - Admin only. Invalidates footer cache."""
     try:
         current_user_id = get_jwt_identity()
         logger.info(f'[Footer] Admin PUT - User: {current_user_id}')
+        
+        if not FOOTER_AVAILABLE or FooterSettings is None:
+            return jsonify({
+                'success': False,
+                'message': 'Footer system not available'
+            }), 503
         
         data = request.get_json()
         if not data:
@@ -158,11 +206,18 @@ def update_footer_settings():
 
 @footer_routes.route('/admin/settings/reset', methods=['POST'])
 @jwt_required()
+@invalidate_on_change(["footer_settings"]) if CACHE_AVAILABLE else lambda f: f
 def reset_footer_settings():
-    """Reset footer settings to defaults - Admin only"""
+    """Reset footer settings to defaults - Admin only. Invalidates footer cache."""
     try:
         current_user_id = get_jwt_identity()
         logger.info(f'[Footer] Admin RESET - User: {current_user_id}')
+        
+        if not FOOTER_AVAILABLE or FooterSettings is None:
+            return jsonify({
+                'success': False,
+                'message': 'Footer system not available'
+            }), 503
         
         settings = FooterSettings.get_or_create_default()
         
@@ -217,11 +272,32 @@ def reset_footer_settings():
             'message': f'Error resetting footer settings: {str(e)}'
         }), 500
 
+@footer_routes.route('/cache/status', methods=['GET'])
+def footer_cache_status():
+    """Get cache status for footer."""
+    if CACHE_AVAILABLE:
+        return jsonify({
+            'connected': product_cache.is_connected,
+            'type': 'upstash' if product_cache.is_connected else 'memory',
+            'stats': product_cache.stats,
+            'timestamp': datetime.utcnow().isoformat()
+        }), 200
+    return jsonify({
+        'connected': False,
+        'type': 'none',
+        'message': 'Cache not available'
+    }), 200
+
 def init_footer_tables(app):
     """Initialize footer tables in the database"""
+    if not hasattr(db, 'app') and not db.get_app():
+        logger.warning('Database not initialized with app, skipping footer table init')
+        return
+        
     with app.app_context():
         try:
             logger.info('Initializing footer tables...')
+            from app.models.footer_settings import FooterSettings
             db.create_all()
             
             # Create default footer settings if none exist
@@ -230,4 +306,4 @@ def init_footer_tables(app):
             logger.info('✅ Footer tables initialized successfully')
         except Exception as e:
             logger.error(f'❌ Error initializing footer tables: {str(e)}')
-            raise
+            logger.warning('Footer tables initialization failed, but continuing app startup')
