@@ -20,7 +20,12 @@ const LogoPlaceholder = () => (
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="relative h-12 w-12 sm:h-16 sm:w-16"
     >
-      <Image src="/logo.png" alt="Loading" fill className="object-contain" />
+      <Image
+        src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
+        alt="Loading"
+        fill
+        className="object-contain"
+      />
     </motion.div>
   </div>
 )
@@ -106,10 +111,10 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        whileHover={{ y: -8 }}
+        whileHover={{ y: -2 }}
         className="h-full"
       >
-        <div className="group h-full overflow-hidden bg-white border border-gray-100 rounded-lg transition-all duration-300 hover:shadow-lg">
+        <div className="group h-full overflow-hidden bg-white border-r border-gray-100 transition-all duration-200 hover:shadow-sm">
           <div className="relative aspect-square overflow-hidden bg-[#f8f8f8]">
             <AnimatePresence>
               {(showPlaceholder || imageError) && (
