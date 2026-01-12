@@ -11,6 +11,19 @@ import { useRouter } from "next/navigation"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cloudinaryService } from "@/services/cloudinary-service"
 
+const LogoPlaceholder = () => (
+  <div className="absolute inset-0 flex items-center justify-center bg-white">
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="relative h-12 w-12 sm:h-16 sm:w-16"
+    >
+      <Image src="/logo.png" alt="Loading" fill className="object-contain" />
+    </motion.div>
+  </div>
+)
+
 const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCount?: number }) => {
   return (
     <div className="flex items-center gap-1">
@@ -58,9 +71,29 @@ function getProductImageUrl(product: Product): string {
 }
 
 const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: boolean }) => {
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [imageError, setImageError] = useState(false)
+  const [showPlaceholder, setShowPlaceholder] = useState(true)
+
   const discountPercentage = product.sale_price
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
     : 0
+
+  const handleImageLoad = () => {
+    setImageLoaded(true)
+    setTimeout(() => setShowPlaceholder(false), 300)
+  }
+
+  const handleImageError = () => {
+    setImageError(true)
+    setImageLoaded(false)
+  }
+
+  useEffect(() => {
+    setImageLoaded(false)
+    setImageError(false)
+    setShowPlaceholder(true)
+  }, [product.id])
 
   const imageUrl = getProductImageUrl(product)
   const rating = product.rating || 3 + Math.random() * 2
@@ -68,24 +101,46 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
 
   return (
     <Link href={`/product/${product.slug || product.id}`} prefetch={false}>
-      <motion.div whileHover={{ y: -8 }} transition={{ duration: 0.2, ease: "easeOut" }} className="h-full">
-        <div className="group h-full overflow-hidden bg-white border border-transparent rounded-lg transition-all duration-200 hover:shadow-lg hover:border-gray-200">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        whileHover={{ y: -2 }}
+        className="h-full"
+      >
+        <div className="group h-full overflow-hidden bg-white border-r border-gray-100 transition-all duration-200 hover:shadow-sm">
           {/* Image Container - Square aspect ratio */}
           <div className="relative aspect-square overflow-hidden bg-[#f8f8f8]">
-            {imageUrl ? (
-              <Image
-                src={imageUrl || "/placeholder.svg"}
-                alt={product.name}
-                fill
-                sizes={isMobile ? "25vw" : "16vw"}
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-                loading="lazy"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Image src="/logo.png" alt={product.name} width={60} height={60} className="opacity-30" />
-              </div>
-            )}
+            <AnimatePresence>
+              {(showPlaceholder || imageError) && (
+                <motion.div
+                  initial={{ opacity: 1 }}
+                  exit={{ opacity: 0, transition: { duration: 0.3 } }}
+                  className="absolute inset-0 z-10"
+                >
+                  <LogoPlaceholder />
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: imageLoaded ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0"
+            >
+              {imageUrl && (
+                <Image
+                  src={imageUrl || "/placeholder.svg"}
+                  alt={product.name}
+                  fill
+                  sizes={isMobile ? "25vw" : "16vw"}
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="lazy"
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+              )}
+            </motion.div>
             {/* Discount Badge - Dark Cherry Red */}
             {product.sale_price && discountPercentage > 0 && (
               <div className="absolute top-1 left-1 bg-[#8B1538] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
@@ -166,8 +221,7 @@ export function LuxuryDeals({ products }: LuxuryDealsProps) {
       const rect = carouselRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
       const width = rect.width
-      const leftHalf = x < width / 2
-      setHoverSide(leftHalf ? "left" : "right")
+      setHoverSide(x < width / 2 ? "left" : "right")
     },
     [isDragging, isMobile],
   )
@@ -226,7 +280,6 @@ export function LuxuryDeals({ products }: LuxuryDealsProps) {
     return () => currentCarousel.removeEventListener("wheel", handleWheelEvent)
   }, [currentIndex, maxIndex, goToPrevious, goToNext, isMobile])
 
-  // Don't render if no products
   if (!products || products.length === 0) {
     return null
   }
@@ -234,7 +287,7 @@ export function LuxuryDeals({ products }: LuxuryDealsProps) {
   return (
     <section className="w-full mb-4 sm:mb-8">
       <div className="w-full">
-        {/* Header - Responsive */}
+        {/* Header - Dark Cherry Red matching new-arrivals */}
         <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
           <div className="flex items-center gap-1 sm:gap-2">
             <Crown className={`text-yellow-300 fill-yellow-300 ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
@@ -254,6 +307,7 @@ export function LuxuryDeals({ products }: LuxuryDealsProps) {
           </button>
         </div>
 
+        {/* Carousel Container - Matching new-arrivals */}
         <div className={isMobile ? "p-1" : "p-2"}>
           <div
             ref={carouselRef}
@@ -292,7 +346,7 @@ export function LuxuryDeals({ products }: LuxuryDealsProps) {
                 ))}
               </div>
             ) : (
-              // Desktop: Motion animation
+              // Desktop: Motion animation matching new-arrivals
               <motion.div
                 className="flex gap-[1px]"
                 drag="x"
@@ -328,35 +382,32 @@ export function LuxuryDeals({ products }: LuxuryDealsProps) {
               </motion.div>
             )}
 
-            {/* Navigation Arrows - Desktop only */}
+            {/* Navigation Arrows - Desktop only matching new-arrivals */}
             <AnimatePresence>
               {!isMobile && isHovering && !isDragging && hoverSide === "left" && currentIndex > 0 && (
                 <motion.button
                   initial={{ opacity: 0, x: -20, scale: 0.8 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: -20, scale: 0.8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  transition={{ duration: 0.2 }}
                   onClick={goToPrevious}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white border border-gray-200 text-gray-700 hover:text-gray-900 p-2 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:shadow-xl"
-                  aria-label="Previous products"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg hover:bg-white hover:scale-110 transition-all z-20"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="w-5 h-5 text-gray-700" />
                 </motion.button>
               )}
             </AnimatePresence>
-
             <AnimatePresence>
               {!isMobile && isHovering && !isDragging && hoverSide === "right" && currentIndex < maxIndex && (
                 <motion.button
                   initial={{ opacity: 0, x: 20, scale: 0.8 }}
                   animate={{ opacity: 1, x: 0, scale: 1 }}
                   exit={{ opacity: 0, x: 20, scale: 0.8 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  transition={{ duration: 0.2 }}
                   onClick={goToNext}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white border border-gray-200 text-gray-700 hover:text-gray-900 p-2 rounded-full shadow-lg backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:shadow-xl"
-                  aria-label="Next products"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-sm rounded-full p-2 shadow-lg hover:bg-white hover:scale-110 transition-all z-20"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="w-5 h-5 text-gray-700" />
                 </motion.button>
               )}
             </AnimatePresence>
