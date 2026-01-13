@@ -10,6 +10,7 @@ import type { Product } from "@/types"
 import { useRouter } from "next/navigation"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cloudinaryService } from "@/services/cloudinary-service"
+import type { FlashSaleEvent, FlashSaleProduct } from "@/lib/server/get-flash-sale-products"
 
 const LogoPlaceholder = () => (
   <div className="absolute inset-0 flex items-center justify-center bg-white">
@@ -45,20 +46,25 @@ const StarRating = ({ rating = 4 }: { rating?: number }) => {
   )
 }
 
-const StockIndicator = ({ stock }: { stock: number }) => {
-  const maxStock = 500
-  const stockPercentage = Math.min((stock / maxStock) * 100, 100)
-
+const StockIndicator = ({
+  itemsLeft,
+  progressPercentage,
+  isSoldOut,
+}: {
+  itemsLeft: number
+  progressPercentage: number
+  isSoldOut: boolean
+}) => {
   return (
     <div className="mt-1.5 space-y-1">
       <p className="text-[10px] sm:text-xs font-medium text-gray-800">
-        {stock <= 0 ? <span className="text-red-600">Out of stock</span> : `${stock} items left`}
+        {isSoldOut ? <span className="text-red-600 font-semibold">Sold Out</span> : <span>{itemsLeft} items left</span>}
       </p>
       <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
         <motion.div
           className="h-full bg-[#8B1538] rounded-full"
           initial={{ width: 0 }}
-          animate={{ width: stock <= 0 ? "0%" : `${Math.max(stockPercentage, 5)}%` }}
+          animate={{ width: isSoldOut ? "0%" : `${Math.max(progressPercentage, 5)}%` }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         />
       </div>
@@ -88,7 +94,7 @@ const getProductImageUrl = (product: Product): string => {
   return ""
 }
 
-const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: boolean }) => {
+const ProductCard = memo(({ product, isMobile }: { product: FlashSaleProduct | Product; isMobile: boolean }) => {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [showPlaceholder, setShowPlaceholder] = useState(true)
@@ -97,7 +103,12 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
     : 0
 
-  const stock = typeof product.stock === "number" ? product.stock : 100
+  const flashProduct = product as FlashSaleProduct
+  const itemsLeft = flashProduct.items_left ?? product.stock ?? 100
+  const progressPercentage = flashProduct.progress_percentage ?? (product.stock ? (product.stock / 100) * 100 : 100)
+  const isAlmostGone = flashProduct.is_almost_gone ?? (itemsLeft > 0 && itemsLeft <= 5)
+  const isSoldOut = flashProduct.is_sold_out ?? itemsLeft === 0
+
   const rating = product.rating || 3 + Math.random() * 2
 
   const handleImageLoad = () => {
@@ -127,7 +138,9 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
         whileHover={{ y: -2 }}
         className="h-full"
       >
-        <div className="group h-full overflow-hidden bg-white border-r border-gray-100 transition-all duration-200 hover:shadow-sm">
+        <div
+          className={`group h-full overflow-hidden bg-white border-r border-gray-100 transition-all duration-200 hover:shadow-sm ${isSoldOut ? "opacity-75" : ""}`}
+        >
           <div className="relative aspect-square overflow-hidden bg-[#f8f8f8]">
             <AnimatePresence>
               {(showPlaceholder || imageError) && (
@@ -164,9 +177,14 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
                 -{discountPercentage}%
               </div>
             )}
-            {stock > 0 && stock <= 5 && (
+            {isAlmostGone && !isSoldOut && (
               <div className="absolute bottom-1.5 left-1.5 bg-red-500 text-white text-[9px] sm:text-[10px] font-semibold px-1.5 py-0.5 rounded-sm z-20 animate-pulse">
                 Almost Gone!
+              </div>
+            )}
+            {isSoldOut && (
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
+                <span className="bg-red-600 text-white text-xs sm:text-sm font-bold px-3 py-1 rounded">SOLD OUT</span>
               </div>
             )}
           </div>
@@ -187,7 +205,7 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
               )}
             </div>
             <StarRating rating={rating} />
-            <StockIndicator stock={stock} />
+            <StockIndicator itemsLeft={itemsLeft} progressPercentage={progressPercentage} isSoldOut={isSoldOut} />
           </div>
         </div>
       </motion.div>
@@ -198,13 +216,34 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
 ProductCard.displayName = "ProductCard"
 
 interface FlashSalesProps {
-  products?: Product[]
+  products?: (FlashSaleProduct | Product)[]
+  event?: FlashSaleEvent | null
 }
 
-export function FlashSales({ products: initialProducts }: FlashSalesProps) {
+export function FlashSales({ products: initialProducts, event }: FlashSalesProps) {
   const products = initialProducts || []
 
-  const [timeLeft, setTimeLeft] = useState({ hours: 1, minutes: 17, seconds: 1 })
+  const getInitialTimeLeft = () => {
+    if (event?.time_remaining) {
+      const total = event.time_remaining
+      return {
+        hours: Math.floor(total / 3600),
+        minutes: Math.floor((total % 3600) / 60),
+        seconds: total % 60,
+      }
+    }
+    const now = new Date()
+    const endOfDay = new Date(now)
+    endOfDay.setHours(23, 59, 59, 999)
+    const total = Math.max(0, Math.floor((endOfDay.getTime() - now.getTime()) / 1000))
+    return {
+      hours: Math.floor(total / 3600),
+      minutes: Math.floor((total % 3600) / 60),
+      seconds: total % 60,
+    }
+  }
+
+  const [timeLeft, setTimeLeft] = useState(getInitialTimeLeft)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isHovering, setIsHovering] = useState(false)
   const [hoverSide, setHoverSide] = useState<"left" | "right" | null>(null)
@@ -300,8 +339,7 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
       setTimeLeft((prev) => {
         const total = prev.hours * 3600 + prev.minutes * 60 + prev.seconds - 1
         if (total <= 0) {
-          clearInterval(timer)
-          return { hours: 0, minutes: 0, seconds: 0 }
+          return { hours: 23, minutes: 59, seconds: 59 }
         }
         return {
           hours: Math.floor(total / 3600),
@@ -391,7 +429,7 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
                       scrollSnapAlign: "start",
                     }}
                   >
-                    <ProductCard product={product} isMobile={true} />
+                    <ProductCard product={product as FlashSaleProduct} isMobile={true} />
                   </div>
                 ))}
               </div>
@@ -425,7 +463,7 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
                   >
-                    <ProductCard product={product} isMobile={false} />
+                    <ProductCard product={product as FlashSaleProduct} isMobile={false} />
                   </motion.div>
                 ))}
               </motion.div>
