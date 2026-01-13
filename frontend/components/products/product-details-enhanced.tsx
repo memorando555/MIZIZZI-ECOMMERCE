@@ -99,8 +99,12 @@ export default function ProductDetailsEnhanced({
   const [selectedVariant, setSelectedVariant] = useState<any>(null)
   const [quantity, setQuantity] = useState(1)
   const [isAddingToCart, setIsAddingToCart] = useState(false)
-  const [relatedProducts, setRelatedProducts] = useState<any[]>(similarProducts || [])
-  const [isLoadingRelated, setIsLoadingRelated] = useState(!similarProducts?.length)
+  const [exploreProducts, setExploreProducts] = useState<any[]>(similarProducts || [])
+  const [explorePage, setExplorePage] = useState(1)
+  const [exploreHasMore, setExploreHasMore] = useState(true)
+  const [exploreLoading, setExploreLoading] = useState(false)
+  const [newlyLoadedStartIndex, setNewlyLoadedStartIndex] = useState<number | null>(null)
+
   const [recentlyViewed, setRecentlyViewed] = useState<any[]>(recentlyViewedProducts || [])
   const [isImageZoomModalOpen, setIsImageZoomModalOpen] = useState(false)
   const [zoomSelectedImage, setZoomSelectedImage] = useState(0)
@@ -162,12 +166,22 @@ export default function ProductDetailsEnhanced({
 
   // Helpers
   const getProductImageUrl = (p: any, index = 0, highQuality = false): string => {
+    // Try thumbnail_url first for grid items
+    if (
+      !highQuality &&
+      p?.thumbnail_url &&
+      typeof p.thumbnail_url === "string" &&
+      !p.thumbnail_url.startsWith("blob:")
+    ) {
+      return p.thumbnail_url
+    }
+
     if (p?.image_urls && p.image_urls.length > index) {
       const url = p.image_urls[index]
       if (typeof url === "string" && url.startsWith("blob:")) {
         return "/generic-product-display.png"
       }
-      if (typeof url === "string" && !url.startsWith("http")) {
+      if (typeof url === "string" && url.trim() !== "" && !url.startsWith("http")) {
         if (highQuality) {
           return cloudinaryService.generateOptimizedUrl(url, {
             width: 2048,
@@ -179,8 +193,16 @@ export default function ProductDetailsEnhanced({
         }
         return cloudinaryService.generateOptimizedUrl(url)
       }
-      return url
+      if (typeof url === "string" && url.startsWith("http")) {
+        return url
+      }
     }
+
+    // Fallback to thumbnail_url
+    if (p?.thumbnail_url && typeof p.thumbnail_url === "string" && !p.thumbnail_url.startsWith("blob:")) {
+      return p.thumbnail_url
+    }
+
     return "/generic-product-display.png"
   }
 
@@ -269,20 +291,20 @@ export default function ProductDetailsEnhanced({
   useEffect(() => {
     const run = async () => {
       if (!product?.category_id || (similarProducts && similarProducts.length > 0)) {
-        setIsLoadingRelated(false)
+        setExploreLoading(false)
         return
       }
-      setIsLoadingRelated(true)
+      setExploreLoading(true)
       try {
         const products = await productService.getProductsByCategory(String(product.category_id))
-        setRelatedProducts(
+        setExploreProducts(
           products
             .filter((p: any) => p.id !== product.id)
             .sort(() => 0.5 - Math.random())
-            .slice(0, 6),
+            .slice(0, 18), // Increased from 6 to 18 for 3 rows
         )
       } finally {
-        setIsLoadingRelated(false)
+        setExploreLoading(false)
       }
     }
     run()
@@ -303,7 +325,7 @@ export default function ProductDetailsEnhanced({
           },
           ...recentItems,
         ].slice(0, 6)
-        localStorage.setItem("recentlyViewed", JSON.JSON.stringify(updated))
+        localStorage.setItem("recentlyViewed", JSON.stringify(updated)) // Fixed typo JSON.JSON to JSON
         setRecentlyViewed(updated)
       } else {
         setRecentlyViewed(recentItems)
@@ -863,6 +885,38 @@ export default function ProductDetailsEnhanced({
     return `${Math.floor(diffInDays / 365)} years ago`
   }
 
+  const fetchMoreExploreProducts = useCallback(async () => {
+    if (exploreLoading || !exploreHasMore) return
+
+    setExploreLoading(true)
+    try {
+      const nextPage = explorePage + 1
+      const response = await fetch(
+        `/api/products?limit=18&page=${nextPage}${product?.category?.slug ? `&category_slug=${product.category.slug}` : ""}`,
+      )
+      const data = await response.json()
+
+      const products = data?.products || data?.items || data || []
+      const filteredData = products.filter((p: any) => p.id !== product?.id)
+
+      if (filteredData.length > 0) {
+        setExploreProducts((prev) => {
+          setNewlyLoadedStartIndex(prev.length)
+          return [...prev, ...filteredData]
+        })
+        setExplorePage(nextPage)
+        setExploreHasMore(filteredData.length >= 18)
+      } else {
+        setExploreHasMore(false)
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching more explore products:", error)
+      setExploreHasMore(false)
+    } finally {
+      setExploreLoading(false)
+    }
+  }, [exploreLoading, exploreHasMore, explorePage, product?.id, product?.category?.slug])
+
   return (
     <div className="min-h-screen bg-[#F5F5F5]">
       {/* Cart Toast */}
@@ -940,14 +994,13 @@ export default function ProductDetailsEnhanced({
           {/* LEFT COLUMN: Image Gallery */}
           <motion.div {...appleVariants.fadeIn} className="lg:col-span-5">
             <div className="bg-white rounded-2xl overflow-hidden shadow-sm sticky top-6">
-              {/* Main Image */}
-              <div className="relative aspect-square cursor-zoom-in group" ref={imageRef} onClick={handleImageClick}>
+              <div className="relative aspect-[4/3] cursor-zoom-in group" ref={imageRef} onClick={handleImageClick}>
                 <Image
                   src={getProductImageUrl(product, selectedImage) || "/generic-product-display.png"}
                   alt={product?.name || "Product image"}
                   fill
                   sizes="(max-width: 768px) 100vw, 40vw"
-                  className="object-contain p-4 transition-transform duration-500 group-hover:scale-105"
+                  className="object-contain p-6 transition-transform duration-500 group-hover:scale-105"
                   priority
                 />
 
@@ -998,7 +1051,7 @@ export default function ProductDetailsEnhanced({
                     <button
                       key={i}
                       className={cn(
-                        "relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all",
+                        "relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all",
                         selectedImage === i
                           ? "border-[#8B1538] ring-2 ring-[#8B1538]/20"
                           : "border-gray-200 hover:border-gray-300",
@@ -1009,7 +1062,7 @@ export default function ProductDetailsEnhanced({
                         src={img || "/generic-product-display.png"}
                         alt={`Thumbnail ${i + 1}`}
                         fill
-                        sizes="64px"
+                        sizes="80px"
                         className="object-cover"
                       />
                     </button>
@@ -1323,19 +1376,19 @@ export default function ProductDetailsEnhanced({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                   >
-                    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-600 prose-p:leading-relaxed prose-li:text-gray-600 prose-strong:text-gray-900">
+                    <div className="prose prose-lg max-w-none">
                       {product?.description ? (
                         <div
-                          className="text-gray-700 leading-7 text-[15px] space-y-4"
+                          className="text-gray-700 space-y-6 [&>p]:leading-relaxed [&>p]:text-[15px] [&>p]:text-gray-600 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-8 [&>h2]:mb-4 [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:text-gray-800 [&>h3]:mt-6 [&>h3]:mb-3 [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&>ul>li]:text-gray-600 [&>ol]:list-decimal [&>ol]:pl-6 [&>ol]:space-y-2 [&>ol>li]:text-gray-600 [&>img]:rounded-xl [&>img]:shadow-lg [&>img]:my-6 [&>img]:mx-auto [&>img]:max-w-full [&>img]:h-auto [&>img]:object-contain [&_img]:rounded-xl [&_img]:shadow-lg [&_img]:my-6 [&_img]:mx-auto [&_img]:max-w-full [&_img]:h-auto [&_img]:object-contain"
                           dangerouslySetInnerHTML={{
                             __html: product.description,
                           }}
                         />
                       ) : (
-                        <div className="text-center py-8">
-                          <Info className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                          <p className="text-gray-500 font-medium">No description available</p>
-                          <p className="text-sm text-gray-400 mt-1">Product details will be updated soon.</p>
+                        <div className="text-center py-12">
+                          <Info className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <p className="text-gray-900 font-semibold">No description available</p>
+                          <p className="text-sm text-gray-500 mt-2">Product details will be updated soon.</p>
                         </div>
                       )}
                     </div>
@@ -1350,41 +1403,33 @@ export default function ProductDetailsEnhanced({
                     exit={{ opacity: 0, y: -10 }}
                   >
                     {specifications.length > 0 ? (
-                      <div className="space-y-8">
+                      <div className="grid gap-6 md:grid-cols-2">
                         {specifications.map((spec, idx) => (
-                          <div key={idx}>
-                            <div className="flex items-center gap-2 mb-4">
-                              <div className="w-1 h-5 bg-[#8B1538] rounded-full" />
-                              <h4 className="font-bold text-gray-900 text-base">{spec.category}</h4>
+                          <div key={idx} className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
+                            <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+                              <div className="w-10 h-10 rounded-xl bg-[#8B1538]/10 flex items-center justify-center">
+                                <Shield className="w-5 h-5 text-[#8B1538]" />
+                              </div>
+                              <h4 className="font-bold text-gray-900">{spec.category}</h4>
                             </div>
-                            <div className="bg-gray-50 rounded-xl overflow-hidden">
-                              <table className="w-full">
-                                <tbody>
-                                  {spec.items.map((item, itemIdx) => (
-                                    <tr
-                                      key={itemIdx}
-                                      className={cn(
-                                        "border-b border-gray-100 last:border-b-0",
-                                        itemIdx % 2 === 0 ? "bg-gray-50" : "bg-white",
-                                      )}
-                                    >
-                                      <td className="py-3.5 px-4 text-sm text-gray-500 w-1/3 font-medium">
-                                        {item.label}
-                                      </td>
-                                      <td className="py-3.5 px-4 text-sm text-gray-900 font-semibold">{item.value}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                            <div className="space-y-3">
+                              {spec.items.map((item, itemIdx) => (
+                                <div key={itemIdx} className="flex justify-between items-start gap-4">
+                                  <span className="text-sm text-gray-500 flex-shrink-0">{item.label}</span>
+                                  <span className="text-sm text-gray-900 font-medium text-right">{item.value}</span>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-12">
-                        <Info className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-900 font-medium">No specifications available</p>
-                        <p className="text-sm text-gray-500 mt-1">Product specifications will be updated soon.</p>
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                          <Info className="h-10 w-10 text-gray-400" />
+                        </div>
+                        <p className="text-gray-900 font-semibold text-lg">No specifications available</p>
+                        <p className="text-sm text-gray-500 mt-2">Product specifications will be updated soon.</p>
                       </div>
                     )}
                   </motion.div>
@@ -1397,41 +1442,54 @@ export default function ProductDetailsEnhanced({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                   >
-                    {/* Review Summary - Redesigned */}
                     {reviewSummary && reviewSummary.total_reviews > 0 && (
-                      <div className="bg-gradient-to-r from-gray-50 to-white rounded-2xl p-6 mb-6">
-                        <div className="flex flex-col md:flex-row items-center gap-8">
-                          <div className="text-center">
-                            <div className="text-6xl font-black text-[#8B1538]">
-                              {calculateAverageRating().toFixed(1)}
-                            </div>
-                            <div className="mt-2">
-                              <StarRating rating={calculateAverageRating()} size={24} />
-                            </div>
-                            <p className="text-sm text-gray-500 mt-2 font-medium">
-                              {reviewSummary.total_reviews} reviews
-                            </p>
+                      <div className="grid md:grid-cols-2 gap-6 mb-8">
+                        {/* Overall Rating Card */}
+                        <div className="bg-gradient-to-br from-[#8B1538] to-[#6B1028] rounded-2xl p-6 text-white">
+                          <h3 className="text-sm font-medium opacity-80 mb-2">Overall Rating</h3>
+                          <div className="flex items-baseline gap-2 mb-3">
+                            <span className="text-5xl font-black">{calculateAverageRating().toFixed(1)}</span>
+                            <span className="text-lg opacity-70">/ 5</span>
                           </div>
-                          <div className="flex-1 w-full space-y-2.5">
+                          <div className="flex gap-1 mb-3">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={cn(
+                                  "h-5 w-5",
+                                  star <= Math.round(calculateAverageRating())
+                                    ? "fill-yellow-400 text-yellow-400"
+                                    : "fill-white/20 text-white/20",
+                                )}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-sm opacity-80">Based on {reviewSummary.total_reviews} reviews</p>
+                        </div>
+
+                        {/* Rating Distribution Card */}
+                        <div className="bg-gray-50 rounded-2xl p-6">
+                          <h3 className="text-sm font-semibold text-gray-900 mb-4">Rating Distribution</h3>
+                          <div className="space-y-3">
                             {[5, 4, 3, 2, 1].map((star) => {
                               const count = reviewSummary.rating_distribution?.[star.toString()] || 0
                               const percentage =
                                 reviewSummary.total_reviews > 0 ? (count / reviewSummary.total_reviews) * 100 : 0
                               return (
                                 <div key={star} className="flex items-center gap-3">
-                                  <div className="flex items-center gap-1 w-12">
-                                    <span className="text-sm font-semibold text-gray-700">{star}</span>
-                                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                                  <div className="flex items-center gap-1 w-8">
+                                    <span className="text-sm font-bold text-gray-700">{star}</span>
+                                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                                   </div>
-                                  <div className="flex-1 h-3 bg-gray-200 rounded-full overflow-hidden">
+                                  <div className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
                                     <motion.div
-                                      className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"
+                                      className="h-full bg-amber-400 rounded-full"
                                       initial={{ width: 0 }}
                                       animate={{ width: `${percentage}%` }}
-                                      transition={{ duration: 0.5, delay: 0.1 * (5 - star) }}
+                                      transition={{ duration: 0.6, delay: 0.1 * (5 - star) }}
                                     />
                                   </div>
-                                  <span className="text-sm text-gray-500 w-10 text-right font-medium">{count}</span>
+                                  <span className="text-xs text-gray-500 w-8 text-right">{count}</span>
                                 </div>
                               )
                             })}
@@ -1440,10 +1498,10 @@ export default function ProductDetailsEnhanced({
                       </div>
                     )}
 
-                    {/* Sort Options - Redesigned */}
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                    {/* Sort Options */}
+                    <div className="flex items-center gap-3 mb-6">
                       <span className="text-sm text-gray-600 font-medium">Sort by:</span>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         {[
                           { key: "recent", label: "Most Recent" },
                           { key: "highest", label: "Highest Rated" },
@@ -1455,7 +1513,7 @@ export default function ProductDetailsEnhanced({
                             className={cn(
                               "px-4 py-2 text-xs font-semibold rounded-full transition-all",
                               reviewSortBy === option.key
-                                ? "bg-[#8B1538] text-white shadow-md shadow-[#8B1538]/20"
+                                ? "bg-[#8B1538] text-white"
                                 : "bg-gray-100 text-gray-600 hover:bg-gray-200",
                             )}
                           >
@@ -1465,65 +1523,73 @@ export default function ProductDetailsEnhanced({
                       </div>
                     </div>
 
-                    {/* Reviews List - Redesigned */}
+                    {/* Reviews List */}
                     {isLoadingReviews ? (
                       <div className="py-16 flex flex-col items-center justify-center">
                         <div className="w-10 h-10 border-3 border-[#8B1538] border-t-transparent rounded-full animate-spin" />
-                        <p className="text-sm text-gray-500 mt-4 font-medium">Loading reviews...</p>
+                        <p className="text-sm text-gray-500 mt-4">Loading reviews...</p>
                       </div>
                     ) : reviews.length === 0 ? (
                       <div className="py-16 text-center">
-                        <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                          <MessageSquare className="h-10 w-10 text-gray-400" />
+                        <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                          <MessageSquare className="h-12 w-12 text-gray-400" />
                         </div>
-                        <p className="text-gray-900 font-semibold text-lg">No reviews yet</p>
-                        <p className="text-sm text-gray-500 mt-2">
+                        <p className="text-gray-900 font-bold text-xl">No reviews yet</p>
+                        <p className="text-sm text-gray-500 mt-2 max-w-sm mx-auto">
                           Be the first to share your experience with this product!
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-0">
+                      <div className="space-y-4">
                         {(showAllReviews ? reviews : reviews.slice(0, 5)).map((review, index) => (
                           <motion.div
                             key={review.id}
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.05 }}
-                            className={cn("py-5", index !== 0 && "border-t border-gray-100")}
+                            className="bg-gray-50 rounded-2xl p-5 border border-gray-100"
                           >
                             <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8B1538] to-[#6B1028] flex items-center justify-center flex-shrink-0 shadow-md">
-                                <span className="text-base font-bold text-white">
+                              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8B1538] to-[#6B1028] flex items-center justify-center flex-shrink-0">
+                                <span className="text-lg font-bold text-white">
                                   {review.user?.name?.charAt(0)?.toUpperCase() || "U"}
                                 </span>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <span className="font-semibold text-gray-900">
-                                    {review.user?.name || "Anonymous"}
-                                  </span>
+                                <div className="flex items-center gap-2 flex-wrap mb-2">
+                                  <span className="font-bold text-gray-900">{review.user?.name || "Anonymous"}</span>
                                   {review.is_verified_purchase && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md">
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">
                                       <BadgeCheck className="w-3 h-3" />
-                                      Verified Purchase
+                                      Verified
                                     </span>
                                   )}
                                 </div>
-                                <div className="flex items-center gap-3 mb-2">
-                                  <StarRating rating={review.rating} size={14} />
-                                  <span className="text-xs text-gray-400 font-medium">
-                                    {getTimeAgo(review.created_at)}
-                                  </span>
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={cn(
+                                          "h-4 w-4",
+                                          star <= review.rating
+                                            ? "fill-amber-400 text-amber-400"
+                                            : "fill-gray-200 text-gray-200",
+                                        )}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-xs text-gray-400">{getTimeAgo(review.created_at)}</span>
                                 </div>
-                                {review.title && <h4 className="font-semibold text-gray-900 mb-1">{review.title}</h4>}
+                                {review.title && <h4 className="font-semibold text-gray-900 mb-2">{review.title}</h4>}
                                 <p className="text-sm text-gray-600 leading-relaxed">{review.comment}</p>
                                 <button
                                   onClick={() => handleMarkHelpful(review.id)}
                                   className={cn(
-                                    "mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                                    "mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all",
                                     likedReviews.has(review.id)
-                                      ? "bg-[#8B1538]/10 text-[#8B1538]"
-                                      : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                                      ? "bg-[#8B1538] text-white"
+                                      : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300",
                                   )}
                                 >
                                   <ThumbsUp
@@ -1541,9 +1607,8 @@ export default function ProductDetailsEnhanced({
                     {reviews.length > 5 && (
                       <motion.button
                         onClick={() => setShowAllReviews(!showAllReviews)}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        className="mt-6 w-full py-3.5 text-sm font-bold text-[#8B1538] border-2 border-[#8B1538] rounded-xl hover:bg-[#8B1538] hover:text-white transition-all duration-200"
+                        whileTap={{ scale: 0.98 }}
+                        className="mt-6 w-full py-3.5 text-sm font-bold text-[#8B1538] border-2 border-[#8B1538] rounded-xl hover:bg-[#8B1538] hover:text-white transition-all"
                       >
                         {showAllReviews ? "Show Less Reviews" : `View All ${reviews.length} Reviews`}
                       </motion.button>
@@ -1555,8 +1620,7 @@ export default function ProductDetailsEnhanced({
           </div>
         </motion.div>
 
-        {/* Explore Your Interest - Redesigned to match product-grid.tsx layout */}
-        {relatedProducts.length > 0 && (
+        {exploreProducts.length > 0 && (
           <motion.div {...appleVariants.fadeIn} className="mt-8">
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               {/* Header */}
@@ -1573,14 +1637,15 @@ export default function ProductDetailsEnhanced({
 
               {/* Products Grid - Same as product-grid.tsx */}
               <div className="grid grid-cols-3 gap-[1px] bg-gray-100 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {relatedProducts.map((item, index) => {
+                {exploreProducts.map((item, index) => {
                   const itemDiscount = item.sale_price
                     ? Math.round(((item.price - item.sale_price) / item.price) * 100)
                     : 0
                   const itemRating = item.rating || 3 + Math.random() * 2
+                  const isNewlyLoaded = newlyLoadedStartIndex !== null && index >= newlyLoadedStartIndex
 
                   return (
-                    <Link key={item.id} href={`/product/${item.slug || item.id}`} prefetch={false}>
+                    <Link key={`${item.id}-${index}`} href={`/product/${item.slug || item.id}`} prefetch={false}>
                       <motion.div
                         initial={{ opacity: 0, y: 30, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1588,7 +1653,7 @@ export default function ProductDetailsEnhanced({
                           type: "spring",
                           stiffness: 100,
                           damping: 15,
-                          delay: index * 0.02,
+                          delay: isNewlyLoaded ? (index - (newlyLoadedStartIndex || 0)) * 0.05 : index * 0.02,
                         }}
                         whileHover={{ y: -8 }}
                         className="h-full"
@@ -1651,17 +1716,55 @@ export default function ProductDetailsEnhanced({
                 })}
               </div>
 
-              {/* Show More Button - Same as product-grid.tsx */}
-              <div className="flex justify-center py-6 sm:py-8 bg-white border-t border-gray-100">
-                <Link href="/products">
+              {/* Show More Button - Same as product-grid.tsx with loading state */}
+              {exploreHasMore && (
+                <div className="flex justify-center py-6 sm:py-8 bg-white border-t border-gray-100">
                   <button
-                    className="relative flex items-center justify-center px-12 sm:px-16 py-2.5 sm:py-3 bg-white text-gray-600 font-medium rounded-full border border-gray-300 hover:border-gray-400 hover:text-gray-800 transition-all duration-200 min-w-[180px] sm:min-w-[200px] tracking-widest uppercase text-xs sm:text-sm"
+                    onClick={fetchMoreExploreProducts}
+                    disabled={exploreLoading}
+                    className="relative flex items-center justify-center px-12 sm:px-16 py-2.5 sm:py-3 bg-white text-gray-600 font-medium rounded-full border border-gray-300 hover:border-gray-400 hover:text-gray-800 transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed min-w-[180px] sm:min-w-[200px] tracking-widest uppercase text-xs sm:text-sm"
                     style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}
                   >
-                    Show More
+                    <AnimatePresence mode="wait">
+                      {exploreLoading ? (
+                        <motion.div
+                          key="spinner"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="flex items-center justify-center"
+                        >
+                          <div className="relative w-5 h-5">
+                            {[...Array(12)].map((_, i) => (
+                              <motion.span
+                                key={i}
+                                className="absolute left-1/2 top-0 w-[2px] h-[5px] rounded-full origin-[50%_10px]"
+                                style={{
+                                  transform: `translateX(-50%) rotate(${i * 30}deg)`,
+                                  backgroundColor: "#8B1538",
+                                }}
+                                animate={{
+                                  opacity: [0.15, 1, 0.15],
+                                }}
+                                transition={{
+                                  duration: 1,
+                                  repeat: Number.POSITIVE_INFINITY,
+                                  delay: i * (1 / 12),
+                                  ease: "linear",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </motion.div>
+                      ) : (
+                        <motion.span key="text" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                          Show More
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </button>
-                </Link>
-              </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
