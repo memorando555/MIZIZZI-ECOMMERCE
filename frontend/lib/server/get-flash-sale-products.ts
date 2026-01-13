@@ -40,38 +40,64 @@ function normalizeProductPrices(product: Product): Product {
   }
 }
 
+function isFlashSaleProduct(product: Product): boolean {
+  return !!(
+    product.is_flash_sale === true ||
+    (product as any).isFlashSale === true ||
+    (product as any).is_flash_sale_deal === true ||
+    (product as any).flash_sale === true
+  )
+}
+
 /**
  * Server-side function to fetch flash sale products
  * This runs on the server before the page is sent to the browser
  * Similar to how Jumia pre-renders products for instant display
+ *
+ * Only returns products that are explicitly marked as flash sale
  */
 export async function getFlashSaleProducts(limit = 50): Promise<Product[]> {
   try {
-    const url = `${API_BASE_URL}/api/products/?is_flash_sale=true&per_page=${limit}`
+    const urls = [
+      `${API_BASE_URL}/api/products/?is_flash_sale=true&per_page=${limit}`,
+      `${API_BASE_URL}/api/products/?flash_sale=true&per_page=${limit}`,
+    ]
 
-    const response = await fetch(url, {
-      next: {
-        revalidate: 60, // Cache for 60 seconds on the server
-        tags: ["flash-sales"], // Tag for on-demand revalidation
-      },
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
+    let allProducts: Product[] = []
 
-    if (!response.ok) {
-      console.error(`[SSR] Failed to fetch flash sale products: ${response.status}`)
-      return []
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, {
+          next: {
+            revalidate: 60, // Cache for 60 seconds on the server
+            tags: ["flash-sales"], // Tag for on-demand revalidation
+          },
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const products = extractProducts(data)
+          allProducts = [...allProducts, ...products]
+        }
+      } catch (err) {
+        console.error(`[SSR] Failed to fetch from ${url}:`, err)
+      }
     }
 
-    const data = await response.json()
-    let products: Product[] = extractProducts(data)
+    let flashSaleProducts = allProducts.filter(isFlashSaleProduct)
 
-    // Filter for flash sale products (double-check)
-    products = products.filter((p) => p.is_flash_sale)
+    const seenIds = new Set<string | number>()
+    flashSaleProducts = flashSaleProducts.filter((p) => {
+      if (seenIds.has(p.id)) return false
+      seenIds.add(p.id)
+      return true
+    })
 
     // Normalize and enhance products
-    const enhancedProducts = products.map((product) => {
+    const enhancedProducts = flashSaleProducts.map((product) => {
       product = normalizeProductPrices(product)
 
       return {

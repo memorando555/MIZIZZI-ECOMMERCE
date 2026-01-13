@@ -11,6 +11,19 @@ import { useRouter } from "next/navigation"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cloudinaryService } from "@/services/cloudinary-service"
 
+const LogoPlaceholder = () => (
+  <div className="absolute inset-0 flex items-center justify-center bg-white">
+    <motion.div
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="relative h-12 w-12 sm:h-16 sm:w-16"
+    >
+      <Image src="/logo.png" alt="Loading" fill className="object-contain" />
+    </motion.div>
+  </div>
+)
+
 const StarRating = ({ rating = 4 }: { rating?: number }) => {
   return (
     <div className="flex items-center">
@@ -85,6 +98,7 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
     : 0
 
   const stock = typeof product.stock === "number" ? product.stock : 100
+  const rating = product.rating || 3 + Math.random() * 2
 
   const handleImageLoad = () => {
     setImageLoaded(true)
@@ -110,30 +124,19 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        whileHover={{
-          y: -8,
-          transition: { duration: 0.2, ease: "easeOut" },
-        }}
+        whileHover={{ y: -2 }}
         className="h-full"
       >
-        <div className="group h-full overflow-hidden bg-white border border-gray-200 rounded-md transition-shadow duration-200 hover:shadow-lg">
-          {/* Image Container - Square aspect ratio */}
+        <div className="group h-full overflow-hidden bg-white border-r border-gray-100 transition-all duration-200 hover:shadow-sm">
           <div className="relative aspect-square overflow-hidden bg-[#f8f8f8]">
             <AnimatePresence>
               {(showPlaceholder || imageError) && (
                 <motion.div
                   initial={{ opacity: 1 }}
                   exit={{ opacity: 0, transition: { duration: 0.3 } }}
-                  className="absolute inset-0 z-10 flex items-center justify-center bg-white"
+                  className="absolute inset-0 z-10"
                 >
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="relative h-12 w-12 sm:h-16 sm:w-16"
-                  >
-                    <Image src="/logo.png" alt="Loading" fill className="object-contain" />
-                  </motion.div>
+                  <LogoPlaceholder />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -156,7 +159,6 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
                 />
               )}
             </motion.div>
-            {/* Discount Badge - Dark Cherry Red */}
             {product.sale_price && discountPercentage > 0 && (
               <div className="absolute top-1 left-1 bg-[#8B1538] text-white text-[10px] sm:text-xs font-medium px-1.5 py-0.5 rounded-sm z-20">
                 -{discountPercentage}%
@@ -168,7 +170,6 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
               </div>
             )}
           </div>
-          {/* Product Info - Compact */}
           <div className={isMobile ? "p-2" : "p-3"}>
             <h3
               className={`text-gray-800 line-clamp-2 leading-tight mb-1.5 ${isMobile ? "text-xs min-h-[32px]" : "text-sm min-h-[40px]"}`}
@@ -185,7 +186,7 @@ const ProductCard = memo(({ product, isMobile }: { product: Product; isMobile: b
                 </span>
               )}
             </div>
-            {/* Stock Indicator */}
+            <StarRating rating={rating} />
             <StockIndicator stock={stock} />
           </div>
         </div>
@@ -324,7 +325,6 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
   return (
     <section className="w-full mb-4 sm:mb-8">
       <div className="w-full">
-        {/* Header - Dark Cherry Red matching New Arrivals */}
         <div className="bg-[#8B1538] text-white flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2">
           <div className="flex items-center gap-1 sm:gap-2">
             <Zap className={`text-yellow-300 fill-yellow-300 ${isMobile ? "h-4 w-4" : "h-5 w-5"}`} />
@@ -359,7 +359,6 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
           </div>
         </div>
 
-        {/* Carousel Container - Matching New Arrivals */}
         <div className={isMobile ? "p-1" : "p-2"}>
           <div
             ref={carouselRef}
@@ -372,7 +371,6 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            {/* Carousel Track */}
             {isMobile ? (
               <div
                 className="flex gap-1 w-full overflow-x-auto scrollbar-hide px-2"
@@ -398,7 +396,6 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
                 ))}
               </div>
             ) : (
-              // Desktop: Motion animation matching New Arrivals
               <motion.div
                 className="flex gap-[1px]"
                 drag="x"
@@ -434,7 +431,6 @@ export function FlashSales({ products: initialProducts }: FlashSalesProps) {
               </motion.div>
             )}
 
-            {/* Navigation Arrows - Desktop only matching New Arrivals */}
             <AnimatePresence>
               {!isMobile && isHovering && !isDragging && hoverSide === "left" && currentIndex > 0 && (
                 <motion.button
