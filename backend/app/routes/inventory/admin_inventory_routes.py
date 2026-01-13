@@ -66,7 +66,7 @@ def serialize_inventory_item(item, include_details=False):
 
     try:
         available_quantity = max(0, item.stock_level - item.reserved_quantity)
-
+        
         data = {
             'id': item.id,
             'product_id': item.product_id,
@@ -95,7 +95,7 @@ def serialize_inventory_item(item, include_details=False):
                         image_urls = json.loads(item.product.image_urls) if isinstance(item.product.image_urls, str) else item.product.image_urls
                     except (json.JSONDecodeError, TypeError):
                         image_urls = []
-
+                
                 product_data = {
                     'id': item.product.id,
                     'name': item.product.name,
@@ -112,7 +112,7 @@ def serialize_inventory_item(item, include_details=False):
                     'is_flash_sale': getattr(item.product, 'is_flash_sale', False),
                     'is_luxury_deal': getattr(item.product, 'is_luxury_deal', False)
                 }
-
+                
                 # Add category information
                 if hasattr(item.product, 'category') and item.product.category:
                     product_data['category'] = {
@@ -120,7 +120,7 @@ def serialize_inventory_item(item, include_details=False):
                         'name': item.product.category.name,
                         'slug': getattr(item.product.category, 'slug', None)
                     }
-
+                
                 # Add brand information
                 if hasattr(item.product, 'brand') and item.product.brand:
                     product_data['brand'] = {
@@ -128,7 +128,7 @@ def serialize_inventory_item(item, include_details=False):
                         'name': item.product.brand.name,
                         'slug': getattr(item.product.brand, 'slug', None)
                     }
-
+                
                 data['product'] = product_data
 
             # Add variant details if available
@@ -228,7 +228,12 @@ def get_all_inventory():
             query = query.filter(Inventory.sku.ilike(f'%{sku}%'))
 
         # Apply sorting
-        sort_column = getattr(Inventory, sort_by, Inventory.id)
+        # Ensure sort_column is valid before accessing getattr
+        valid_sort_columns = [col.name for col in Inventory.__table__.columns]
+        if sort_by not in valid_sort_columns:
+            sort_by = 'id' # Default to id if sort_by is invalid
+        sort_column = getattr(Inventory, sort_by)
+        
         if sort_order.lower() == 'desc':
             query = query.order_by(desc(sort_column))
         else:
@@ -439,7 +444,7 @@ def create_inventory():
             low_stock_threshold=data.get('low_stock_threshold', 5),
             sku=data.get('sku'),
             location=data.get('location', 'Main Warehouse'),
-            status=data.get('status', 'out_of_stock' if data.get('stock_level', 0) <= 0 else 'active')
+            status='out_of_stock' if data.get('stock_level', 0) <= 0 else 'active'
         )
 
         db.session.add(inventory)
@@ -506,18 +511,22 @@ def update_inventory(inventory_id):
 
         inventory.last_updated = datetime.now()
 
-        # Update product stock for base products (no variant)
-        if not inventory.variant_id:
-            product = db.session.get(Product, inventory.product_id)
-            if product:
-                product.stock_quantity = inventory.stock_level
+        product = db.session.get(Product, inventory.product_id)
+        if product:
+            # Calculate available stock (stock_level minus reserved)
+            available_stock = max(0, inventory.stock_level - inventory.reserved_quantity)
+            # Update both stock fields in the Product table
+            product.stock = available_stock
+            product.stock_quantity = available_stock
+            logger.info(f"Synced inventory to product {product.id}: stock={available_stock}")
 
         db.session.commit()
 
         return jsonify({
             "success": True,
             "message": "Inventory updated successfully",
-            "inventory": serialize_inventory_item(inventory, include_details=True)
+            "inventory": serialize_inventory_item(inventory, include_details=True),
+            "product_stock_synced": True
         }), 200
 
     except Exception as e:
@@ -630,11 +639,14 @@ def adjust_inventory(inventory_id):
 
         inventory.last_updated = datetime.now()
 
-        # Update product stock for base products
-        if not inventory.variant_id:
-            product = db.session.get(Product, inventory.product_id)
-            if product:
-                product.stock_quantity = inventory.stock_level
+        product = db.session.get(Product, inventory.product_id)
+        if product:
+            # Calculate available stock (stock_level minus reserved)
+            available_stock = max(0, inventory.stock_level - inventory.reserved_quantity)
+            # Update both stock fields in the Product table
+            product.stock = available_stock
+            product.stock_quantity = available_stock
+            logger.info(f"Adjusted and synced inventory to product {product.id}: stock={available_stock}")
 
         db.session.commit()
 
@@ -647,7 +659,8 @@ def adjust_inventory(inventory_id):
                 "new_stock": new_stock,
                 "reason": reason
             },
-            "inventory": serialize_inventory_item(inventory, include_details=True)
+            "inventory": serialize_inventory_item(inventory, include_details=True),
+            "product_stock_synced": True
         }), 200
 
     except Exception as e:
@@ -1635,7 +1648,7 @@ def bulk_adjust_inventory():
                     # Apply adjustment
                     inventory.stock_level = new_stock
                     available_quantity = inventory.stock_level - inventory.reserved_quantity
-
+                    
                     if available_quantity <= 0:
                         inventory.status = 'out_of_stock'
                     elif inventory.status == 'out_of_stock' and available_quantity > 0:
