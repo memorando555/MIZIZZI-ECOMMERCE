@@ -241,7 +241,7 @@ def create_app(config_name=None, enable_socketio=True):
         supports_credentials=True,
         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Cache-Control", "cache-control", "Pragma", "Expires", "X-MFA-Token", "Accept", "Origin"],
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        expose_headers=["Content-Range", "X-Content-Range", "X-Cache", "X-Cache-Key", "X-Fast-Cache"],
+        expose_headers=["Content-Range", "X-Content-Range"],
         send_wildcard=False,
         vary_header=True
     )
@@ -489,6 +489,7 @@ def create_app(config_name=None, enable_socketio=True):
         'featured_routes': Blueprint('featured_routes', __name__),
         'meilisearch_routes': Blueprint('meilisearch_routes', __name__),
         'admin_meilisearch_routes': Blueprint('admin_meilisearch_routes', __name__),
+        'flash_sale_routes': Blueprint('flash_sale_routes', __name__),
     }
     
     # Add basic routes to fallback blueprints
@@ -624,6 +625,10 @@ def create_app(config_name=None, enable_socketio=True):
     @fallback_blueprints['admin_meilisearch_routes'].route('/health', methods=['GET'])
     def fallback_admin_meilisearch_health():
         return jsonify({"status": "ok", "message": "Fallback admin Meilisearch routes active"}), 200
+    
+    @fallback_blueprints['flash_sale_routes'].route('/health', methods=['GET'])
+    def fallback_flash_sale_health():
+        return jsonify({"status": "ok", "message": "Fallback flash sale routes active"}), 200
     
     # Blueprint import paths dictionary
     blueprint_imports = {
@@ -827,6 +832,14 @@ def create_app(config_name=None, enable_socketio=True):
             ('backend.app.routes.meilisearch', 'admin_meilisearch_routes'),
             ('backend.routes.meilisearch', 'admin_meilisearch_routes'),
         ],
+        'flash_sale_routes': [
+            ('app.routes.flash_sale.flash_sale_routes', 'flash_sale_routes'),
+            ('routes.flash_sale.flash_sale_routes', 'flash_sale_routes'),
+            ('app.routes.flash_sale.flash_sale_routes', 'flash_sale_bp'),
+            ('routes.flash_sale.flash_sale_routes', 'flash_sale_bp'),
+            ('backend.app.routes.flash_sale.flash_sale_routes', 'flash_sale_routes'),
+            ('backend.routes.flash_sale.flash_sale_routes', 'flash_sale_routes'),
+        ],
     }
     
     # Import blueprints with clean logging
@@ -985,6 +998,9 @@ def create_app(config_name=None, enable_socketio=True):
         app.register_blueprint(final_blueprints['admin_meilisearch_routes'], url_prefix='/api/admin/meilisearch')
         app.logger.info("✅ Meilisearch routes registered successfully")
 
+        app.register_blueprint(final_blueprints['flash_sale_routes'], url_prefix='/api/flash-sale')
+        app.logger.info("✅ Flash sale routes registered at /api/flash-sale")
+
         try:
             app.logger.debug("Importing Google Auth routes...")
             from app.routes.auth.google_auth import google_auth_routes
@@ -1058,6 +1074,7 @@ def create_app(config_name=None, enable_socketio=True):
                 'featured_routes': '/api/products/featured',
                 'meilisearch_routes': '/api/meilisearch',
                 'admin_meilisearch_routes': '/api/admin/meilisearch',
+                'flash_sale_routes': '/api/flash-sale',
             }
             
             for blueprint_name in final_blueprints:
@@ -1113,6 +1130,14 @@ def create_app(config_name=None, enable_socketio=True):
             app.logger.info("Admin Meilisearch: /api/admin/meilisearch")
             app.logger.info(f"Meilisearch Routes: {'✅' if 'meilisearch_routes' in imported_blueprints else '⚠️'}")
             app.logger.info(f"Admin Meilisearch Routes: {'✅' if 'admin_meilisearch_routes' in imported_blueprints else '⚠️'}")
+            
+            app.logger.info("⚡ FLASH SALE SYSTEM ENDPOINTS")
+            app.logger.info("-" * 30)
+            app.logger.info("Flash Sale Products: /api/flash-sale/products")
+            app.logger.info("Flash Sale Event: /api/flash-sale/event")
+            app.logger.info("Flash Sale Stock: /api/flash-sale/stock/<id>")
+            app.logger.info("Flash Sale Debug: /api/flash-sale/debug")
+            app.logger.info(f"Flash Sale System: {'✅' if 'flash_sale_routes' in imported_blueprints else '⚠️'}")
             
             # Product System Endpoints
             app.logger.info("🛍️ PRODUCT SYSTEM ENDPOINTS")
@@ -1413,6 +1438,14 @@ def create_app(config_name=None, enable_socketio=True):
                     except ImportError:
                         app.logger.warning("Meilisearch tables initialization skipped - module not found")
 
+                    # Initialize flash sale tables
+                    try:
+                        from .routes.flash_sale.flash_sale_routes import init_flash_sale_tables
+                        init_flash_sale_tables()
+                        app.logger.info("Flash sale tables initialized successfully")
+                    except ImportError:
+                        app.logger.warning("Flash sale tables initialization skipped - module not found")
+
                     app.logger.info("Database tables created successfully")
                 except Exception as e:
                     app.logger.error(f"Error creating database tables or initializing admin tables: {str(e)}")
@@ -1554,6 +1587,10 @@ def create_app(config_name=None, enable_socketio=True):
             },
             "featured_system": {
                 "routes": "active" if 'featured_routes' in imported_blueprints else "inactive"
+            },
+            # Add flash sale system to health check
+            "flash_sale_system": {
+                "routes": "active" if 'flash_sale_routes' in imported_blueprints else "inactive"
             },
             "security_features": {
                 "token_blacklisting": True,
