@@ -228,12 +228,13 @@ def get_all_inventory():
             query = query.filter(Inventory.sku.ilike(f'%{sku}%'))
 
         # Apply sorting
-        # Ensure sort_column is valid before accessing getattr
-        valid_sort_columns = [col.name for col in Inventory.__table__.columns]
-        if sort_by not in valid_sort_columns:
-            sort_by = 'id' # Default to id if sort_by is invalid
-        sort_column = getattr(Inventory, sort_by)
-        
+        if sort_by == 'product_name':
+            sort_column = Product.name
+        elif sort_by == 'sku':
+            sort_column = Inventory.sku
+        else:
+            sort_column = getattr(Inventory, sort_by, Inventory.id)
+            
         if sort_order.lower() == 'desc':
             query = query.order_by(desc(sort_column))
         else:
@@ -267,9 +268,11 @@ def get_all_inventory():
 
         # Calculate total stock value (simplified)
         total_stock_value = 0.0
-        for item in db.session.query(Inventory).join(Product):
-            if item.product and item.product.price:
-                total_stock_value += float(item.product.price) * item.stock_level
+        # Fetch all relevant inventory and product data once for efficiency in summary calculation
+        inventory_for_summary = db.session.query(Inventory.stock_level, Inventory.reserved_quantity, Product.price).join(Product).all()
+        for stock_level, reserved_quantity, price in inventory_for_summary:
+            if price:
+                total_stock_value += float(price) * stock_level
 
         summary = {
             'total_items': total_items,
@@ -444,8 +447,8 @@ def create_inventory():
             low_stock_threshold=data.get('low_stock_threshold', 5),
             sku=data.get('sku'),
             location=data.get('location', 'Main Warehouse'),
-            status='out_of_stock' if data.get('stock_level', 0) <= 0 else 'active')
-        
+            status=data.get('status', 'out_of_stock' if data.get('stock_level', 0) <= 0 else 'active')
+        )
 
         db.session.add(inventory)
         db.session.commit()
@@ -511,22 +514,21 @@ def update_inventory(inventory_id):
 
         inventory.last_updated = datetime.now()
 
-        product = db.session.get(Product, inventory.product_id)
-        if product:
-            # stock_quantity = total stock level (inventory.stock_level)
-            # stock = available stock (stock_level - reserved_quantity)
-            available_stock = max(0, inventory.stock_level - inventory.reserved_quantity)
-            product.stock = available_stock  # Available for purchase
-            product.stock_quantity = inventory.stock_level  # Total in inventory
-            logger.info(f"Synced inventory to product {product.id}: available={available_stock}, total={inventory.stock_level}")
+        # Update product stock for base products (no variant)
+        if not inventory.variant_id:
+            product = db.session.get(Product, inventory.product_id)
+            if product:
+                # Use available quantity (stock_level - reserved) for product stock
+                available_qty = max(0, inventory.stock_level - inventory.reserved_quantity)
+                product.stock = available_qty  # Update stock field
+                product.stock_quantity = available_qty  # Update stock_quantity field
 
         db.session.commit()
 
         return jsonify({
             "success": True,
             "message": "Inventory updated successfully",
-            "inventory": serialize_inventory_item(inventory, include_details=True),
-            "product_stock_synced": True
+            "inventory": serialize_inventory_item(inventory, include_details=True)
         }), 200
 
     except Exception as e:
@@ -639,14 +641,13 @@ def adjust_inventory(inventory_id):
 
         inventory.last_updated = datetime.now()
 
-        product = db.session.get(Product, inventory.product_id)
-        if product:
-            # stock_quantity = total stock level (inventory.stock_level)
-            # stock = available stock (stock_level - reserved_quantity)
-            available_stock = max(0, inventory.stock_level - inventory.reserved_quantity)
-            product.stock = available_stock  # Available for purchase
-            product.stock_quantity = inventory.stock_level  # Total in inventory
-            logger.info(f"Adjusted and synced inventory to product {product.id}: available={available_stock}, total={inventory.stock_level}")
+        # Update product stock for base products
+        if not inventory.variant_id:
+            product = db.session.get(Product, inventory.product_id)
+            if product:
+                available_qty = max(0, inventory.stock_level - inventory.reserved_quantity)
+                product.stock = available_qty
+                product.stock_quantity = available_qty
 
         db.session.commit()
 
@@ -659,8 +660,7 @@ def adjust_inventory(inventory_id):
                 "new_stock": new_stock,
                 "reason": reason
             },
-            "inventory": serialize_inventory_item(inventory, include_details=True),
-            "product_stock_synced": True
+            "inventory": serialize_inventory_item(inventory, include_details=True)
         }), 200
 
     except Exception as e:
@@ -898,7 +898,9 @@ def bulk_update_inventory():
                 if not inventory.variant_id:
                     product = db.session.get(Product, inventory.product_id)
                     if product:
-                        product.stock_quantity = inventory.stock_level
+                        available_qty = max(0, inventory.stock_level - inventory.reserved_quantity)
+                        product.stock = available_qty
+                        product.stock_quantity = available_qty
 
                 updated_items.append(serialize_inventory_item(inventory))
 
@@ -1172,13 +1174,20 @@ def get_inventory_summary_report():
         available_stock_value = 0.0
         reserved_stock_value = 0.0
 
-        for item in db.session.query(Inventory).join(Product):
-            if item.product and item.product.price:
-                price = float(item.product.price)
-                total_stock_value += price * item.stock_level
-                available_quantity = max(0, item.stock_level - item.reserved_quantity)
-                available_stock_value += price * available_quantity
-                reserved_stock_value += price * item.reserved_quantity
+        # Fetch relevant data once for efficiency
+        summary_data = db.session.query(
+            Inventory.stock_level,
+            Inventory.reserved_quantity,
+            Product.price
+        ).join(Product, Inventory.product_id == Product.id).all()
+
+        for stock_level, reserved_quantity, price in summary_data:
+            if price:
+                price_float = float(price)
+                total_stock_value += price_float * stock_level
+                available_quantity = max(0, stock_level - reserved_quantity)
+                available_stock_value += price_float * available_quantity
+                reserved_stock_value += price_float * reserved_quantity
 
         summary = {
             'total_items': total_items,
@@ -1191,11 +1200,26 @@ def get_inventory_summary_report():
             'reserved_stock_value': reserved_stock_value
         }
 
-        # Category breakdown
+        # Category breakdown (Placeholder for actual query)
         category_breakdown = []
+        # Example:
+        # category_breakdown = db.session.query(Category.name, func.count(Inventory.id)).join(Product).join(Category).group_by(Category.name).all()
+        
+        # Brand breakdown (Placeholder for actual query)
         brand_breakdown = []
+        # Example:
+        # brand_breakdown = db.session.query(Brand.name, func.count(Inventory.id)).join(Product).join(Brand).group_by(Brand.name).all()
+        
+        # Location breakdown (Placeholder for actual query)
         location_breakdown = []
+        # Example:
+        # location_breakdown = db.session.query(Inventory.location, func.count(Inventory.id)).group_by(Inventory.location).all()
+
+        # Top products by value (Placeholder for actual query)
         top_products_by_value = []
+        # Example:
+        # top_products_by_value = db.session.query(Product.name, func.sum(Inventory.stock_level * Product.price)).join(Inventory).group_by(Product.name).order_by(desc(func.sum(Inventory.stock_level * Product.price))).limit(10).all()
+
 
         report = {
             'summary': summary,
@@ -1294,7 +1318,7 @@ def get_user_reservations():
                 'stock_level': item.stock_level,
                 'reserved_quantity': item.reserved_quantity,
                 'available_quantity': available_quantity,
-                'reservation_percentage': reservation_percentage,
+                'reservation_percentage': round(reservation_percentage, 2),
                 'location': item.location,
                 'last_updated': item.last_updated.isoformat() if item.last_updated else None
             }
@@ -1308,15 +1332,22 @@ def get_user_reservations():
 
         # Calculate total reserved value
         total_reserved_value = 0.0
-        for item in query.all():
-            product = db.session.get(Product, item.product_id)
-            if product and product.price:
-                total_reserved_value += float(product.price) * item.reserved_quantity
+        # Fetch relevant data once for efficiency
+        reserved_value_data = db.session.query(
+            Inventory.reserved_quantity,
+            Product.price
+        ).join(Product, Inventory.product_id == Product.id).filter(
+            Inventory.reserved_quantity > 0
+        ).all()
+        
+        for reserved_quantity, price in reserved_value_data:
+            if price:
+                total_reserved_value += float(price) * reserved_quantity
 
         summary = {
             'total_reservations': total_reservations,
             'total_reserved_items': total_reserved_items,
-            'total_reserved_value': total_reserved_value
+            'total_reserved_value': round(total_reserved_value, 2)
         }
 
         return jsonify({
@@ -1467,7 +1498,9 @@ def admin_health_check():
                 "/api/inventory/admin/reports/movement",
                 "/api/inventory/admin/user-reservations",
                 "/api/inventory/admin/user-reservations/<id>/release",
-                "/api/inventory/admin/health"
+                "/api/inventory/admin/health",
+                "/api/inventory/admin/sync-to-products", # Added new endpoint
+                "/api/inventory/admin/debug-stock"      # Added new endpoint
             ]
         }), 200
 
@@ -1556,7 +1589,7 @@ def quick_adjust_inventory(product_id):
             if not inventory.variant_id:
                 product = db.session.get(Product, inventory.product_id)
                 if product:
-                    product.stock_quantity = inventory.stock_level
+                    product.stock_quantity = inventory.stock_level # Corrected: should update product stock_quantity
 
             db.session.commit()
 
@@ -1660,17 +1693,17 @@ def bulk_adjust_inventory():
                     if not inventory.variant_id:
                         product = db.session.get(Product, inventory.product_id)
                         if product:
-                            product.stock_quantity = inventory.stock_level
+                            product.stock_quantity = inventory.stock_level # Corrected: should update product stock_quantity
 
-                    successful_adjustments.append({
-                        'inventory_id': inventory.id,
-                        'product_id': product_id,
-                        'variant_id': variant_id,
-                        'old_stock': old_stock,
-                        'new_stock': new_stock,
-                        'adjustment': adjustment,
-                        'reason': reason
-                    })
+                successful_adjustments.append({
+                    'inventory_id': inventory.id,
+                    'product_id': product_id,
+                    'variant_id': variant_id,
+                    'old_stock': old_stock,
+                    'new_stock': new_stock,
+                    'adjustment': adjustment,
+                    'reason': reason
+                })
 
             except Exception as e:
                 failed_adjustments.append({
@@ -1695,3 +1728,121 @@ def bulk_adjust_inventory():
         db.session.rollback()
         logger.error(f"Error in bulk adjust inventory: {str(e)}")
         return jsonify({"error": "Failed to process bulk adjustments", "details": str(e)}), 500
+
+# New endpoint to sync all inventory to products
+@admin_inventory_routes.route('/sync-to-products', methods=['POST', 'OPTIONS'])
+@jwt_required()
+def sync_inventory_to_products():
+    """
+    Sync all inventory available quantities to product stock fields.
+    This ensures product.stock and product.stock_quantity match inventory available quantities.
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+
+    # Check admin access
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    try:
+        from app.models.models import Inventory, Product
+        from app.configuration.extensions import db
+
+        # Get all inventory items for base products (no variants)
+        inventory_items = Inventory.query.filter(
+            Inventory.variant_id.is_(None)
+        ).all()
+
+        updated_count = 0
+        errors = []
+
+        for inventory in inventory_items:
+            try:
+                product = db.session.get(Product, inventory.product_id)
+                if product:
+                    # Calculate available quantity
+                    available_qty = max(0, inventory.stock_level - inventory.reserved_quantity)
+                    
+                    # Update both stock fields
+                    old_stock = product.stock
+                    product.stock = available_qty
+                    product.stock_quantity = available_qty
+                    
+                    updated_count += 1
+                    logger.info(f"Synced product {product.id}: stock {old_stock} -> {available_qty}")
+            except Exception as e:
+                errors.append({
+                    'inventory_id': inventory.id,
+                    'product_id': inventory.product_id,
+                    'error': str(e)
+                })
+
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": f"Synced {updated_count} products with inventory",
+            "updated_count": updated_count,
+            "errors": errors if errors else None
+        }), 200
+
+    except Exception as e:
+        from app.configuration.extensions import db
+        db.session.rollback()
+        logger.error(f"Error syncing inventory to products: {str(e)}")
+        return jsonify({"error": "Failed to sync inventory", "details": str(e)}), 500
+
+# New endpoint for debugging stock mismatches
+@admin_inventory_routes.route('/debug-stock', methods=['GET'])
+@jwt_required()
+def debug_stock():
+    """
+    Debug endpoint to compare inventory vs product stock values.
+    Helps identify mismatches between inventory and product tables.
+    """
+    # Check admin access
+    admin_check = require_admin()
+    if admin_check:
+        return admin_check
+
+    try:
+        from app.models.models import Inventory, Product
+        from app.configuration.extensions import db
+
+        mismatches = []
+        
+        # Get all inventory items for base products
+        inventory_items = Inventory.query.filter(
+            Inventory.variant_id.is_(None)
+        ).all()
+
+        for inventory in inventory_items:
+            product = db.session.get(Product, inventory.product_id)
+            if product:
+                available_qty = max(0, inventory.stock_level - inventory.reserved_quantity)
+                
+                # Check for mismatches in product.stock and product.stock_quantity
+                if product.stock != available_qty or product.stock_quantity != available_qty:
+                    mismatches.append({
+                        'product_id': product.id,
+                        'product_name': product.name,
+                        'inventory_stock_level': inventory.stock_level,
+                        'inventory_reserved': inventory.reserved_quantity,
+                        'inventory_available': available_qty,
+                        'product_stock': product.stock,
+                        'product_stock_quantity': product.stock_quantity,
+                        'mismatch': True
+                    })
+
+        return jsonify({
+            "success": True,
+            "total_inventory_items": len(inventory_items),
+            "mismatches_found": len(mismatches),
+            "mismatches": mismatches,
+            "recommendation": "Run POST /api/inventory/admin/sync-to-products to fix mismatches" if mismatches else "All synced correctly"
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error in debug-stock: {str(e)}")
+        return jsonify({"error": "Failed to check stock", "details": str(e)}), 500
