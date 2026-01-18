@@ -163,43 +163,63 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
         })
 
         if (data.items && Array.isArray(data.items) && data.items.length > 0) {
-          const productsWithImages = await Promise.all(
-            data.items.map(async (p: Product) => {
-              const product = normalizeProductPrices(p)
+          // Map products without waiting for images - images will load separately
+          const products = data.items.map((p: Product) => {
+            const product = normalizeProductPrices(p)
 
-              // Fetch product images if they're not already included
-              if (!product.image_urls || product.image_urls.length === 0) {
-                try {
-                  const images = await productService.getProductImages(product.id.toString())
-                  if (images && images.length > 0) {
-                    product.image_urls = images.map((img) => img.url)
-                    const primaryImage = images.find((img) => img.is_primary)
-                    if (primaryImage) {
-                      product.thumbnail_url = primaryImage.url
-                    } else if (images[0]) {
-                      product.thumbnail_url = images[0].url
+            return {
+              ...product,
+              items_left: (p as any).items_left,
+              flash_sale_stock: (p as any).flash_sale_stock,
+              flash_sale_sold: (p as any).flash_sale_sold,
+              progress_percentage: (p as any).progress_percentage,
+              is_almost_gone: (p as any).is_almost_gone,
+              is_sold_out: (p as any).is_sold_out,
+              seller: (p as any).seller || defaultSeller,
+              product_type: "flash_sale" as const,
+            }
+          })
+
+          // Fetch images in background without blocking (non-blocking with timeout)
+          if (products.length > 0) {
+            Promise.all(
+              products
+                .filter((p: FlashSaleProduct) => !p.image_urls || p.image_urls.length === 0)
+                .slice(0, 5) // Only fetch images for first 5 products to avoid overload
+                .map(async (product: FlashSaleProduct) => {
+                  try {
+                    // Use a timeout wrapper to prevent hanging
+                    const controller = new AbortController()
+                    const timeoutId = setTimeout(() => controller.abort(), 1000) // 1 second timeout
+
+                    const images = await Promise.race([
+                      productService.getProductImages(product.id.toString()),
+                      new Promise<any[]>((_, reject) =>
+                        setTimeout(() => reject(new Error("Image fetch timeout")), 1000),
+                      ),
+                    ])
+
+                    clearTimeout(timeoutId)
+
+                    if (images && images.length > 0) {
+                      product.image_urls = images.map((img) => img.url)
+                      const primaryImage = images.find((img) => img.is_primary)
+                      if (primaryImage) {
+                        product.thumbnail_url = primaryImage.url
+                      } else if (images[0]) {
+                        product.thumbnail_url = images[0].url
+                      }
                     }
+                  } catch (error) {
+                    // Silently fail - products will display with placeholder images
                   }
-                } catch (error) {
-                  console.error(`Error fetching images for product ${product.id}:`, error)
-                }
-              }
+                }),
+            ).catch(() => {
+              // Silently handle errors
+            })
+          }
 
-              return {
-                ...product,
-                items_left: (p as any).items_left,
-                flash_sale_stock: (p as any).flash_sale_stock,
-                flash_sale_sold: (p as any).flash_sale_sold,
-                progress_percentage: (p as any).progress_percentage,
-                is_almost_gone: (p as any).is_almost_gone,
-                is_sold_out: (p as any).is_sold_out,
-                seller: (p as any).seller || defaultSeller,
-                product_type: "flash_sale" as const,
-              }
-            }),
-          )
-
-          return productsWithImages
+          return products
         }
       }
     } catch (err) {
@@ -229,38 +249,68 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
         console.log("[v0] getFlashSaleProducts: Featured endpoint returned", products.length, "products")
 
         if (products.length > 0) {
-          const productsWithImages = await Promise.all(
-            products.map(async (p: Product) => {
-              const product = normalizeProductPrices(p)
+          // Map products without waiting for images - images will load separately
+          const mappedProducts = products.map((p: Product) => {
+            const product = normalizeProductPrices(p)
 
-              // Fetch product images if they're not already included
-              if (!product.image_urls || product.image_urls.length === 0) {
-                try {
-                  const images = await productService.getProductImages(product.id.toString())
-                  if (images && images.length > 0) {
-                    product.image_urls = images.map((img) => img.url)
-                    const primaryImage = images.find((img) => img.is_primary)
-                    if (primaryImage) {
-                      product.thumbnail_url = primaryImage.url
-                    } else if (images[0]) {
-                      product.thumbnail_url = images[0].url
+            return {
+              ...product,
+              items_left: (p as any).items_left,
+              flash_sale_stock: (p as any).flash_sale_stock,
+              flash_sale_sold: (p as any).flash_sale_sold,
+              progress_percentage: (p as any).progress_percentage,
+              is_almost_gone: (p as any).is_almost_gone,
+              is_sold_out: (p as any).is_sold_out,
+              seller: (p as any).seller || defaultSeller,
+              product_type: "flash_sale" as const,
+            }
+          })
+
+          // Fetch images in background without blocking (non-blocking with timeout)
+          if (mappedProducts.length > 0) {
+            const productsWithImages = await Promise.all(
+              mappedProducts
+                .filter((p: FlashSaleProduct) => !p.image_urls || p.image_urls.length === 0)
+                .slice(0, 5) // Only fetch images for first 5 products to avoid overload
+                .map(async (product: FlashSaleProduct) => {
+                  try {
+                    // Use a timeout wrapper to prevent hanging
+                    const controller = new AbortController()
+                    const timeoutId = setTimeout(() => controller.abort(), 1000) // 1 second timeout
+
+                    const images = await Promise.race([
+                      productService.getProductImages(product.id.toString()),
+                      new Promise<any[]>((_, reject) =>
+                        setTimeout(() => reject(new Error("Image fetch timeout")), 1000),
+                      ),
+                    ])
+
+                    clearTimeout(timeoutId)
+
+                    if (images && images.length > 0) {
+                      product.image_urls = images.map((img) => img.url)
+                      const primaryImage = images.find((img) => img.is_primary)
+                      if (primaryImage) {
+                        product.thumbnail_url = primaryImage.url
+                      } else if (images[0]) {
+                        product.thumbnail_url = images[0].url
+                      }
                     }
+                  } catch (error) {
+                    console.error(`Error fetching images for product ${product.id}:`, error)
                   }
-                } catch (error) {
-                  console.error(`Error fetching images for product ${product.id}:`, error)
-                }
-              }
 
-              const enhanced = enhanceWithFlashSaleData(product)
-              return {
-                ...enhanced,
-                seller: product.seller || defaultSeller,
-                product_type: "flash_sale" as const,
-              }
-            }),
-          )
+                  const enhanced = enhanceWithFlashSaleData(product)
+                  return {
+                    ...enhanced,
+                    seller: product.seller || defaultSeller,
+                    product_type: "flash_sale" as const,
+                  }
+                }),
+            )
 
-          return productsWithImages
+            return productsWithImages
+          }
         }
       }
     } catch (err) {
@@ -311,28 +361,11 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
       return true
     })
 
-    const enhancedProducts = await Promise.all(
-      flashSaleProducts.map(async (product) => {
+    // Map products without waiting for images - images will load separately
+    const enhancedProducts = flashSaleProducts
+      .slice(0, limit)
+      .map((product: Product) => {
         const p = normalizeProductPrices(product)
-
-        // Fetch product images if they're not already included
-        if (!p.image_urls || p.image_urls.length === 0) {
-          try {
-            const images = await productService.getProductImages(p.id.toString())
-            if (images && images.length > 0) {
-              p.image_urls = images.map((img) => img.url)
-              const primaryImage = images.find((img) => img.is_primary)
-              if (primaryImage) {
-                p.thumbnail_url = primaryImage.url
-              } else if (images[0]) {
-                p.thumbnail_url = images[0].url
-              }
-            }
-          } catch (error) {
-            console.error(`Error fetching images for product ${p.id}:`, error)
-          }
-        }
-
         const enhanced = enhanceWithFlashSaleData(p)
 
         return {
@@ -340,8 +373,46 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
           seller: p.seller || defaultSeller,
           product_type: "flash_sale" as const,
         }
-      }),
-    )
+      })
+
+    // Fetch images in background without blocking (non-blocking with timeout)
+    if (enhancedProducts.length > 0) {
+      Promise.all(
+        enhancedProducts
+          .filter((p: FlashSaleProduct) => !p.image_urls || p.image_urls.length === 0)
+          .slice(0, 5) // Only fetch images for first 5 products to avoid overload
+          .map(async (product: FlashSaleProduct) => {
+            try {
+              // Use a timeout wrapper to prevent hanging
+              const controller = new AbortController()
+              const timeoutId = setTimeout(() => controller.abort(), 1000) // 1 second timeout
+
+              const images = await Promise.race([
+                productService.getProductImages(product.id.toString()),
+                new Promise<any[]>((_, reject) =>
+                  setTimeout(() => reject(new Error("Image fetch timeout")), 1000),
+                ),
+              ])
+
+              clearTimeout(timeoutId)
+
+              if (images && images.length > 0) {
+                product.image_urls = images.map((img) => img.url)
+                const primaryImage = images.find((img) => img.is_primary)
+                if (primaryImage) {
+                  product.thumbnail_url = primaryImage.url
+                } else if (images[0]) {
+                  product.thumbnail_url = images[0].url
+                }
+              }
+            } catch (error) {
+              // Silently fail - products will display with placeholder images
+            }
+          }),
+      ).catch(() => {
+        // Silently handle errors
+      })
+    }
 
     console.log("[v0] getFlashSaleProducts: Returning", enhancedProducts.length, "enhanced products")
     return enhancedProducts
