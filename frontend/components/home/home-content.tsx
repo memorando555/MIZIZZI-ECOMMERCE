@@ -13,8 +13,6 @@ import { TrendingNow } from "@/components/features/trending-now"
 import { DailyFinds } from "@/components/features/daily-finds"
 import { ProductGrid } from "@/components/products/product-grid"
 import { BrandShowcase } from "@/components/features/brand-showcase"
-import { usePullToRefresh } from "@/hooks/use-pull-to-refresh"
-import { PullToRefreshIndicator } from "@/components/shared/pull-to-refresh-indicator"
 import type { Product } from "@/types"
 import type { Category } from "@/lib/server/get-categories"
 import type {
@@ -58,21 +56,9 @@ export function HomeContent({
   featureCards = [],
   productShowcase = [],
 }: HomeContentProps) {
-  const { containerRef, isPulling, pullDistance, isRefreshing, threshold, isReady } = usePullToRefresh()
-
   return (
     <>
-      <PullToRefreshIndicator 
-        pullDistance={pullDistance} 
-        isRefreshing={isRefreshing} 
-        threshold={threshold}
-        isReady={isReady}
-      />
-      <div 
-        ref={containerRef}
-        className="page-root flex flex-col pb-8 w-full" 
-        style={{ backgroundColor: "var(--color-background)" }}
-      >
+      <div className="page-root flex flex-col pb-8 w-full" style={{ backgroundColor: "var(--color-background)" }}>
         <NetworkStatus className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 pt-2" />
 
         <div className="w-full mt-2 sm:mt-3 sm:py-2" style={{ backgroundColor: "var(--color-background)" }}>
