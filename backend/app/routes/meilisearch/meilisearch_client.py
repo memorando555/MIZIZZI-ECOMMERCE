@@ -174,7 +174,7 @@ class MeilisearchClient:
                 'stock'
             ])
             
-            # Configure ranking rules
+            # Configure ranking rules (optimized for fuzzy matching like Jumia)
             index.update_ranking_rules([
                 'words',
                 'typo',
@@ -184,7 +184,18 @@ class MeilisearchClient:
                 'exactness'
             ])
             
-            logger.info("Products index configured successfully")
+            # Configure typo tolerance for fuzzy search (Jumia-style)
+            index.update_typo_tolerance({
+                'enabled': True,
+                'minWordSizeForTypos': {
+                    'oneTypo': 3,  # Allow 1 typo for words 3+ chars (was 5)
+                    'twoTypos': 6  # Allow 2 typos for words 6+ chars (was 8)
+                },
+                'disableOnWords': [],
+                'disableOnAttributes': []
+            })
+            
+            logger.info("Products index configured successfully with fuzzy search")
             return True
             
         except Exception as e:
@@ -382,7 +393,12 @@ class MeilisearchClient:
                     'category_id', 'category_name', 'brand_id', 'brand_name',
                     'slug', 'sku', 'stock', 'is_featured', 'is_new', 'is_sale',
                     'is_flash_sale', 'is_luxury_deal'
-                ]
+                ],
+                'matchingStrategy': 'last',  # More flexible matching for fuzzy search
+                'showMatchesPosition': True,  # Show where matches occur
+                'attributesToHighlight': ['name', 'description'],  # Highlight matches
+                'highlightPreTag': '<mark>',
+                'highlightPostTag': '</mark>'
             }
             
             if filters:

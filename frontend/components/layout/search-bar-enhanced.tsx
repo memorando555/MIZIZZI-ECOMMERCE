@@ -197,7 +197,7 @@ export function EnhancedSearchBar({
 
   const searchHook = useSearch({
     initialQuery: query,
-    delay: 200,
+    delay: 150,
     onSearch: (searchQuery) => {
       if (onSearch) {
         onSearch(searchQuery)
@@ -353,20 +353,8 @@ export function EnhancedSearchBar({
               onMouseDown={(e) => e.preventDefault()}
             >
               <div className="max-h-[70vh] overflow-y-auto">
-                {isLoading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center justify-center gap-3 py-8"
-                  >
-                    <AppleSpinner />
-                    <span className="text-sm text-gray-500 font-medium">Searching...</span>
-                  </motion.div>
-                )}
-
                 {/* Error state */}
-                {error && !isLoading && (
+                {error && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -377,7 +365,7 @@ export function EnhancedSearchBar({
                 )}
 
                 {/* Search suggestions */}
-                {!isLoading && !error && searchSuggestions.length > 0 && (
+                {!error && searchSuggestions.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -397,7 +385,7 @@ export function EnhancedSearchBar({
                 )}
 
                 {/* Product results */}
-                {!isLoading && !error && results.length > 0 && (
+                {!error && results.length > 0 && (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -427,11 +415,7 @@ export function EnhancedSearchBar({
                 )}
 
                 {/* No results */}
-                {!isLoading &&
-                  !error &&
-                  results.length === 0 &&
-                  searchSuggestions.length === 0 &&
-                  query.length >= 2 && (
+                {!error && results.length === 0 && searchSuggestions.length === 0 && query.length >= 2 && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}

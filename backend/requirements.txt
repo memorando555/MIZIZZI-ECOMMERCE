@@ -265,3 +265,21 @@ yarl
 orjson
 Flask-Compress
 upstash-redis
+meilisearch-python
+flask-dropzone
+Flask-Admin
+Flask-Uploads
+Flask-SEO
+Flask-Dance
+Flask-FlatPages
+Flask-Principal
+Flask-User
+Flask-CKEditor
+Flask-Celery-Helper
+Flask-SSLify
+meilisearch-flask
+meilisearch
+
+flask-meilisearch
+
+# End of file backend/requirements.txt

@@ -169,16 +169,20 @@ def setup_products_index(client):
     client.wait_for_task(task.task_uid)
     print(f"Configured ranking rules: {ranking_rules}")
     
-    # Configure typo tolerance
+    # Configure typo tolerance for Jumia-style fuzzy search
     task = index.update_typo_tolerance({
         'enabled': True,
         'minWordSizeForTypos': {
-            'oneTypo': 4,
-            'twoTypos': 8
-        }
+            'oneTypo': 3,  # Allow 1 typo for 3+ char words (more lenient)
+            'twoTypos': 6  # Allow 2 typos for 6+ char words
+        },
+        'disableOnWords': [],
+        'disableOnAttributes': []
     })
     client.wait_for_task(task.task_uid)
-    print("Enabled typo tolerance")
+    print("Enabled fuzzy search with typo tolerance (Jumia-style)")
+    
+    print("Products index setup complete!")
     
     return index
 
