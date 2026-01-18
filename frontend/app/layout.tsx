@@ -40,6 +40,13 @@ export default async function RootLayout({
 }>) {
   const footerSettings = await getFooterSettings()
 
+  // Call the async LayoutRenderer function and await its result before returning JSX.
+  // Cast to any-compatible signature to allow passing additional props without TS errors.
+  const layoutRenderer = await (LayoutRenderer as unknown as (props: any) => Promise<React.ReactNode>)({
+    footerSettings,
+    children,
+  })
+
   return (
     <html lang="en" suppressHydrationWarning className="fixed inset-0 overflow-hidden">
       <head>
@@ -77,7 +84,7 @@ export default async function RootLayout({
                 {/* Add the VerificationHandler to handle auth state persistence */}
                 <VerificationHandler />
                 <div className="h-full w-full overflow-y-auto overflow-x-hidden overscroll-none">
-                  <LayoutRenderer footerSettings={footerSettings}>{children}</LayoutRenderer>
+                  {layoutRenderer}
                 </div>
                 {/* Add the cart notification component */}
               </NotificationProvider>
