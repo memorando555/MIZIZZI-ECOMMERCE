@@ -21,8 +21,8 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
-import { categoryService, type Category } from "@/services/category"
+import { useState, useMemo } from "react"
+import type { CategoryWithSubcategories } from "@/lib/server/get-categories"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -39,38 +39,16 @@ const supportLinks = [
   { name: "Sign Out", href: "/signout", icon: LogOut },
 ]
 
-export function MobileNav() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+interface MobileNavProps {
+  categories?: CategoryWithSubcategories[]
+  loading?: boolean
+}
+
+export function MobileNav({ categories: serverCategories = [], loading = false }: MobileNavProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set())
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setLoading(true)
-        const fetchedCategories = await categoryService.getCategories()
-        const topLevelCategories = fetchedCategories.filter((cat) => !cat.parent_id)
-
-        const categoriesWithSubcategories = await Promise.all(
-          topLevelCategories.map(async (category) => {
-            if (category.id) {
-              const subcategories = await categoryService.getSubcategories(category.id)
-              return { ...category, subcategories }
-            }
-            return category
-          }),
-        )
-
-        setCategories(categoriesWithSubcategories)
-      } catch (error) {
-        console.error("Failed to fetch categories:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchCategories()
-  }, [])
+  // Use server categories directly - no loading state needed
+  const categories = useMemo(() => serverCategories, [serverCategories])
 
   const toggleCategory = (categoryId: number) => {
     setExpandedCategories((prev) => {
@@ -84,11 +62,40 @@ export function MobileNav() {
     })
   }
 
+  // Simple fade-in animation for initial load
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { duration: 0.2, staggerChildren: 0.02 },
+    },
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.15 } },
+  }
+
+  // Smooth expand animation for subcategories
+  const expandVariants = {
+    hidden: { height: 0, opacity: 0 },
+    visible: {
+      height: "auto",
+      opacity: 1,
+      transition: { duration: 0.2 },
+    },
+    exit: {
+      height: 0,
+      opacity: 0,
+      transition: { duration: 0.15 },
+    },
+  }
+
   return (
-    <div className="flex h-full flex-col bg-white">
+    <motion.div className="flex h-full flex-col bg-white" variants={containerVariants} initial="hidden" animate="visible">
       <SheetHeader className="border-b px-6 py-4">
         <SheetTitle>
-          <div className="flex items-center gap-2">
+          <motion.div className="flex items-center gap-2" variants={itemVariants}>
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -97,7 +104,7 @@ export function MobileNav() {
               <Link href="/" className="block h-full w-full">
                 <div className="h-full w-full rounded-lg bg-white p-2">
                   <Image
-                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
+                    src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
                     alt="MIZIZZI"
                     width={48}
                     height={48}
@@ -108,7 +115,7 @@ export function MobileNav() {
               </Link>
             </motion.div>
             <span className="text-lg font-bold">MIZIZZI</span>
-          </div>
+          </motion.div>
         </SheetTitle>
         <SheetDescription>Browse categories and manage your account</SheetDescription>
       </SheetHeader>
@@ -116,26 +123,26 @@ export function MobileNav() {
       <ScrollArea className="flex-1">
         <div className="space-y-6 p-6">
           {/* Quick Links */}
-          <div className="grid grid-cols-2 gap-4">
-            <Link href="/account" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50">
+          <motion.div className="grid grid-cols-2 gap-4" variants={itemVariants}>
+            <Link href="/account" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50 transition-colors">
               <User className="h-5 w-5 text-cherry-600" />
               <div className="text-sm font-medium">Account</div>
             </Link>
-            <Link href="/orders" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50">
+            <Link href="/orders" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50 transition-colors">
               <Clock className="h-5 w-5 text-cherry-600" />
               <div className="text-sm font-medium">Orders</div>
             </Link>
-            <Link href="/payments" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50">
+            <Link href="/payments" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50 transition-colors">
               <CreditCard className="h-5 w-5 text-cherry-600" />
               <div className="text-sm font-medium">Payments</div>
             </Link>
-            <Link href="/reviews" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50">
+            <Link href="/reviews" className="flex items-center gap-2 rounded-lg border p-4 hover:bg-muted/50 transition-colors">
               <Star className="h-5 w-5 text-cherry-600" />
               <div className="text-sm font-medium">Reviews</div>
             </Link>
-          </div>
+          </motion.div>
 
-          <div className="mb-4">
+          <motion.div className="mb-4" variants={itemVariants}>
             <Link
               href="/categories"
               className="flex items-center justify-between w-full p-3 rounded-lg bg-cherry-50 hover:bg-cherry-100 transition-colors"
@@ -143,34 +150,34 @@ export function MobileNav() {
               <span className="text-sm font-semibold text-cherry-800">Browse All Categories</span>
               <ChevronRight className="h-4 w-4 text-cherry-600" />
             </Link>
-          </div>
+          </motion.div>
 
           {/* Categories */}
-          <div>
+          <motion.div variants={itemVariants}>
             <h3 className="mb-3 text-sm font-semibold">Shop by Category</h3>
             {loading ? (
-              <div className="space-y-2">
+              <motion.div className="space-y-2" variants={containerVariants} initial="hidden" animate="visible">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-10 bg-gray-200 rounded animate-pulse" />
+                  <motion.div key={i} className="h-10 bg-gray-200 rounded animate-pulse" variants={itemVariants} />
                 ))}
-              </div>
+              </motion.div>
             ) : categories.length > 0 ? (
-              <div className="space-y-1">
+              <motion.div className="space-y-1" variants={containerVariants} initial="hidden" animate="visible">
                 {categories.slice(0, 10).map((category) => (
-                  <div key={category.id}>
+                  <motion.div key={category.id} variants={itemVariants}>
                     <Collapsible
                       open={expandedCategories.has(category.id)}
                       onOpenChange={() => toggleCategory(category.id)}
                     >
-                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors">
                         <Link
                           href={`/category/${category.slug}`}
-                          className="flex-1 text-sm font-medium hover:text-cherry-600"
+                          className="flex-1 text-sm font-medium hover:text-cherry-600 transition-colors"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               {category.image_url && (
-                                <div className="h-6 w-6 rounded overflow-hidden flex-shrink-0">
+                                <div className="h-6 w-6 rounded overflow-hidden flex-shrink-0 bg-gray-100">
                                   <img
                                     src={category.image_url || "/placeholder.svg"}
                                     alt={category.name}
@@ -180,59 +187,68 @@ export function MobileNav() {
                               )}
                               <span>{category.name}</span>
                             </div>
-                            {category.products_count && (
+                            {category.product_count && (
                               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                {category.products_count}
+                                {category.product_count}
                               </span>
                             )}
                           </div>
                         </Link>
                         {category.subcategories && category.subcategories.length > 0 && (
                           <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-2">
-                              {expandedCategories.has(category.id) ? (
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-2 transition-transform">
+                              <motion.div
+                                animate={{ rotate: expandedCategories.has(category.id) ? 180 : 0 }}
+                                transition={{ duration: 0.2 }}
+                              >
                                 <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
+                              </motion.div>
                             </Button>
                           </CollapsibleTrigger>
                         )}
                       </div>
                       {category.subcategories && category.subcategories.length > 0 && (
-                        <CollapsibleContent className="ml-4 mt-1">
-                          <div className="space-y-1 border-l-2 border-gray-100 pl-3">
-                            {category.subcategories.slice(0, 8).map((subcategory) => (
-                              <Link
-                                key={subcategory.id}
-                                href={`/category/${subcategory.slug}`}
-                                className="block text-xs text-muted-foreground hover:text-cherry-600 py-1.5 px-2 rounded hover:bg-gray-50"
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span>{subcategory.name}</span>
-                                  {subcategory.products_count && (
-                                    <span className="text-gray-400">({subcategory.products_count})</span>
-                                  )}
-                                </div>
-                              </Link>
-                            ))}
-                            {category.subcategories.length > 8 && (
-                              <Link
-                                href={`/category/${category.slug}`}
-                                className="block text-xs text-cherry-600 font-medium py-1.5 px-2 rounded hover:bg-cherry-50"
-                              >
-                                View all {category.name} →
-                              </Link>
-                            )}
-                          </div>
+                        <CollapsibleContent asChild>
+                          <motion.div
+                            variants={expandVariants}
+                            initial="hidden"
+                            animate={expandedCategories.has(category.id) ? "visible" : "hidden"}
+                            exit="exit"
+                            className="ml-4 mt-1 overflow-hidden"
+                          >
+                            <div className="space-y-1 border-l-2 border-gray-100 pl-3">
+                              {category.subcategories.slice(0, 8).map((subcategory) => (
+                                <Link
+                                  key={subcategory.id}
+                                  href={`/category/${subcategory.slug}`}
+                                  className="block text-xs text-muted-foreground hover:text-cherry-600 py-1.5 px-2 rounded hover:bg-gray-50 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span>{subcategory.name}</span>
+                                    {subcategory.product_count && (
+                                      <span className="text-gray-400">({subcategory.product_count})</span>
+                                    )}
+                                  </div>
+                                </Link>
+                              ))}
+                              {category.subcategories.length > 8 && (
+                                <Link
+                                  href={`/category/${category.slug}`}
+                                  className="block text-xs text-cherry-600 font-medium py-1.5 px-2 rounded hover:bg-cherry-50 transition-colors"
+                                >
+                                  View all {category.name} →
+                                </Link>
+                              )}
+                            </div>
+                          </motion.div>
                         </CollapsibleContent>
                       )}
                     </Collapsible>
-                  </div>
+                  </motion.div>
                 ))}
 
                 {categories.length > 10 && (
-                  <div className="pt-2 mt-3 border-t border-gray-100">
+                  <motion.div className="pt-2 mt-3 border-t border-gray-100" variants={itemVariants}>
                     <Link
                       href="/categories"
                       className="flex items-center justify-center w-full p-2 text-sm font-medium text-cherry-600 hover:text-cherry-700 hover:bg-cherry-50 rounded-lg transition-colors"
@@ -240,53 +256,55 @@ export function MobileNav() {
                       View All Categories
                       <ChevronRight className="h-4 w-4 ml-1" />
                     </Link>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             ) : (
-              <div className="text-sm text-gray-500 py-4 text-center">No categories available at the moment.</div>
+              <motion.div className="text-sm text-gray-500 py-4 text-center" variants={itemVariants}>
+                No categories available at the moment.
+              </motion.div>
             )}
-          </div>
+          </motion.div>
 
           <Separator />
 
           {/* Account Links */}
-          <div>
+          <motion.div variants={itemVariants}>
             <h3 className="mb-2 text-sm font-semibold">My Account</h3>
             <div className="space-y-2">
               {accountLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
-                  className="flex items-center gap-2 rounded-lg py-2 text-sm hover:text-cherry-600"
+                  className="flex items-center gap-2 rounded-lg py-2 text-sm hover:text-cherry-600 transition-colors"
                 >
                   <link.icon className="h-4 w-4" />
                   {link.name}
                 </Link>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           <Separator />
 
           {/* Support Links */}
-          <div>
+          <motion.div variants={itemVariants}>
             <h3 className="mb-2 text-sm font-semibold">Support</h3>
             <div className="space-y-2">
               {supportLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
-                  className="flex items-center gap-2 rounded-lg py-2 text-sm hover:text-cherry-600"
+                  className="flex items-center gap-2 rounded-lg py-2 text-sm hover:text-cherry-600 transition-colors"
                 >
                   <link.icon className="h-4 w-4" />
                   {link.name}
                 </Link>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </ScrollArea>
-    </div>
+    </motion.div>
   )
 }

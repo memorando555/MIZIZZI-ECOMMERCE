@@ -1,5 +1,6 @@
 "use client"
 import { useAuth } from "@/contexts/auth/auth-context"
+import { getCategoriesWithSubcategories } from "@/lib/server/get-categories"
 
 import { useCallback, useEffect, useState, memo } from "react"
 import Link from "next/link"
@@ -17,6 +18,7 @@ import { useRouter } from "next/navigation"
 import { CartIndicator } from "@/components/cart/cart-indicator"
 import { HelpDropdown } from "@/components/layout/help-dropdown"
 import { EnhancedSearchBar } from "@/components/layout/search-bar-enhanced"
+import type { CategoryWithSubcategories } from "@/lib/server/get-categories"
 
 // Error logging function (replace with your preferred logging service)
 const logError = (error: Error, errorInfo?: any) => {
@@ -62,7 +64,7 @@ const Logo = memo(() => (
     <Link href="/" className="block h-full w-full" aria-label="Mizizzi Store - Go to homepage">
       <div className="h-full w-full rounded-xl bg-white p-1">
         <Image
-          src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
+          src="/images/screenshot-20from-202025-02-18-2013-30-22.png"
           alt="Mizizzi Store Logo - Premium E-commerce"
           width={48}
           height={48}
@@ -90,12 +92,16 @@ const BrandName = memo(() => (
 
 BrandName.displayName = "BrandName"
 
-export function Header() {
+interface HeaderProps {
+  categories?: CategoryWithSubcategories[]
+}
+
+export function Header({ categories: serverCategories = [] }: HeaderProps) {
   const router = useRouter()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { state } = useStateContext()
-  const { user, isAuthenticated } = useAuth() // Declare useAuth hook
+  const { user, isAuthenticated } = useAuth()
 
   const shouldReduceMotion = useReducedMotion()
   const isMobile = useMediaQuery("(max-width: 640px)")
@@ -104,6 +110,9 @@ export function Header() {
   const cartCount = Array.isArray(state?.cart)
     ? state.cart.reduce((total, item) => total + (item?.quantity || 0), 0)
     : 0
+
+  // Use server-passed categories or empty array
+  const categories = serverCategories
 
   const toggleMobileMenu = useCallback(() => {
     setIsMobileMenuOpen((prev) => !prev)
@@ -138,7 +147,7 @@ export function Header() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback} onError={logError}>
-      <header className="sticky top-0 z-50 w-full bg-white border-b border-gray-200 shadow-sm transition-all duration-300">
+      <header className="sticky top-0 z-50 w-full bg-white shadow-sm border-b border-gray-200">
         <div className="container mx-auto px-3 sm:px-4 lg:px-6">
           <div className="flex items-center justify-between py-2 sm:py-3 gap-2 sm:gap-4">
             {/* Left Section - Menu & Logo */}
@@ -169,7 +178,7 @@ export function Header() {
                   className="p-0 w-[280px] sm:w-[320px]"
                   onOpenAutoFocus={(e) => e.preventDefault()}
                 >
-                  <MobileNav />
+                  <MobileNav categories={categories} />
                 </SheetContent>
               </Sheet>
 
@@ -230,6 +239,8 @@ export function Header() {
               </div>
             </div>
           </div>
+
+       
 
           {/* Mobile Search Bar (Expandable) */}
           <AnimatePresence>

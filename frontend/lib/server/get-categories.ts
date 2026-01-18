@@ -14,6 +14,10 @@ export interface Category {
   updated_at?: string
 }
 
+export interface CategoryWithSubcategories extends Category {
+  subcategories?: Category[]
+}
+
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
@@ -35,14 +39,13 @@ function normalizeImageUrl(url: string | undefined | null): string | undefined {
 export const getCategories = cache(async (limit = 20): Promise<Category[]> => {
   try {
     const response = await fetch(`${BASE_URL}/api/categories?parent_id=null&per_page=${limit}`, {
-      next: { revalidate: 300 }, // Revalidate every 5 minutes
+      next: { revalidate: 300, tags: ["categories"] },
       headers: {
         "Content-Type": "application/json",
       },
     })
 
     if (!response.ok) {
-      console.error("[getCategories] API error:", response.status)
       return []
     }
 
@@ -64,7 +67,6 @@ export const getCategories = cache(async (limit = 20): Promise<Category[]> => {
 
     return categories
   } catch (error) {
-    console.error("[getCategories] Error fetching categories:", error)
     return []
   }
 })
@@ -76,3 +78,64 @@ export const getFeaturedCategories = cache(async (limit = 12): Promise<Category[
   // Sort by product_count (most products first) and take top N
   return categories.sort((a, b) => (b.product_count || 0) - (a.product_count || 0)).slice(0, limit)
 })
+
+/**
+ * Get categories with subcategories for mobile nav
+ * Fetches in parallel with Next.js caching for instant delivery
+ */
+export const getCategoriesWithSubcategories = cache(
+  async (limit = 15): Promise<CategoryWithSubcategories[]> => {
+    try {
+      // Fetch top-level categories
+      const response = await fetch(`${BASE_URL}/api/categories?parent_id=null&per_page=${limit}`, {
+        next: { revalidate: 300, tags: ["categories"] },
+        headers: { "Content-Type": "application/json" },
+      })
+
+      if (!response.ok) return []
+
+      const data = await response.json()
+      const categories = (data?.items ?? data ?? []).filter((cat: any) => cat.is_active !== false)
+
+      if (!Array.isArray(categories) || categories.length === 0) {
+        return []
+      }
+
+      // Fetch subcategories in parallel
+      const categoriesWithSubs = await Promise.all(
+        categories.slice(0, limit).map(async (category: Category) => {
+          try {
+            const subResponse = await fetch(`${BASE_URL}/api/categories?parent_id=${category.id}&per_page=20`, {
+              next: { revalidate: 300, tags: ["categories"] },
+              headers: { "Content-Type": "application/json" },
+            })
+
+            if (subResponse.ok) {
+              const subData = await subResponse.json()
+              const subcategories = (subData?.items ?? subData ?? []).filter(
+                (cat: any) => cat.is_active !== false,
+              )
+              return {
+                ...category,
+                image_url: normalizeImageUrl(category.image_url),
+                subcategories: Array.isArray(subcategories) ? subcategories : [],
+              }
+            }
+          } catch (error) {
+            // Silently handle errors
+          }
+
+          return {
+            ...category,
+            image_url: normalizeImageUrl(category.image_url),
+            subcategories: [],
+          }
+        }),
+      )
+
+      return categoriesWithSubs
+    } catch (error) {
+      return []
+    }
+  },
+)
