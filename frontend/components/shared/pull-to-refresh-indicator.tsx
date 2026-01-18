@@ -1,106 +1,63 @@
 "use client"
 
+import { Loader2, ArrowDown } from "lucide-react"
+
 interface PullToRefreshIndicatorProps {
   pullDistance: number
   isRefreshing: boolean
+  isReady: boolean
   threshold?: number
 }
 
 export function PullToRefreshIndicator({
   pullDistance,
   isRefreshing,
-  threshold = 70,
+  isReady,
+  threshold = 80,
 }: PullToRefreshIndicatorProps) {
-  const progress = Math.min((pullDistance / threshold) * 100, 100)
-  const isActive = pullDistance > 0 || isRefreshing
-
-  if (!isActive) return null
-
-  // Calculate smooth movement - follows pull distance more closely
-  const translateY = Math.min(pullDistance * 0.4, 30)
-  const opacity = Math.min(pullDistance / 20, 1)
-  const scale = Math.min(0.7 + (pullDistance / threshold) * 0.3, 1)
+  const opacity = Math.min(pullDistance / threshold, 1)
+  const scale = Math.min(0.5 + (pullDistance / threshold) * 0.5, 1)
+  const rotation = isReady ? 180 : (pullDistance / threshold) * 180
 
   return (
     <div
-      className="fixed top-2 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center pointer-events-none"
       style={{
-        transform: `translate(-50%, ${translateY}px) scale(${scale})`,
-        opacity: opacity,
-        transition: pullDistance === 0 ? "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)" : "none",
-        willChange: "transform, opacity",
+        transform: `translateY(${Math.min(pullDistance, 100)}px)`,
+        transition: pullDistance === 0 ? "transform 0.3s ease-out" : "none",
       }}
     >
       <div
-        className="relative flex items-center justify-center"
+        className="flex items-center justify-center bg-white rounded-full shadow-lg w-12 h-12"
         style={{
-          width: "24px",
-          height: "24px",
+          opacity,
+          transform: `scale(${scale})`,
+          transition: pullDistance === 0 ? "all 0.3s ease-out" : "opacity 0.2s, transform 0.2s",
         }}
       >
-        {/* Cherry-colored circular spinner */}
-        <svg
-          className="absolute inset-0"
-          viewBox="0 0 24 24"
-          style={{
-            transform: isRefreshing ? "rotate(0deg)" : `rotate(${progress * 3.6}deg)`,
-            transition: isRefreshing ? "none" : "transform 0.08s ease-out",
-            animation: isRefreshing ? "spin 0.7s linear infinite" : "none",
-          }}
-        >
-          {/* Background circle */}
-          <circle
-            cx="12"
-            cy="12"
-            r="10"
-            fill="none"
-            stroke="#e5e7eb"
-            strokeWidth="2.5"
-            opacity="0.25"
-          />
-          {/* Progress circle */}
-          <circle
-            cx="12"
-            cy="12"
-            r="10"
-            fill="none"
-            stroke="#8B1538"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeDasharray="62.83"
-            strokeDashoffset={62.83 - (62.83 * progress) / 100}
+        {isRefreshing ? (
+          <Loader2 className="w-6 h-6 text-[#8B1538] animate-spin" />
+        ) : (
+          <ArrowDown
+            className="w-6 h-6 text-[#8B1538]"
             style={{
-              transition: pullDistance === 0 ? "stroke-dashoffset 0.25s ease" : "stroke-dashoffset 0.08s ease-out",
-            }}
-          />
-        </svg>
-        
-        {/* Center dot for feedback */}
-        {progress > 30 && (
-          <div
-            className="absolute rounded-full"
-            style={{
-              width: "5px",
-              height: "5px",
-              backgroundColor: "#8B1538",
-              opacity: Math.min((progress - 30) / 40, 0.8),
-              transform: `scale(${Math.min(progress / 80, 1)})`,
-              transition: "all 0.15s ease-out",
+              transform: `rotate(${rotation}deg)`,
+              transition: "transform 0.2s ease-out",
             }}
           />
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-          }
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
+      
+      {/* Message text */}
+      <div
+        className="absolute top-16 text-sm font-medium text-gray-700"
+        style={{
+          opacity,
+          transition: "opacity 0.2s",
+        }}
+      >
+        {isRefreshing ? "Refreshing..." : isReady ? "Release to refresh" : "Pull to refresh"}
+      </div>
     </div>
   )
 }

@@ -1,136 +1,150 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 
-interface PullToRefreshOptions {
+interface UsePullToRefreshOptions {
   threshold?: number
   resistance?: number
-  onRefresh?: () => void
+  onRefresh?: () => void | Promise<void>
+  disabled?: boolean
 }
 
 export function usePullToRefresh({
-  threshold = 70,
+  threshold = 80,
   resistance = 2.5,
   onRefresh,
-}: PullToRefreshOptions = {}) {
+  disabled = false,
+}: UsePullToRefreshOptions = {}) {
   const [pullDistance, setPullDistance] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isReady, setIsReady] = useState(false)
   const startY = useRef(0)
   const currentY = useRef(0)
   const isPulling = useRef(false)
-  const canPull = useRef(false)
+  const router = useRouter()
 
-  const triggerRefresh = useCallback(() => {
-    console.log("[v0] Pull-to-refresh: Triggering browser refresh")
+  const triggerRefresh = useCallback(async () => {
     setIsRefreshing(true)
-    setPullDistance(0)
     
-    // Trigger browser's native refresh after brief visual feedback
-    setTimeout(() => {
-      window.location.reload()
-    }, 150)
-  }, [])
+    try {
+      if (onRefresh) {
+        await onRefresh()
+      } else {
+        // Default behavior: refresh the page
+        router.refresh()
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+    } catch (error) {
+      console.error("[v0] Pull to refresh error:", error)
+    } finally {
+      setIsRefreshing(false)
+      setPullDistance(0)
+      setIsReady(false)
+    }
+  }, [onRefresh, router])
 
   useEffect(() => {
-    // Only enable on touch devices
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-    console.log("[v0] Pull-to-refresh: Touch device detected:", isTouchDevice)
-    
-    if (!isTouchDevice) return
+    if (disabled) return
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (isRefreshing) return
-      
-      console.log("[v0] Pull-to-refresh: Touch start")
-      
-      // Check if we're at the top
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
-      console.log("[v0] Pull-to-refresh: Current scroll position:", scrollTop)
-      
-      // Only allow pull at the very top
-      if (scrollTop <= 0) {
-        canPull.current = true
-        startY.current = e.touches[0].clientY
-        console.log("[v0] Pull-to-refresh: Can pull, startY:", startY.current)
-      } else {
-        canPull.current = false
+      // Only start if we're at the top of the page
+      if (window.scrollY === 0 && !isRefreshing) {
+        startY.current = e.touches[0].pageY
+        isPulling.current = true
       }
     }
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (!canPull.current || isRefreshing) return
+      if (!isPulling.current || isRefreshing) return
 
-      currentY.current = e.touches[0].clientY
-      const diff = currentY.current - startY.current
+      currentY.current = e.touches[0].pageY
+      const distance = currentY.current - startY.current
 
-      // Only track if pulling down
-      if (diff > 0) {
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+      if (distance > 0 && window.scrollY === 0) {
+        // Prevent default scroll behavior when pulling down
+        e.preventDefault()
         
-        // Ensure we're still at the top
-        if (scrollTop <= 0) {
-          isPulling.current = true
-          
-          // Prevent bounce effect on iOS and default pull behavior
-          e.preventDefault()
-          
-          // Apply resistance (mimics Jumia's feel)
-          const distance = Math.pow(diff, 0.85) / resistance
-          const maxDistance = threshold * 1.2
-          const newDistance = Math.min(distance, maxDistance)
-          
-          console.log("[v0] Pull-to-refresh: Pulling, distance:", newDistance)
-          setPullDistance(newDistance)
-        }
-      } else {
-        if (isPulling.current) {
-          console.log("[v0] Pull-to-refresh: Pull cancelled (scrolling up)")
-        }
-        isPulling.current = false
-        setPullDistance(0)
+        // Apply resistance to make it feel natural
+        const adjustedDistance = distance / resistance
+        setPullDistance(adjustedDistance)
+        
+        // Set ready state when threshold is reached
+        setIsReady(adjustedDistance >= threshold)
       }
     }
 
     const handleTouchEnd = () => {
-      if (!isPulling.current || isRefreshing) {
-        isPulling.current = false
-        canPull.current = false
-        setPullDistance(0)
-        return
-      }
-
-      console.log("[v0] Pull-to-refresh: Touch end, pullDistance:", pullDistance, "threshold:", threshold)
+      if (!isPulling.current) return
 
       isPulling.current = false
-      canPull.current = false
 
-      // Trigger refresh if pulled past threshold
-      if (pullDistance >= threshold) {
-        console.log("[v0] Pull-to-refresh: Threshold reached, triggering refresh")
+      if (pullDistance >= threshold && !isRefreshing) {
         triggerRefresh()
       } else {
-        console.log("[v0] Pull-to-refresh: Snapping back (distance too small)")
-        // Snap back smoothly
+        // Animate back to original position
         setPullDistance(0)
+        setIsReady(false)
       }
     }
 
-    // Add listeners - touchmove needs passive: false to call preventDefault
-    document.addEventListener("touchstart", handleTouchStart, { passive: true })
-    document.addEventListener("touchmove", handleTouchMove, { passive: false })
-    document.addEventListener("touchend", handleTouchEnd, { passive: true })
-    document.addEventListener("touchcancel", handleTouchEnd, { passive: true })
+    // Mouse events for desktop testing
+    const handleMouseDown = (e: MouseEvent) => {
+      if (window.scrollY === 0 && !isRefreshing) {
+        startY.current = e.pageY
+        isPulling.current = true
+      }
+    }
 
-    console.log("[v0] Pull-to-refresh: Event listeners attached")
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isPulling.current || isRefreshing) return
+
+      currentY.current = e.pageY
+      const distance = currentY.current - startY.current
+
+      if (distance > 0 && window.scrollY === 0) {
+        const adjustedDistance = distance / resistance
+        setPullDistance(adjustedDistance)
+        setIsReady(adjustedDistance >= threshold)
+      }
+    }
+
+    const handleMouseUp = () => {
+      if (!isPulling.current) return
+
+      isPulling.current = false
+
+      if (pullDistance >= threshold && !isRefreshing) {
+        triggerRefresh()
+      } else {
+        setPullDistance(0)
+        setIsReady(false)
+      }
+    }
+
+    // Add touch event listeners
+    document.addEventListener("touchstart", handleTouchStart, { passive: false })
+    document.addEventListener("touchmove", handleTouchMove, { passive: false })
+    document.addEventListener("touchend", handleTouchEnd)
+
+    // Add mouse event listeners for desktop
+    document.addEventListener("mousedown", handleMouseDown)
+    document.addEventListener("mousemove", handleMouseMove)
+    document.addEventListener("mouseup", handleMouseUp)
 
     return () => {
-      console.log("[v0] Pull-to-refresh: Cleaning up event listeners")
       document.removeEventListener("touchstart", handleTouchStart)
       document.removeEventListener("touchmove", handleTouchMove)
       document.removeEventListener("touchend", handleTouchEnd)
-      document.removeEventListener("touchcancel", handleTouchEnd)
+      document.removeEventListener("mousedown", handleMouseDown)
+      document.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("mouseup", handleMouseUp)
     }
-  }, [pullDistance, threshold, resistance, isRefreshing, triggerRefresh])
+  }, [disabled, isRefreshing, pullDistance, threshold, resistance, triggerRefresh])
 
-  return { pullDistance, isRefreshing }
+  return {
+    pullDistance,
+    isRefreshing,
+    isReady,
+  }
 }
