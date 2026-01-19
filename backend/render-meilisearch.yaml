@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: mizizi-meilisearch
+    env: docker
+    dockerCommand: meilisearch
+    image:
+      url: getmeili/meilisearch:v1.10
+    envVars:
+      - key: MEILI_MASTER_KEY
+        sync: false
+      - key: MEILI_ENV
+        value: production
+      - key: MEILI_HTTP_ADDR
+        value: 0.0.0.0:7700
+      - key: MEILI_NO_ANALYTICS
+        value: "true"
+    disk:
+      name: meili-data
+      mountPath: /meili_data
+      sizeGB: 10
+    plan: starter
