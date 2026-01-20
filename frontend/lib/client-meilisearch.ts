@@ -36,24 +36,24 @@ export interface SearchResponse {
 }
 
 /**
- * Smart filtering: Products that contain the search query
+ * Smart filtering: Only products that closely match the search query
+ * Prioritizes name matches over description matches
  */
 function filterByQuery(items: any[], query: string): any[] {
   if (!query || query.trim().length === 0) return []
 
   const lowerQuery = query.trim().toLowerCase()
+  const words = lowerQuery.split(/\s+/).filter(Boolean)
 
   return items.filter((product) => {
     const name = (product.name || product.title || "").toLowerCase()
     const description = (product.description || product.desc || "").toLowerCase()
     const brand = (product.brand?.name || product.brand || "").toLowerCase()
-    const category = (product.category?.name || product.category || "").toLowerCase()
 
+    // Must match at least one word from the query in the name, brand, or start of description
     return (
-      name.includes(lowerQuery) ||
-      description.includes(lowerQuery) ||
-      brand.includes(lowerQuery) ||
-      category.includes(lowerQuery)
+      words.some(word => name.includes(word)) ||
+      (brand && words.some(word => brand.includes(word)))
     )
   })
 }

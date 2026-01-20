@@ -71,6 +71,14 @@ const JumiaSearchInput = memo(
 
 JumiaSearchInput.displayName = "JumiaSearchInput"
 
+const ImagePlaceholder = memo(() => (
+  <div className="w-10 h-10 rounded bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center flex-shrink-0">
+    <div className="text-gray-400 text-xs font-semibold">IMG</div>
+  </div>
+))
+
+ImagePlaceholder.displayName = "ImagePlaceholder"
+
 const ProductResultItem = memo(
   ({
     product,
@@ -83,13 +91,14 @@ const ProductResultItem = memo(
   }) => {
     // Use memoization to prevent re-renders affecting image display
     const imageUrl = React.useMemo(() => {
-      if (!product.image) return "/diverse-products-still-life.png"
+      if (!product.image) return null
       if (product.image.startsWith("http")) return product.image
       return `${BACKEND_URL}/api/uploads/product_images/${product.image.split("/").pop()}`
     }, [product.image])
 
     const hasStock = product.stock > 0
     const discountBadge = product.discount ? `${product.discount}%` : null
+    const [imageError, setImageError] = useState(false)
 
     return (
       <motion.button
@@ -97,42 +106,53 @@ const ProductResultItem = memo(
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.03 }}
         onClick={onClick}
-        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left group relative"
+        className="flex items-center gap-3 w-full px-4 py-3 hover:bg-gradient-to-r hover:from-[#8B0A1A]/5 hover:to-transparent transition-all duration-200 text-left group relative border-b border-gray-100/50 last:border-0"
       >
-        <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 flex-shrink-0 relative">
-          <img
-            src={imageUrl || "/placeholder.svg"}
-            alt={product.name}
-            className="w-full h-full object-cover"
-            loading="eager"
-            decoding="async"
-            onError={(e) => {
-              // Fallback to placeholder if image fails
-              const img = e.target as HTMLImageElement
-              if (img.src !== "/diverse-products-still-life.png") {
-                img.src = "/diverse-products-still-life.png"
-              }
-            }}
-          />
-          {discountBadge && (
-            <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-1 py-0.5">
-              {discountBadge}
-            </div>
-          )}
-        </div>
+        {imageError || !imageUrl ? (
+          <ImagePlaceholder />
+        ) : (
+          <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 flex-shrink-0 relative">
+            <Image
+              src={imageUrl || "/placeholder.svg"}
+              alt={product.name}
+              width={40}
+              height={40}
+              className="w-full h-full object-cover"
+              priority={false}
+              onError={() => setImageError(true)}
+            />
+            {discountBadge && (
+              <div className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-sm">
+                -{discountBadge}
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-800 truncate group-hover:text-[#8B0A1A] transition-colors font-medium">{product.name}</p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              <p className="text-sm text-gray-900 truncate group-hover:text-[#8B0A1A] transition-colors font-medium leading-tight">
+                {product.name}
+              </p>
+              {product.category && (
+                <p className="text-xs text-gray-500 truncate mt-0.5">{product.category}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-1.5">
             {product.price && (
               <p className="text-sm font-bold text-[#8B0A1A]">KSh {Number(product.price).toLocaleString()}</p>
             )}
+            {product.rating && product.rating > 0 && (
+              <div className="flex items-center gap-0.5">
+                <span className="text-yellow-400">★</span>
+                <span className="text-xs text-gray-600 font-medium">{product.rating.toFixed(1)}</span>
+              </div>
+            )}
             {!hasStock && (
-              <span className="text-xs text-gray-500 font-medium">Out of Stock</span>
+              <span className="text-xs text-red-500 font-medium ml-auto">Out of Stock</span>
             )}
           </div>
-          {product.rating && product.rating > 0 && (
-            <p className="text-xs text-gray-500">★ {product.rating.toFixed(1)}</p>
-          )}
         </div>
       </motion.button>
     )
@@ -170,14 +190,17 @@ const SuggestionItem = memo(
 
     return (
       <motion.button
-        initial={{ opacity: 0, x: -5 }}
+        initial={{ opacity: 0, x: -8 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: index * 0.02 }}
+        transition={{ delay: index * 0.03 }}
         onClick={onClick}
-        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
+        className="flex items-center gap-3 w-full px-4 py-3 hover:bg-gradient-to-r hover:from-[#8B0A1A]/8 hover:to-transparent transition-all duration-200 text-left group border-b border-gray-100/50 last:border-0 cursor-pointer"
       >
-        <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
-        <span className="text-sm text-gray-700">{highlightMatch(suggestion, query)}</span>
+        <div className="flex-shrink-0">
+          <Search className="h-4 w-4 text-[#8B0A1A]/60 group-hover:text-[#8B0A1A] transition-colors" />
+        </div>
+        <span className="text-sm text-gray-700 flex-1 group-hover:text-gray-900 font-medium">{highlightMatch(suggestion, query)}</span>
+        <div className="text-gray-300 group-hover:text-[#8B0A1A] transition-colors text-xs font-medium">Go</div>
       </motion.button>
     )
   },
@@ -254,16 +277,25 @@ export function EnhancedSearchBar({
         clearTimeout(blurTimeoutRef.current)
       }
 
+      // Always go directly to product if it has an ID
       if (typeof item === "object" && item.id) {
         router.push(`/product/${item.id}`)
-      } else {
-        const searchTerm = typeof item === "string" ? item : item.name
-        setQuery(searchTerm)
-        router.push(`/search?q=${encodeURIComponent(searchTerm)}`)
+      } else if (typeof item === "string") {
+        // If string suggestion, find the matching product from results
+        const matchingProduct = results.find(
+          (result) => result.name.toLowerCase() === item.toLowerCase()
+        )
+        if (matchingProduct && matchingProduct.id) {
+          router.push(`/product/${matchingProduct.id}`)
+        } else {
+          // Fallback to search results if product not found
+          setQuery(item)
+          router.push(`/search?q=${encodeURIComponent(item)}`)
+        }
       }
       setIsOpen(false)
     },
-    [router],
+    [router, results],
   )
 
   const handleFocus = useCallback(() => {
@@ -406,34 +438,23 @@ export function EnhancedSearchBar({
                         index={index}
                       />
                     ))}
-                    {results.length > 8 && (
-                      <motion.button
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.15 }}
-                        onClick={handleSearchClick}
-                        className="w-full px-4 py-3.5 text-sm font-semibold text-[#8B0A1A] hover:bg-gray-50/80 active:bg-gray-100 transition-all text-center border-t border-gray-100/80"
-                      >
-                        View all {results.length} results
-                      </motion.button>
-                    )}
                   </motion.div>
                 )}
 
                 {/* No results */}
                 {!error && results.length === 0 && searchSuggestions.length === 0 && query.length >= 2 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="py-10 text-center"
-                    >
-                      <div className="text-gray-400 mb-2">
-                        <Search className="w-8 h-8 mx-auto" />
-                      </div>
-                      <p className="text-gray-500 text-sm font-medium">No products found for <span className="font-bold text-gray-700">"{query}"</span></p>
-                      <p className="text-gray-400 text-xs mt-1">Try a different search term</p>
-                    </motion.div>
-                  )}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="py-10 text-center"
+                  >
+                    <div className="text-gray-400 mb-2">
+                      <Search className="w-8 h-8 mx-auto" />
+                    </div>
+                    <p className="text-gray-500 text-sm font-medium">No products found for <span className="font-bold text-gray-700">"{query}"</span></p>
+                    <p className="text-gray-400 text-xs mt-1">Try a different search term</p>
+                  </motion.div>
+                )}
 
                 {/* Loading state */}
                 {isLoading && results.length === 0 && !error && (
