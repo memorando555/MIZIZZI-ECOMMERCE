@@ -2,6 +2,13 @@ from app.configuration.extensions import db
 
 # Lightweight stubs used when real implementation is absent.
 # Replace with the real implementation if available.
+
+class MeilisearchConfig:
+	"""Configuration for Meilisearch integration."""
+	def __init__(self, host: str = "http://localhost:7700", api_key: str = None):
+		self.host = host
+		self.api_key = api_key
+
 class MeilisearchModel:
 	"""Minimal MeilisearchModel shim for imports across the app."""
 	pass
@@ -42,6 +49,7 @@ class SearchAnalyticsDaily(db.Model):
 SearchLog = MeilisearchSyncLog
 
 __all__ = [
+	"MeilisearchConfig",
 	"MeilisearchModel",
 	"MeilisearchSyncLog",
 	"MeilisearchProductSync",

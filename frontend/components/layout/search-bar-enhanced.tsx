@@ -1,9 +1,10 @@
 "use client"
 
-import type React from "react"
+import React from "react"
+
 import { useCallback, useEffect, useRef, useState, memo } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { Search } from "lucide-react"
+import { Search, AlertCircle, Zap } from "lucide-react"
 import { useSearch } from "@/hooks/use-search"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
@@ -27,6 +28,7 @@ const JumiaSearchInput = memo(
     onBlur,
     onKeyDown,
     placeholder,
+    isLoading,
   }: {
     inputRef: React.RefObject<HTMLInputElement>
     value: string
@@ -35,10 +37,17 @@ const JumiaSearchInput = memo(
     onBlur: () => void
     onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
     placeholder: string
+    isLoading?: boolean
   }) => (
     <div className="relative flex-1">
       <div className="absolute left-0 top-0 h-full flex items-center pl-4 pointer-events-none">
-        <Search className="h-5 w-5 text-gray-400" />
+        {isLoading ? (
+          <div className="h-5 w-5 animate-spin">
+            <Zap className="h-5 w-5 text-[#8B0A1A]" />
+          </div>
+        ) : (
+          <Search className="h-5 w-5 text-gray-400" />
+        )}
       </div>
       <input
         ref={inputRef}
@@ -49,7 +58,7 @@ const JumiaSearchInput = memo(
         onBlur={onBlur}
         onKeyDown={onKeyDown}
         placeholder={placeholder}
-        className="w-full h-[42px] pl-11 pr-4 text-sm bg-white border border-gray-300 rounded-[4px] focus:outline-none focus:ring-0 placeholder:text-gray-400 text-gray-900"
+        className="w-full h-[42px] pl-11 pr-4 text-sm bg-white border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-[#8B0A1A] focus:ring-opacity-20 focus:border-[#8B0A1A] placeholder:text-gray-400 text-gray-900 transition-all"
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -72,11 +81,15 @@ const ProductResultItem = memo(
     onClick: () => void
     index: number
   }) => {
-    const imageUrl = product.image?.startsWith("http")
-      ? product.image
-      : product.image
-        ? `${BACKEND_URL}/api/uploads/product_images/${product.image.split("/").pop()}`
-        : "/diverse-products-still-life.png"
+    // Use memoization to prevent re-renders affecting image display
+    const imageUrl = React.useMemo(() => {
+      if (!product.image) return "/diverse-products-still-life.png"
+      if (product.image.startsWith("http")) return product.image
+      return `${BACKEND_URL}/api/uploads/product_images/${product.image.split("/").pop()}`
+    }, [product.image])
+
+    const hasStock = product.stock > 0
+    const discountBadge = product.discount ? `${product.discount}%` : null
 
     return (
       <motion.button
@@ -84,25 +97,41 @@ const ProductResultItem = memo(
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.03 }}
         onClick={onClick}
-        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left group"
+        className="flex items-center gap-3 w-full px-4 py-2.5 hover:bg-gray-50 transition-colors text-left group relative"
       >
-        <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 flex-shrink-0">
-          <Image
+        <div className="w-10 h-10 rounded overflow-hidden bg-gray-100 flex-shrink-0 relative">
+          <img
             src={imageUrl || "/placeholder.svg"}
             alt={product.name}
-            width={40}
-            height={40}
             className="w-full h-full object-cover"
+            loading="eager"
+            decoding="async"
             onError={(e) => {
-              const target = e.target as HTMLImageElement
-              target.src = "/diverse-products-still-life.png"
+              // Fallback to placeholder if image fails
+              const img = e.target as HTMLImageElement
+              if (img.src !== "/diverse-products-still-life.png") {
+                img.src = "/diverse-products-still-life.png"
+              }
             }}
           />
+          {discountBadge && (
+            <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-1 py-0.5">
+              {discountBadge}
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-800 truncate group-hover:text-[#8B0A1A] transition-colors">{product.name}</p>
-          {product.price && (
-            <p className="text-sm font-bold text-[#8B0A1A]">KSh {Number(product.price).toLocaleString()}</p>
+          <p className="text-sm text-gray-800 truncate group-hover:text-[#8B0A1A] transition-colors font-medium">{product.name}</p>
+          <div className="flex items-center gap-2">
+            {product.price && (
+              <p className="text-sm font-bold text-[#8B0A1A]">KSh {Number(product.price).toLocaleString()}</p>
+            )}
+            {!hasStock && (
+              <span className="text-xs text-gray-500 font-medium">Out of Stock</span>
+            )}
+          </div>
+          {product.rating && product.rating > 0 && (
+            <p className="text-xs text-gray-500">★ {product.rating.toFixed(1)}</p>
           )}
         </div>
       </motion.button>
@@ -156,31 +185,6 @@ const SuggestionItem = memo(
 
 SuggestionItem.displayName = "SuggestionItem"
 
-const AppleSpinner = memo(() => (
-  <div className="relative w-5 h-5">
-    {[...Array(8)].map((_, i) => (
-      <motion.div
-        key={i}
-        className="absolute w-1 h-2 bg-[#8B0A1A] rounded-full left-1/2 top-0 origin-[50%_250%]"
-        style={{
-          transform: `rotate(${i * 45}deg) translateX(-50%)`,
-        }}
-        animate={{
-          opacity: [0.2, 1, 0.2],
-        }}
-        transition={{
-          duration: 0.8,
-          repeat: Number.POSITIVE_INFINITY,
-          delay: i * 0.1,
-          ease: "linear",
-        }}
-      />
-    ))}
-  </div>
-))
-
-AppleSpinner.displayName = "AppleSpinner"
-
 export function EnhancedSearchBar({
   isMobile = false,
   placeholder = "Search products, brands and categories",
@@ -197,7 +201,7 @@ export function EnhancedSearchBar({
 
   const searchHook = useSearch({
     initialQuery: query,
-    delay: 150,
+    delay: 50, // Ultra-fast search with minimal debounce
     onSearch: (searchQuery) => {
       if (onSearch) {
         onSearch(searchQuery)
@@ -299,9 +303,6 @@ export function EnhancedSearchBar({
     }
   }, [])
 
-  const trendingProducts = searchHook.getTrendingProducts()
-  const categories = searchHook.getCategories()
-
   const showDropdown = isOpen && query.length >= 1
 
   const searchSuggestions =
@@ -326,13 +327,15 @@ export function EnhancedSearchBar({
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
+            isLoading={isLoading}
           />
           <button
             onClick={handleSearchClick}
-            className="h-[42px] px-5 rounded-[4px] bg-[#8B0A1A] hover:bg-[#6D0814] text-white font-medium text-sm transition-colors flex-shrink-0 flex items-center justify-center"
+            disabled={isLoading}
+            className="h-[42px] px-5 rounded-[4px] bg-[#8B0A1A] hover:bg-[#6D0814] disabled:bg-gray-400 text-white font-medium text-sm transition-colors flex-shrink-0 flex items-center justify-center"
             aria-label="Search"
           >
-            Search
+            {isLoading ? "Searching..." : "Search"}
           </button>
         </div>
 
@@ -358,9 +361,10 @@ export function EnhancedSearchBar({
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-6 text-center text-red-600 text-sm"
+                    className="p-6 text-center flex items-center justify-center gap-2"
                   >
-                    {error}
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                    <span className="text-red-600 text-sm">{error}</span>
                   </motion.div>
                 )}
 
@@ -372,6 +376,7 @@ export function EnhancedSearchBar({
                     transition={{ delay: 0.05 }}
                     className="border-b border-gray-100/80 py-1"
                   >
+                    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Suggestions</p>
                     {searchSuggestions.map((suggestion, index) => (
                       <SuggestionItem
                         key={`suggestion-${index}`}
@@ -392,6 +397,7 @@ export function EnhancedSearchBar({
                     transition={{ delay: 0.08 }}
                     className="py-1"
                   >
+                    <p className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Products</p>
                     {results.slice(0, 8).map((product, index) => (
                       <ProductResultItem
                         key={`product-${product.id}`}
@@ -424,9 +430,25 @@ export function EnhancedSearchBar({
                       <div className="text-gray-400 mb-2">
                         <Search className="w-8 h-8 mx-auto" />
                       </div>
-                      <p className="text-gray-500 text-sm font-medium">No products found for "{query}"</p>
+                      <p className="text-gray-500 text-sm font-medium">No products found for <span className="font-bold text-gray-700">"{query}"</span></p>
+                      <p className="text-gray-400 text-xs mt-1">Try a different search term</p>
                     </motion.div>
                   )}
+
+                {/* Loading state */}
+                {isLoading && results.length === 0 && !error && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="py-6 text-center"
+                  >
+                    <div className="flex justify-center mb-2">
+                      <div className="h-6 w-6 animate-spin">
+                        <Zap className="h-6 w-6 text-[#8B0A1A]" />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           )}

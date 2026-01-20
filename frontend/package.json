@@ -57,6 +57,7 @@
     "http": "0.0.1-security",
     "https": "1.0.0",
     "lucide-react": "^0.292.0",
+    "meilisearch": "^0.55.0",
     "next": "^16.0.8",
     "next-themes": "latest",
     "node-fetch": "3.3.2",
