@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 import Link from "next/link"
 import { productService } from "@/services/product"
+import { imageBatchService } from "@/services/image-batch-service"
 import { ShoppingBag, Star } from "lucide-react"
 import type { Product } from "@/types"
 import { cloudinaryService } from "@/services/cloudinary-service"
@@ -48,37 +49,49 @@ const StarRating = ({ rating = 4, reviewCount = 0 }: { rating?: number; reviewCo
 function getProductImageUrl(product: Product): string {
   // Priority 1: Use thumbnail_url if available
   if (product.thumbnail_url) {
-    const url = String(product.thumbnail_url)
+    const url = String(product.thumbnail_url).trim()
     // If it's a full URL, return as-is
     if (url.startsWith("http://") || url.startsWith("https://")) {
+      console.log("[v0] Using thumbnail_url:", url)
       return url
     }
     // If it's a Cloudinary public ID or path, optimize it
     if (url.length > 0 && !url.includes("placeholder")) {
-      return cloudinaryService.generateOptimizedUrl(url, {
-        width: 500,
-        height: 500,
-        crop: "fill",
-        quality: "auto",
-        format: "auto",
-      })
+      try {
+        return cloudinaryService.generateOptimizedUrl(url, {
+          width: 500,
+          height: 500,
+          crop: "fill",
+          quality: "auto",
+          format: "auto",
+        })
+      } catch (e) {
+        console.log("[v0] Cloudinary optimization failed, using direct URL")
+        return url
+      }
     }
   }
 
   // Priority 2: Check image_urls array
   if (product.image_urls && Array.isArray(product.image_urls) && product.image_urls.length > 0) {
-    const firstUrl = String(product.image_urls[0])
+    const firstUrl = String(product.image_urls[0]).trim()
     if (firstUrl.startsWith("http://") || firstUrl.startsWith("https://")) {
+      console.log("[v0] Using image_urls[0]:", firstUrl)
       return firstUrl
     }
     if (firstUrl.length > 0 && !firstUrl.includes("placeholder")) {
-      return cloudinaryService.generateOptimizedUrl(firstUrl, {
-        width: 500,
-        height: 500,
-        crop: "fill",
-        quality: "auto",
-        format: "auto",
-      })
+      try {
+        return cloudinaryService.generateOptimizedUrl(firstUrl, {
+          width: 500,
+          height: 500,
+          crop: "fill",
+          quality: "auto",
+          format: "auto",
+        })
+      } catch (e) {
+        console.log("[v0] Cloudinary optimization failed, using direct URL")
+        return firstUrl
+      }
     }
   }
 
@@ -89,23 +102,30 @@ function getProductImageUrl(product: Product): string {
       // Handle both {url: string} and direct string formats
       const imgUrl = typeof firstImg === "string" ? firstImg : firstImg.url || firstImg.secure_url
       if (imgUrl) {
-        const urlString = String(imgUrl)
+        const urlString = String(imgUrl).trim()
         if (urlString.startsWith("http://") || urlString.startsWith("https://")) {
+          console.log("[v0] Using images[0].url:", urlString)
           return urlString
         }
         if (urlString.length > 0 && !urlString.includes("placeholder")) {
-          return cloudinaryService.generateOptimizedUrl(urlString, {
-            width: 500,
-            height: 500,
-            crop: "fill",
-            quality: "auto",
-            format: "auto",
-          })
+          try {
+            return cloudinaryService.generateOptimizedUrl(urlString, {
+              width: 500,
+              height: 500,
+              crop: "fill",
+              quality: "auto",
+              format: "auto",
+            })
+          } catch (e) {
+            console.log("[v0] Cloudinary optimization failed, using direct URL")
+            return urlString
+          }
         }
       }
     }
   }
 
+  console.log("[v0] No valid images found for product, using fallback")
   return "/modern-tech-product.png"
 }
 
@@ -113,28 +133,33 @@ const ProductCard = memo(({ product, index }: { product: Product; index: number 
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [showPlaceholder, setShowPlaceholder] = useState(true)
+  const [imageSrc, setImageSrc] = useState<string>("")
 
   const discountPercentage = product.sale_price
     ? Math.round(((product.price - product.sale_price) / product.price) * 100)
     : 0
 
   const handleImageLoad = useCallback(() => {
+    console.log("[v0] Image loaded successfully:", imageSrc)
     setImageLoaded(true)
     setTimeout(() => setShowPlaceholder(false), 300)
-  }, [])
+  }, [imageSrc])
 
   const handleImageError = useCallback(() => {
+    console.log("[v0] Image failed to load:", imageSrc)
     setImageError(true)
     setImageLoaded(false)
-  }, [])
+  }, [imageSrc])
 
   useEffect(() => {
     setImageLoaded(false)
     setImageError(false)
     setShowPlaceholder(true)
-  }, [product.id])
+    const url = getProductImageUrl(product)
+    console.log("[v0] Setting image URL for product", product.id, ":", url)
+    setImageSrc(url)
+  }, [product]) // Updated dependency to product
 
-  const imageUrl = getProductImageUrl(product)
   const rating = product.rating || 3 + Math.random() * 2
   const reviewCount = product.review_count || Math.floor(Math.random() * 5000) + 100
 
@@ -161,7 +186,7 @@ const ProductCard = memo(({ product, index }: { product: Product; index: number 
               )}
             </AnimatePresence>
 
-            {!imageError && (
+            {!imageError && imageSrc && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: imageLoaded ? 1 : 0 }}
@@ -169,7 +194,7 @@ const ProductCard = memo(({ product, index }: { product: Product; index: number 
                 className="absolute inset-0"
               >
                 <Image
-                  src={imageUrl || "/placeholder.svg"}
+                  src={imageSrc || "/placeholder.svg"}
                   alt={product.name}
                   fill
                   sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 16vw"
@@ -256,7 +281,7 @@ export function ProductGrid({ initialProducts = [], initialHasMore = true, limit
         setLoadingMore(false)
       }
     },
-    [limit, category],
+    [limit, category, limit],
   )
 
   const handleShowMore = async () => {
@@ -264,6 +289,15 @@ export function ProductGrid({ initialProducts = [], initialHasMore = true, limit
     setPage(nextPage)
     await fetchProducts(nextPage, true)
   }
+
+  // Prefetch images for all products using batch service
+  useEffect(() => {
+    if (products && products.length > 0) {
+      const productIds = products.map((p) => String(p.id))
+      console.log("[v0] Prefetching images for products:", productIds)
+      imageBatchService.prefetchProductImages(productIds)
+    }
+  }, [products])
 
   useEffect(() => {
     const handleProductImagesUpdated = () => {

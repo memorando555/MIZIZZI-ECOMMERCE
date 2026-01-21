@@ -145,6 +145,53 @@ const CategoryImage = ({
   )
 }
 
+// New single banner component
+const ShopByCategoriesBanner = () => {
+  return (
+    <div className="w-full rounded-2xl overflow-hidden bg-gradient-to-r from-sky-50 via-white to-rose-50 border border-neutral-100 shadow-sm">
+      <div className="container px-4 py-8 sm:py-10 lg:py-12 flex flex-col sm:flex-row items-center gap-6">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-neutral-900">
+            Shop by Categories
+          </h2>
+          <p className="mt-2 text-sm text-neutral-600 max-w-xl">
+            Find the perfect product faster — browse curated categories to discover top items, latest arrivals, and staff picks.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                // lightweight client navigation hint; real behavior remains unchanged
+                if (typeof window !== "undefined") window.scrollTo({ top: document.body.scrollHeight / 6, behavior: "smooth" })
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-neutral-900 text-white text-sm rounded-full shadow-sm hover:bg-neutral-800 transition"
+            >
+              Browse categories
+            </button>
+            <button
+              onClick={() => {
+                if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 border border-neutral-200 text-sm rounded-full text-neutral-700 bg-white hover:bg-neutral-50 transition"
+            >
+              Back to top
+            </button>
+          </div>
+        </div>
+
+        <div className="w-36 h-36 sm:w-44 sm:h-44 relative flex-shrink-0">
+          <Image
+            src="/images/categories-hero.png"
+            alt="Shop by categories"
+            fill
+            className="object-contain"
+            priority
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CategoriesPageClient({ allCategories: initialCategories }: CategoriesPageClientProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
@@ -217,40 +264,6 @@ export default function CategoriesPageClient({ allCategories: initialCategories 
     )
   }
 
-  // New: single improved hero banner placed inside the component so it can use local state
-  const HeroBanner = () => (
-    <div className="w-full rounded-2xl overflow-hidden bg-gradient-to-r from-white via-neutral-50 to-neutral-100 shadow-sm">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 sm:p-6">
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0 h-12 w-12 rounded-lg bg-neutral-900 text-white flex items-center justify-center">
-            <Grid3X3 className="h-6 w-6" />
-          </div>
-          <div>
-            <h2 className="text-lg sm:text-xl font-semibold text-neutral-900">Shop by category</h2>
-            <p className="text-sm text-neutral-500">Explore curated categories to find products you’ll love.</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setSearchQuery("")
-              // smooth scroll to categories grid for better UX
-              if (typeof window !== "undefined") {
-                const el = document.querySelector("[data-categories-grid]")
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-neutral-900 text-white text-sm font-medium hover:opacity-95 transition"
-          >
-            Browse all
-          </button>
-          <span className="hidden sm:inline text-sm text-neutral-500">{/* optional small note */}</span>
-        </div>
-      </div>
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="container py-6 px-4 sm:px-6 lg:px-8">
@@ -284,9 +297,9 @@ export default function CategoriesPageClient({ allCategories: initialCategories 
           </div>
         </div>
 
-        {/* Replaced old CategoryBanner with new single HeroBanner */}
         <div className="mb-8">
-          <HeroBanner />
+          {/* Replaced previous banner with a single improved banner */}
+          <ShopByCategoriesBanner />
         </div>
 
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -322,7 +335,7 @@ export default function CategoriesPageClient({ allCategories: initialCategories 
             )}
           </div>
         ) : (
-          <div data-categories-grid className="grid grid-cols-3 gap-1 sm:gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
             <AnimatePresence mode="popLayout">
               {filteredCategories.map((category, index) => (
                 <motion.div

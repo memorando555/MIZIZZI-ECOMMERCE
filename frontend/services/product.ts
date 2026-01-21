@@ -5,6 +5,7 @@ import { prefetchData } from "@/lib/api"
 import { imageCache } from "@/services/image-cache"
 // Only showing the changes needed to integrate with the new batch service
 import { imageBatchService } from "@/services/image-batch-service"
+import { cloudinaryService } from "@/services/cloudinary-service"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
@@ -73,6 +74,73 @@ function mapFrontendParamsToBackend(params: Record<string, any> = {}) {
   }
 
   return mapped
+}
+
+function coerceImageUrls(raw: unknown): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter((u) => typeof u === "string").map((u) => u.trim()).filter(Boolean)
+  if (typeof raw === "string") {
+    const s = raw.trim()
+    if (!s) return []
+    // handle JSON-encoded arrays e.g. '["a","b"]'
+    if ((s.startsWith("[") && s.endsWith("]")) || (s.startsWith('"') && s.endsWith('"'))) {
+      try {
+        const parsed = JSON.parse(s)
+        if (Array.isArray(parsed)) {
+          return parsed.filter((u) => typeof u === "string").map((u) => u.trim()).filter(Boolean)
+        }
+        if (typeof parsed === "string") return [parsed.trim()].filter(Boolean)
+      } catch {
+        // fall through
+      }
+    }
+    // handle comma-separated lists
+    if (s.includes(",") && !s.startsWith("http")) {
+      return s
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean)
+    }
+    return [s]
+  }
+  return []
+}
+
+function normalizeImageUrl(url: string): string {
+  const u = url.trim()
+  if (!u) return ""
+  if (u.startsWith("blob:")) return ""
+  if (u.startsWith("http://") || u.startsWith("https://") || u.startsWith("/")) return u
+
+  // Likely a backend-served path (e.g. "api/uploads/..." or "uploads/...")
+  if (u.includes("/") || u.includes(".")) {
+    return `${API_BASE_URL}/${u.replace(/^\/+/, "")}`
+  }
+
+  // Likely a Cloudinary public_id
+  const optimized = cloudinaryService.generateOptimizedUrl(u)
+  return optimized === "/placeholder.svg" ? u : optimized
+}
+
+function normalizeProductImages(product: Product): Product {
+  const imageUrls = coerceImageUrls((product as any).image_urls)
+  const imagesField = Array.isArray((product as any).images) ? (product as any).images : []
+  const imagesUrlsFromImagesField = imagesField
+    .map((img: any) => (typeof img?.url === "string" ? img.url : typeof img?.image_url === "string" ? img.image_url : ""))
+    .filter(Boolean)
+
+  const merged = [...imageUrls, ...imagesUrlsFromImagesField]
+    .map(normalizeImageUrl)
+    .filter(Boolean)
+
+  const thumbnail =
+    typeof (product as any).thumbnail_url === "string" ? normalizeImageUrl((product as any).thumbnail_url) : undefined
+
+  return {
+    ...product,
+    image_urls: merged.length > 0 ? merged : [],
+    thumbnail_url: thumbnail || (merged[0] ?? product.thumbnail_url ?? null),
+  }
 }
 
 // Cache maps with timestamps for expiration
@@ -168,6 +236,9 @@ export const productService = {
           // Normalize price data
           product = this.normalizeProductPrices(product)
 
+          // Normalize/repair image_urls into a consistent, display-ready array
+          product = normalizeProductImages(product)
+
           // Add product type for easier filtering and display
           product.product_type = product.is_flash_sale
             ? "flash_sale"
@@ -194,6 +265,9 @@ export const productService = {
               console.error(`Error fetching images for product ${product.id}:`, error)
             }
           }
+
+          // Re-normalize after image fetch (handles relative paths, etc.)
+          product = normalizeProductImages(product)
 
           return {
             ...product,
