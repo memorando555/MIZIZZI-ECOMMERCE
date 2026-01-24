@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import Image from "next/image"
 
-export function CategoriesBannerCarousel() {
+export function NewArrivalsBannerCarousel() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -41,7 +41,7 @@ export function CategoriesBannerCarousel() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/80 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-white/90"></span>
                   </span>
-                  Categories
+                  New Arrivals
                 </span>
               </motion.div>
 
@@ -52,7 +52,7 @@ export function CategoriesBannerCarousel() {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="text-3xl sm:text-4xl lg:text-3xl font-black text-white leading-tight tracking-tight"
               >
-                Explore All Categories
+                Just Dropped
               </motion.h2>
 
               {/* Description */}
@@ -60,45 +60,36 @@ export function CategoriesBannerCarousel() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                className="text-white/95 text-xs sm:text-sm max-w-xs leading-snug"
+                className="text-sm sm:text-base text-white/90 font-medium"
               >
-                Browse our complete collection of premium products
+                Fresh products added to our collection
               </motion.p>
             </div>
 
             {/* CTA Button */}
-            <motion.div
+            <motion.button
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-fit bg-white text-red-700 font-bold px-5 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-blue-50 transition-colors duration-300 text-sm sm:text-base"
             >
-              <button className="px-5 py-2 bg-white hover:bg-gray-50 text-red-700 font-bold text-xs sm:text-sm rounded-lg transition-all duration-300 hover:shadow-lg active:scale-95 uppercase tracking-wide">
-                Browse Now
-              </button>
-            </motion.div>
+              Explore New
+            </motion.button>
           </div>
         </div>
 
-        {/* Right Side - Static Image */}
-        <div className="relative col-span-1 lg:col-span-2 bg-gradient-to-br from-neutral-900 to-neutral-800 overflow-hidden">
-          {/* Image */}
-          <motion.div
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative w-full h-full"
-          >
-            <Image
-              src="https://images.pexels.com/photos/6314045/pexels-photo-6314045.jpeg"
-              alt="Shopping categories"
-              fill
-              sizes="(max-width: 768px) 100vw, 66vw"
-              className="object-cover"
-              priority
-            />
-            {/* Subtle overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 to-transparent" />
-          </motion.div>
+        {/* Right Side - Images */}
+        <div className="col-span-1 lg:col-span-2 relative overflow-hidden">
+          <Image
+            src="https://images.pexels.com/photos/29887460/pexels-photo-29887460.jpeg"
+            alt="New Arrivals"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-l from-transparent to-blue-900/20"></div>
         </div>
       </div>
     </motion.div>

@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import Image from "next/image"
 
-export function CategoriesBannerCarousel() {
+export function DailyFindsBannerCarousel() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -13,9 +13,9 @@ export function CategoriesBannerCarousel() {
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 min-h-[160px] md:min-h-[180px] lg:min-h-[200px]">
         {/* Left Side - Content Section */}
-        <div className="relative col-span-1 bg-gradient-to-br from-red-600 via-red-700 to-red-800 p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden">
+        <div className="relative col-span-1 bg-[#1a1a1a] p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden">
           {/* Decorative mesh background */}
-          <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 opacity-5">
             <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <pattern id="dots" patternUnits="userSpaceOnUse" width="20" height="20">
@@ -36,12 +36,12 @@ export function CategoriesBannerCarousel() {
                 transition={{ duration: 0.5, delay: 0.2 }}
                 className="inline-block"
               >
-                <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/40">
+                <span className="inline-flex items-center gap-1.5 bg-yellow-400/20 backdrop-blur-sm text-yellow-300 text-xs font-bold px-3 py-1.5 rounded-full border border-yellow-400/40">
                   <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/80 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-white/90"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-300/80 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-300/90"></span>
                   </span>
-                  Categories
+                  Daily Finds
                 </span>
               </motion.div>
 
@@ -52,7 +52,7 @@ export function CategoriesBannerCarousel() {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="text-3xl sm:text-4xl lg:text-3xl font-black text-white leading-tight tracking-tight"
               >
-                Explore All Categories
+                Today's Best
               </motion.h2>
 
               {/* Description */}
@@ -60,27 +60,30 @@ export function CategoriesBannerCarousel() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                className="text-white/95 text-xs sm:text-sm max-w-xs leading-snug"
+                className="text-gray-300 text-xs sm:text-sm max-w-xs leading-snug"
               >
-                Browse our complete collection of premium products
+                Special deals that refresh every day
               </motion.p>
             </div>
 
-            {/* CTA Button */}
+            {/* Daily Finds Announcement */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
+              className="space-y-2"
             >
-              <button className="px-5 py-2 bg-white hover:bg-gray-50 text-red-700 font-bold text-xs sm:text-sm rounded-lg transition-all duration-300 hover:shadow-lg active:scale-95 uppercase tracking-wide">
-                Browse Now
-              </button>
+              <p className="text-gray-400 text-[10px] font-semibold uppercase tracking-widest">Limited Time</p>
+              <div className="flex items-end gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-white">Save</span>
+                <span className="text-3xl sm:text-4xl font-black text-yellow-300">Up to 60%</span>
+              </div>
             </motion.div>
           </div>
         </div>
 
         {/* Right Side - Static Image */}
-        <div className="relative col-span-1 lg:col-span-2 bg-gradient-to-br from-neutral-900 to-neutral-800 overflow-hidden">
+        <div className="relative col-span-1 lg:col-span-2 bg-[#1a1a1a] overflow-hidden">
           {/* Image */}
           <motion.div
             initial={{ opacity: 0, scale: 1.05 }}
@@ -89,15 +92,15 @@ export function CategoriesBannerCarousel() {
             className="relative w-full h-full"
           >
             <Image
-              src="https://images.pexels.com/photos/6314045/pexels-photo-6314045.jpeg"
-              alt="Shopping categories"
+              src="https://images.pexels.com/photos/4997894/pexels-photo-4997894.jpeg"
+              alt="Daily finds"
               fill
               sizes="(max-width: 768px) 100vw, 66vw"
               className="object-cover"
               priority
             />
             {/* Subtle overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
           </motion.div>
         </div>
       </div>

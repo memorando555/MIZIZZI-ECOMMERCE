@@ -1,25 +1,22 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
-import { Search, X, Zap } from "lucide-react"
+import { Search, X, Star } from "lucide-react"
 import Image from "next/image"
-import type { FlashSaleProduct, FlashSaleEvent } from "@/lib/server/get-flash-sale-products"
+import type { Product } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FlashSaleBannerCarousel } from "@/components/flash-sales/banner-carousel"
+import { TopPicksBannerCarousel } from "@/components/top-picks/banner-carousel"
 
-
-
-interface FlashSalesPageContentProps {
-  products: FlashSaleProduct[]
-  event?: FlashSaleEvent | null
+interface TopPicksPageContentProps {
+  products: Product[]
 }
 
-export function FlashSalesPageContent({ products: initialProducts, event }: FlashSalesPageContentProps) {
-  const [sortBy, setSortBy] = useState("discount")
+export function TopPicksPageContent({ products: initialProducts }: TopPicksPageContentProps) {
+  const [sortBy, setSortBy] = useState("rating")
   const [searchQuery, setSearchQuery] = useState("")
 
   // Calculate discount percentage
@@ -41,10 +38,8 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
         return (a.sale_price || a.price) - (b.sale_price || b.price)
       } else if (sortBy === "price-desc") {
         return (b.sale_price || b.price) - (a.sale_price || a.price)
-      } else if (sortBy === "discount") {
-        const discountA = a.sale_price ? (a.price - a.sale_price) / a.price : 0
-        const discountB = b.sale_price ? (b.price - b.sale_price) / b.price : 0
-        return discountB - discountA
+      } else if (sortBy === "rating") {
+        return (b.rating || 0) - (a.rating || 0)
       }
       return 0
     })
@@ -52,13 +47,12 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
   if (!initialProducts || initialProducts.length === 0) {
     return (
       <div className="min-h-screen bg-neutral-50">
-        <div className="container py-8 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-2 mb-8">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900">Flash Sales</h1>
-            <Zap className="h-6 w-6 text-red-500 fill-red-500" />
-          </div>
-          <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
-            <p className="text-neutral-600 mb-4">No flash sale products available at the moment.</p>
+        <div className="container py-6 px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+            <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Star className="h-8 w-8 text-neutral-300" />
+            </div>
+            <p className="text-neutral-600 mb-4">No top picks available.</p>
           </div>
         </div>
       </div>
@@ -66,33 +60,24 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
+    <div className="min-h-screen bg-neutral-50">
       <div className="container py-6 px-4 sm:px-6 lg:px-8">
-        {/* Page Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl sm:text-4xl font-bold text-neutral-900 tracking-tight">Flash Sales</h1>
-              <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                <Zap className="h-7 w-7 sm:h-8 sm:w-8 text-red-500 fill-red-500" />
-              </motion.div>
-            </div>
-          </div>
+        {/* Banner */}
+        <TopPicksBannerCarousel />
+
+        {/* Header and Search */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900 tracking-tight">Top Picks</h1>
 
           {/* Search */}
           <div className="relative w-full sm:w-auto sm:max-w-[280px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
             <Input
               type="text"
-              placeholder="Search deals..."
+              placeholder="Search picks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 pl-10 pr-4 w-full rounded-full border-neutral-200 bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="h-10 pl-10 pr-4 w-full rounded-full border-neutral-200 bg-white focus:ring-2 focus:ring-neutral-900 focus:border-transparent"
             />
             {searchQuery && (
               <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearchQuery("")}>
@@ -100,22 +85,19 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
               </button>
             )}
           </div>
-        </motion.div>
-
-        {/* Premium Flash Sale Banner */}
-        <FlashSaleBannerCarousel event={event} />
+        </div>
 
         {/* Filters */}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-neutral-500">
-            <span className="font-medium text-neutral-900">{filteredProducts.length}</span> deals available
+            <span className="font-medium text-neutral-900">{filteredProducts.length}</span> products available
           </p>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="h-9 w-[160px] text-sm rounded-full border-neutral-200">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="discount">Highest Discount</SelectItem>
+              <SelectItem value="rating">Highest Rated</SelectItem>
               <SelectItem value="price-asc">Price: Low to High</SelectItem>
               <SelectItem value="price-desc">Price: High to Low</SelectItem>
             </SelectContent>
@@ -154,15 +136,19 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
                           e.currentTarget.src = "/placeholder.svg"
                         }}
                       />
+                      <div className="absolute left-0 top-1.5 bg-amber-500 text-white text-[9px] font-semibold px-1.5 py-0.5 flex items-center gap-0.5">
+                        <Star className="h-2.5 w-2.5 fill-white" />
+                        TOP
+                      </div>
                       {product.sale_price && product.sale_price < product.price && (
-                        <div className="absolute left-0 top-1.5 bg-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5">
+                        <div className="absolute right-0 top-1.5 bg-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5">
                           -{calculateDiscount(product.price, product.sale_price)}%
                         </div>
                       )}
                     </div>
                     <div className="p-1.5 sm:p-2 space-y-0.5">
-                      <span className="inline-block rounded-sm bg-red-50 px-1 py-0.5 text-[8px] sm:text-[9px] font-medium text-red-600">
-                        FLASH SALE
+                      <span className="inline-block rounded-sm bg-amber-50 px-1 py-0.5 text-[8px] sm:text-[9px] font-medium text-amber-600">
+                        EDITOR&apos;S PICK
                       </span>
                       <h3 className="line-clamp-2 text-[10px] sm:text-xs font-medium text-gray-900 leading-tight">
                         {product.name}
@@ -184,6 +170,19 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
             ))}
           </AnimatePresence>
         </div>
+
+        {/* Empty state */}
+        {filteredProducts.length === 0 && (
+          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+            <div className="w-16 h-16 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Star className="h-8 w-8 text-neutral-300" />
+            </div>
+            <p className="text-neutral-600 mb-4">No products match your search.</p>
+            <Button onClick={() => setSearchQuery("")} variant="outline" className="rounded-full px-6">
+              Clear Search
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )

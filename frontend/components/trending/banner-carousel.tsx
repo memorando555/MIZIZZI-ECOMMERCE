@@ -2,8 +2,37 @@
 
 import { motion } from "framer-motion"
 import Image from "next/image"
+import { useState, useEffect } from "react"
 
-export function CategoriesBannerCarousel() {
+interface FlashSaleEvent {
+  id: number
+  name: string
+  time_remaining: number
+}
+
+export function TrendingBannerCarousel({ event }: { event?: FlashSaleEvent | null }) {
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    if (event) {
+      const interval = setInterval(() => {
+        const now = new Date().getTime();
+        const distance = event.time_remaining - now;
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        setTimeLeft({ hours, minutes, seconds });
+
+        if (distance < 0) {
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [event]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -41,7 +70,7 @@ export function CategoriesBannerCarousel() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/80 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-white/90"></span>
                   </span>
-                  Categories
+                  Trending Now
                 </span>
               </motion.div>
 
@@ -52,7 +81,7 @@ export function CategoriesBannerCarousel() {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="text-3xl sm:text-4xl lg:text-3xl font-black text-white leading-tight tracking-tight"
               >
-                Explore All Categories
+                Hot Right Now
               </motion.h2>
 
               {/* Description */}
@@ -62,18 +91,32 @@ export function CategoriesBannerCarousel() {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="text-white/95 text-xs sm:text-sm max-w-xs leading-snug"
               >
-                Browse our complete collection of premium products
+                Don't miss out on exclusive deals on premium products
               </motion.p>
             </div>
+
+            {/* Trending Announcement */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="space-y-2"
+            >
+              <p className="text-white/80 text-[10px] font-semibold uppercase tracking-widest">Today's Special</p>
+              <div className="flex items-end gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-white">Save</span>
+                <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-yellow-200 to-yellow-100 bg-clip-text text-transparent">Up to 60%</span>
+              </div>
+            </motion.div>
 
             {/* CTA Button */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
             >
               <button className="px-5 py-2 bg-white hover:bg-gray-50 text-red-700 font-bold text-xs sm:text-sm rounded-lg transition-all duration-300 hover:shadow-lg active:scale-95 uppercase tracking-wide">
-                Browse Now
+                Browse Trending
               </button>
             </motion.div>
           </div>
@@ -89,8 +132,8 @@ export function CategoriesBannerCarousel() {
             className="relative w-full h-full"
           >
             <Image
-              src="https://images.pexels.com/photos/6314045/pexels-photo-6314045.jpeg"
-              alt="Shopping categories"
+              src="https://images.pexels.com/photos/29887462/pexels-photo-29887462.jpeg"
+              alt="Trending deals"
               fill
               sizes="(max-width: 768px) 100vw, 66vw"
               className="object-cover"

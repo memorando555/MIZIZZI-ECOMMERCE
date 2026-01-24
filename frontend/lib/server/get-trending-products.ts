@@ -42,7 +42,11 @@ export async function getTrendingProducts(limit = 20): Promise<Product[]> {
   try {
     const url = `${API_BASE_URL}/api/products/?is_trending=true&per_page=${limit}`
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
     const response = await fetch(url, {
+      signal: controller.signal,
       next: {
         revalidate: 60,
         tags: ["trending-products"],
@@ -51,6 +55,8 @@ export async function getTrendingProducts(limit = 20): Promise<Product[]> {
         "Content-Type": "application/json",
       },
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.error(`[SSR] Failed to fetch trending products: ${response.status}`)
@@ -86,7 +92,11 @@ async function getFallbackTrendingProducts(limit = 20): Promise<Product[]> {
   try {
     const url = `${API_BASE_URL}/api/products/?per_page=${limit}&sort_by=view_count&sort_order=desc`
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
     const response = await fetch(url, {
+      signal: controller.signal,
       next: {
         revalidate: 60,
         tags: ["trending-products-fallback"],
@@ -95,6 +105,8 @@ async function getFallbackTrendingProducts(limit = 20): Promise<Product[]> {
         "Content-Type": "application/json",
       },
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) return []
 

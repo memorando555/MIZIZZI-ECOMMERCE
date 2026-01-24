@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import Image from "next/image"
 
-export function CategoriesBannerCarousel() {
+export function TopPicksBannerCarousel() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -41,7 +41,7 @@ export function CategoriesBannerCarousel() {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/80 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-white/90"></span>
                   </span>
-                  Categories
+                  Top Picks
                 </span>
               </motion.div>
 
@@ -52,7 +52,7 @@ export function CategoriesBannerCarousel() {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="text-3xl sm:text-4xl lg:text-3xl font-black text-white leading-tight tracking-tight"
               >
-                Explore All Categories
+                Curated For You
               </motion.h2>
 
               {/* Description */}
@@ -62,19 +62,22 @@ export function CategoriesBannerCarousel() {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="text-white/95 text-xs sm:text-sm max-w-xs leading-snug"
               >
-                Browse our complete collection of premium products
+                Handpicked favorites from our best sellers
               </motion.p>
             </div>
 
-            {/* CTA Button */}
+            {/* Top Picks Announcement */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
+              className="space-y-2"
             >
-              <button className="px-5 py-2 bg-white hover:bg-gray-50 text-red-700 font-bold text-xs sm:text-sm rounded-lg transition-all duration-300 hover:shadow-lg active:scale-95 uppercase tracking-wide">
-                Browse Now
-              </button>
+              <p className="text-white/80 text-[10px] font-semibold uppercase tracking-widest">Customer Favorites</p>
+              <div className="flex items-end gap-2">
+                <span className="text-2xl sm:text-3xl font-black text-white">5 Star</span>
+                <span className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-yellow-200 to-yellow-100 bg-clip-text text-transparent">Rated</span>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -89,15 +92,15 @@ export function CategoriesBannerCarousel() {
             className="relative w-full h-full"
           >
             <Image
-              src="https://images.pexels.com/photos/6314045/pexels-photo-6314045.jpeg"
-              alt="Shopping categories"
+              src="https://images.pexels.com/photos/29887462/pexels-photo-29887462.jpeg"
+              alt="Top picks"
               fill
               sizes="(max-width: 768px) 100vw, 66vw"
               className="object-cover"
               priority
             />
             {/* Subtle overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-red-900/10 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-600/10 to-transparent" />
           </motion.div>
         </div>
       </div>

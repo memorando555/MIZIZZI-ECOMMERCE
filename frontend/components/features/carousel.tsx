@@ -2,7 +2,7 @@
 
 import { AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo, memo } from "react"
 import { useCarousel } from "@/hooks/use-carousel"
 import { useResponsiveLayout } from "@/hooks/use-responsive-layout"
 import { CarouselSlide } from "@/components/carousel/carousel-slide"
@@ -28,7 +28,14 @@ interface CarouselProps {
   productShowcase?: ProductShowcaseCategory[]
 }
 
-export function Carousel({
+/**
+ * High-performance carousel component with hybrid rendering
+ * - Uses memoization to prevent unnecessary re-renders
+ * - Optimized image loading with priority for first slide
+ * - Smooth animations with hardware acceleration
+ * - Fast rendering with useMemo for computed values
+ */
+export const Carousel = memo(function Carousel({
   carouselItems: serverCarouselItems = [],
   premiumExperiences = [],
   contactCTASlides = [],
@@ -37,7 +44,8 @@ export function Carousel({
 }: CarouselProps) {
   const { sidePanelsVisible, isDesktop } = useResponsiveLayout()
 
-  const carouselItems = serverCarouselItems
+  // Memoize carousel items to prevent unnecessary re-renders
+  const carouselItems = useMemo(() => serverCarouselItems, [serverCarouselItems])
 
   const { currentSlide, direction, isPaused, nextSlide, prevSlide, pause, resume } = useCarousel({
     itemsLength: carouselItems.length || 1,
@@ -53,8 +61,9 @@ export function Carousel({
     return () => clearTimeout(timer)
   }, [currentSlide])
 
-  const activeItem = carouselItems[currentSlide]
-  const prevItem = carouselItems[prevSlideIndex]
+  // Memoize active and previous items for performance
+  const activeItem = useMemo(() => carouselItems[currentSlide], [carouselItems, currentSlide])
+  const prevItem = useMemo(() => carouselItems[prevSlideIndex], [carouselItems, prevSlideIndex])
 
   if (carouselItems.length === 0) {
     return null
@@ -145,4 +154,4 @@ export function Carousel({
       </div>
     </div>
   )
-}
+})

@@ -1,24 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
-import { Search, X, Zap } from "lucide-react"
+import { Search, X, Sparkles } from "lucide-react"
 import Image from "next/image"
-import type { FlashSaleProduct, FlashSaleEvent } from "@/lib/server/get-flash-sale-products"
+import type { Product } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { FlashSaleBannerCarousel } from "@/components/flash-sales/banner-carousel"
+import { NewArrivalsBannerCarousel } from "@/components/new-arrivals/banner-carousel"
 
-
-
-interface FlashSalesPageContentProps {
-  products: FlashSaleProduct[]
-  event?: FlashSaleEvent | null
+interface NewArrivalsPageContentProps {
+  products: Product[]
 }
 
-export function FlashSalesPageContent({ products: initialProducts, event }: FlashSalesPageContentProps) {
+export function NewArrivalsPageContent({ products: initialProducts }: NewArrivalsPageContentProps) {
   const [sortBy, setSortBy] = useState("discount")
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -54,11 +51,11 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
       <div className="min-h-screen bg-neutral-50">
         <div className="container py-8 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2 mb-8">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900">Flash Sales</h1>
-            <Zap className="h-6 w-6 text-red-500 fill-red-500" />
+            <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900">New Arrivals</h1>
+            <Sparkles className="h-6 w-6 text-red-600" />
           </div>
           <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
-            <p className="text-neutral-600 mb-4">No flash sale products available at the moment.</p>
+            <p className="text-neutral-600 mb-4">No new arrivals available at the moment.</p>
           </div>
         </div>
       </div>
@@ -77,9 +74,9 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
         >
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl sm:text-4xl font-bold text-neutral-900 tracking-tight">Flash Sales</h1>
+              <h1 className="text-3xl sm:text-4xl font-bold text-neutral-900 tracking-tight">New Arrivals</h1>
               <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                <Zap className="h-7 w-7 sm:h-8 sm:w-8 text-red-500 fill-red-500" />
+                <Sparkles className="h-7 w-7 sm:h-8 sm:w-8 text-red-700" />
               </motion.div>
             </div>
           </div>
@@ -92,7 +89,7 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
               placeholder="Search deals..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 pl-10 pr-4 w-full rounded-full border-neutral-200 bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              className="h-10 pl-10 pr-4 w-full rounded-full border-neutral-200 bg-white focus:ring-2 focus:ring-red-600 focus:border-transparent"
             />
             {searchQuery && (
               <button className="absolute right-3 top-1/2 -translate-y-1/2" onClick={() => setSearchQuery("")}>
@@ -102,8 +99,8 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
           </div>
         </motion.div>
 
-        {/* Premium Flash Sale Banner */}
-        <FlashSaleBannerCarousel event={event} />
+        {/* New Arrivals Banner */}
+        <NewArrivalsBannerCarousel />
 
         {/* Filters */}
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -155,14 +152,14 @@ export function FlashSalesPageContent({ products: initialProducts, event }: Flas
                         }}
                       />
                       {product.sale_price && product.sale_price < product.price && (
-                        <div className="absolute left-0 top-1.5 bg-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5">
+                        <div className="absolute left-0 top-1.5 bg-red-600 text-white text-[9px] font-semibold px-1.5 py-0.5">
                           -{calculateDiscount(product.price, product.sale_price)}%
                         </div>
                       )}
                     </div>
                     <div className="p-1.5 sm:p-2 space-y-0.5">
-                      <span className="inline-block rounded-sm bg-red-50 px-1 py-0.5 text-[8px] sm:text-[9px] font-medium text-red-600">
-                        FLASH SALE
+                      <span className="inline-block rounded-sm bg-blue-50 px-1 py-0.5 text-[8px] sm:text-[9px] font-medium text-red-700">
+                        NEW ARRIVAL
                       </span>
                       <h3 className="line-clamp-2 text-[10px] sm:text-xs font-medium text-gray-900 leading-tight">
                         {product.name}

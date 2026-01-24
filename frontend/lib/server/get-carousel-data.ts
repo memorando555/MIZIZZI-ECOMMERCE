@@ -1,49 +1,48 @@
-import { cache } from "react"
+import { cache } from "react";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com";
 
 export interface CarouselItem {
-  image: string
-  title: string
-  description: string
-  buttonText: string
-  href: string
-  badge?: string
-  discount?: string
+  image: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  href: string;
+  badge?: string;
+  discount?: string;
 }
 
 export interface PremiumExperience {
-  id: number
-  title: string
-  metric: string
-  description: string
-  icon_name: string
-  image: string
-  gradient: string
-  features: string[]
-  is_active: boolean
+  id: number;
+  title: string;
+  metric: string;
+  description: string;
+  icon_name: string;
+  image: string;
+  gradient: string;
+  features: string[];
+  is_active: boolean;
 }
 
 export interface ContactCTASlide {
-  id: number
-  subtitle: string
-  image: string
-  gradient: string
-  accent_color: string
+  id: number;
+  subtitle: string;
+  image: string;
+  gradient: string;
+  accent_color: string;
 }
 
 export interface FeatureCard {
-  id?: number
-  icon: string
-  title: string
-  description: string
-  href: string
-  iconBg: string
-  iconColor: string
-  hoverBg: string
-  badge?: string
-  count?: number
+  id?: number;
+  icon: string;
+  title: string;
+  description: string;
+  href: string;
+  iconBg: string;
+  iconColor: string;
+  hoverBg: string;
+  badge?: string;
+  count?: number;
 }
 
 // Default feature cards for instant display
@@ -104,7 +103,7 @@ const DEFAULT_FEATURE_CARDS: FeatureCard[] = [
     iconColor: "text-slate-600",
     hoverBg: "hover:bg-slate-50/80",
   },
-]
+];
 
 // Default premium experiences for instant display
 const DEFAULT_PREMIUM_EXPERIENCES: PremiumExperience[] = [
@@ -119,7 +118,7 @@ const DEFAULT_PREMIUM_EXPERIENCES: PremiumExperience[] = [
     features: ["Priority support", "Exclusive deals", "Free shipping", "Early access"],
     is_active: true,
   },
-]
+];
 
 // Default contact CTA slides for instant display
 const DEFAULT_CONTACT_SLIDES: ContactCTASlide[] = [
@@ -130,20 +129,10 @@ const DEFAULT_CONTACT_SLIDES: ContactCTASlide[] = [
     gradient: "from-cherry-600 to-cherry-800",
     accent_color: "text-yellow-300",
   },
-]
+];
 
-// Default carousel items for instant display
-const DEFAULT_CAROUSEL_ITEMS: CarouselItem[] = [
-  {
-    image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1200&q=80",
-    title: "WELCOME TO MIZIZZI",
-    description: "Discover Premium Fashion & Lifestyle",
-    buttonText: "Shop Now",
-    href: "/products",
-    badge: "NEW",
-    discount: "Up to 50% OFF",
-  },
-]
+// Default carousel items for instant display - empty array, only show backend data
+const DEFAULT_CAROUSEL_ITEMS: CarouselItem[] = [];
 
 // Server-side fetcher for carousel items
 export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
@@ -151,11 +140,11 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
     const response = await fetch(`${API_BASE_URL}/api/carousel/items?position=homepage`, {
       next: { revalidate: 300, tags: ["carousel-items"] }, // Cache for 5 minutes
       headers: { "Content-Type": "application/json" },
-    })
+    });
 
-    if (!response.ok) return DEFAULT_CAROUSEL_ITEMS
+    if (!response.ok) return DEFAULT_CAROUSEL_ITEMS;
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (data.success && data.items && data.items.length > 0) {
       return data.items.map((item: any) => ({
@@ -166,14 +155,14 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
         href: item.link_url || "/products",
         badge: item.badge_text,
         discount: item.discount,
-      }))
+      }));
     }
 
-    return DEFAULT_CAROUSEL_ITEMS
+    return DEFAULT_CAROUSEL_ITEMS;
   } catch (error) {
-    return DEFAULT_CAROUSEL_ITEMS
+    return DEFAULT_CAROUSEL_ITEMS;
   }
-})
+});
 
 // Server-side fetcher for premium experience
 export const getPremiumExperiences = cache(async (): Promise<PremiumExperience[]> => {
@@ -181,11 +170,11 @@ export const getPremiumExperiences = cache(async (): Promise<PremiumExperience[]
     const response = await fetch(`${API_BASE_URL}/api/panels/items?panel_type=premium_experience&position=right`, {
       next: { revalidate: 300, tags: ["premium-experiences"] },
       headers: { "Content-Type": "application/json" },
-    })
+    });
 
-    if (!response.ok) return DEFAULT_PREMIUM_EXPERIENCES
+    if (!response.ok) return DEFAULT_PREMIUM_EXPERIENCES;
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (data.items && data.items.length > 0) {
       return data.items.map((item: any) => ({
@@ -198,14 +187,14 @@ export const getPremiumExperiences = cache(async (): Promise<PremiumExperience[]
         gradient: item.gradient,
         features: item.features,
         is_active: item.is_active,
-      }))
+      }));
     }
 
-    return DEFAULT_PREMIUM_EXPERIENCES
+    return DEFAULT_PREMIUM_EXPERIENCES;
   } catch (error) {
-    return DEFAULT_PREMIUM_EXPERIENCES
+    return DEFAULT_PREMIUM_EXPERIENCES;
   }
-})
+});
 
 // Server-side fetcher for contact CTA slides
 export const getContactCTASlides = cache(async (): Promise<ContactCTASlide[]> => {
@@ -213,21 +202,21 @@ export const getContactCTASlides = cache(async (): Promise<ContactCTASlide[]> =>
     const response = await fetch(`${API_BASE_URL}/api/contact-cta/slides`, {
       next: { revalidate: 300, tags: ["contact-cta"] },
       headers: { "Content-Type": "application/json" },
-    })
+    });
 
-    if (!response.ok) return DEFAULT_CONTACT_SLIDES
+    if (!response.ok) return DEFAULT_CONTACT_SLIDES;
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (data.slides && data.slides.length > 0) {
-      return data.slides
+      return data.slides;
     }
 
-    return DEFAULT_CONTACT_SLIDES
+    return DEFAULT_CONTACT_SLIDES;
   } catch (error) {
-    return DEFAULT_CONTACT_SLIDES
+    return DEFAULT_CONTACT_SLIDES;
   }
-})
+});
 
 // Server-side fetcher for feature cards
 export const getFeatureCards = cache(async (): Promise<FeatureCard[]> => {
@@ -235,32 +224,32 @@ export const getFeatureCards = cache(async (): Promise<FeatureCard[]> => {
     const response = await fetch(`${API_BASE_URL}/api/feature-cards`, {
       next: { revalidate: 300, tags: ["feature-cards"] },
       headers: { "Content-Type": "application/json" },
-    })
+    });
 
-    if (!response.ok) return DEFAULT_FEATURE_CARDS
+    if (!response.ok) return DEFAULT_FEATURE_CARDS;
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (data && Array.isArray(data) && data.length > 0) {
-      return data
+      return data;
     }
 
-    return DEFAULT_FEATURE_CARDS
+    return DEFAULT_FEATURE_CARDS;
   } catch (error) {
-    return DEFAULT_FEATURE_CARDS
+    return DEFAULT_FEATURE_CARDS;
   }
-})
+});
 
 export interface ProductShowcaseCategory {
-  id: number
-  title: string
-  metric: string
-  description: string
-  icon_name: string
-  image: string
-  gradient: string
-  features: string[]
-  is_active: boolean
+  id: number;
+  title: string;
+  metric: string;
+  description: string;
+  icon_name: string;
+  image: string;
+  gradient: string;
+  features: string[];
+  is_active: boolean;
 }
 
 const DEFAULT_PRODUCT_SHOWCASE: ProductShowcaseCategory[] = [
@@ -286,18 +275,18 @@ const DEFAULT_PRODUCT_SHOWCASE: ProductShowcaseCategory[] = [
     features: ["Top Rated", "Most Popular", "Customer Favorites", "Priority Support"],
     is_active: true,
   },
-]
+];
 
 export const getProductShowcase = cache(async (): Promise<ProductShowcaseCategory[]> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/panels/items?panel_type=product_showcase&position=left`, {
       next: { revalidate: 300, tags: ["product-showcase"] },
       headers: { "Content-Type": "application/json" },
-    })
+    });
 
-    if (!response.ok) return DEFAULT_PRODUCT_SHOWCASE
+    if (!response.ok) return DEFAULT_PRODUCT_SHOWCASE;
 
-    const data = await response.json()
+    const data = await response.json();
 
     if (data.items && data.items.length > 0) {
       return data.items.map((item: any) => ({
@@ -310,24 +299,26 @@ export const getProductShowcase = cache(async (): Promise<ProductShowcaseCategor
         gradient: item.gradient,
         features: item.features,
         is_active: item.is_active,
-      }))
+      }));
     }
 
-    return DEFAULT_PRODUCT_SHOWCASE
+    return DEFAULT_PRODUCT_SHOWCASE;
   } catch (error) {
-    return DEFAULT_PRODUCT_SHOWCASE
+    return DEFAULT_PRODUCT_SHOWCASE;
   }
-})
+});
 
 // Combined fetcher for all carousel data
-export const getCarouselData = cache(async () => {
+// Note: NOT wrapped in cache() to avoid exceeding 2MB Next.js cache limit
+// Individual fetchers handle their own caching via next.revalidate
+export const getCarouselData = async () => {
   const [carouselItems, premiumExperiences, contactCTASlides, featureCards, productShowcase] = await Promise.all([
     getCarouselItems(),
     getPremiumExperiences(),
     getContactCTASlides(),
     getFeatureCards(),
     getProductShowcase(),
-  ])
+  ]);
 
   return {
     carouselItems,
@@ -335,5 +326,5 @@ export const getCarouselData = cache(async () => {
     contactCTASlides,
     featureCards,
     productShowcase,
-  }
-})
+  };
+};

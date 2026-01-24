@@ -25,16 +25,70 @@ interface BatchServiceState {
   failedEndpoints: Set<string>
 }
 
+// Load cached endpoint at initialization
+const cachedEndpoint = loadWorkingEndpoint()
+
 // Initialize state
 const state: BatchServiceState = {
   isBatchModeEnabled: true, // Start optimistically assuming batch mode works
-  hasTestedBatchEndpoint: false,
-  workingEndpoint: null,
+  hasTestedBatchEndpoint: !!cachedEndpoint, // Mark as tested if we have a cached endpoint
+  workingEndpoint: cachedEndpoint,
   inProgressBatches: new Set(),
   cache: new Map(),
   queue: [],
   isProcessingQueue: false,
   failedEndpoints: new Set(),
+}
+
+/**
+ * Load the working batch endpoint from localStorage
+ * This avoids re-testing the endpoint on every page load
+ */
+function loadWorkingEndpoint(): string | null {
+  if (typeof localStorage === "undefined") {
+    return null
+  }
+
+  try {
+    const cached = localStorage.getItem("batch_endpoint_cache")
+    if (cached) {
+      const { endpoint, timestamp } = JSON.parse(cached)
+      // Cache is valid for 24 hours
+      if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+        console.log(`[v0] Loaded cached working endpoint from localStorage: ${endpoint}`)
+        return endpoint
+      } else {
+        localStorage.removeItem("batch_endpoint_cache")
+      }
+    }
+  } catch (error) {
+    console.warn("[v0] Failed to load cached endpoint:", error)
+  }
+
+  return null
+}
+
+/**
+ * Save the working batch endpoint to localStorage
+ * This avoids re-testing the endpoint on every page load
+ */
+function saveWorkingEndpoint(endpoint: string): void {
+  if (typeof localStorage === "undefined") {
+    return
+  }
+
+  try {
+    localStorage.setItem(
+      "batch_endpoint_cache",
+      JSON.stringify({
+        endpoint,
+        timestamp: Date.now(),
+      }),
+    )
+    console.log(`[Batch] Cached working endpoint to localStorage: ${endpoint}`)
+  } catch (error) {
+    console.warn("[Batch] Failed to cache endpoint:", error)
+  }
 }
 
 // Possible API endpoints to try
@@ -64,6 +118,7 @@ export const imageBatchService = {
     // Check cache first
     const cachedImages = this.getCachedImages(productId)
     if (cachedImages) {
+      console.log(`Using cached product images for product ${productId}`)
       return cachedImages
     }
 
@@ -80,6 +135,7 @@ export const imageBatchService = {
         // Check cache again after waiting
         const cachedImagesAfterWait = this.getCachedImages(productId)
         if (cachedImagesAfterWait) {
+          console.log(`Using cached product images for product ${productId} after waiting`)
           return cachedImagesAfterWait
         }
       }
@@ -90,23 +146,21 @@ export const imageBatchService = {
       // Add to queue and process
       this.queueProductId(productId)
 
-      // If we're already processing the queue, just return an empty array for now
-      // The actual images will be loaded in the background
-      if (state.isProcessingQueue) {
-        return []
-      }
-
-      // Process the queue
+      // Process the queue (awaits completion)
       await this.processQueue()
 
       // Check cache again after processing queue
       const cachedImagesAfterQueue = this.getCachedImages(productId)
       if (cachedImagesAfterQueue) {
+        console.log(`Using cached product images for product ${productId} after queue processing`)
         return cachedImagesAfterQueue
       }
+
+      // If still no cache after batch processing, fall back to individual request
+      return this.fetchIndividualProductImages(productId)
     }
 
-    // If batch mode is disabled or the batch request failed, fall back to individual request
+    // If batch mode is disabled, fall back to individual request
     return this.fetchIndividualProductImages(productId)
   },
 
@@ -266,10 +320,11 @@ export const imageBatchService = {
    */
   async testBatchEndpoint(testProductId: string): Promise<void> {
     if (state.hasTestedBatchEndpoint && state.workingEndpoint) {
+      console.log(`[v0] Using cached batch endpoint: ${state.workingEndpoint}`)
       return
     }
 
-    console.log("Testing batch endpoint availability...")
+    console.log("[v0] Testing batch endpoint availability (no cached endpoint found)...")
     state.hasTestedBatchEndpoint = true
 
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
@@ -339,6 +394,8 @@ export const imageBatchService = {
               console.log(`[v0] Found working batch endpoint: ${endpoint}`)
               state.workingEndpoint = endpoint
               state.isBatchModeEnabled = true
+              // Save the working endpoint to localStorage to avoid retesting on page reload
+              saveWorkingEndpoint(endpoint)
               return
             }
           }

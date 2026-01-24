@@ -1,9 +1,10 @@
 import { FlashSalesClient } from "@/components/features/flash-sales-client"
 import type { FlashSaleProduct, FlashSaleEvent } from "@/lib/server/get-flash-sale-products"
+import type { Product } from "@/types"
 import type React from "react"
 
 interface FlashSalesProps {
-  products?: FlashSaleProduct[]
+  products?: Product[] | FlashSaleProduct[]
   event?: FlashSaleEvent | null
 }
 
@@ -22,5 +23,5 @@ export function FlashSales({ products = [], event = null }: FlashSalesProps) {
   }
 
   // Pass SSR'd data to client component for interactivity
-  return <FlashSalesClient initialProducts={products} initialEvent={event} />
+  return <FlashSalesClient initialProducts={products as FlashSaleProduct[]} initialEvent={event} />
 }

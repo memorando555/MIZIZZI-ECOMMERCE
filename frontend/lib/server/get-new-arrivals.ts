@@ -42,7 +42,11 @@ export async function getNewArrivals(limit = 20): Promise<Product[]> {
   try {
     const url = `${API_BASE_URL}/api/products/?is_new_arrival=true&per_page=${limit}`
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
     const response = await fetch(url, {
+      signal: controller.signal,
       next: {
         revalidate: 60,
         tags: ["new-arrivals"],
@@ -51,6 +55,8 @@ export async function getNewArrivals(limit = 20): Promise<Product[]> {
         "Content-Type": "application/json",
       },
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.error(`[SSR] Failed to fetch new arrivals: ${response.status}`)
@@ -85,7 +91,11 @@ async function getFallbackNewArrivals(limit = 20): Promise<Product[]> {
   try {
     const url = `${API_BASE_URL}/api/products/?per_page=${limit}&sort_by=created_at&sort_order=desc`
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
     const response = await fetch(url, {
+      signal: controller.signal,
       next: {
         revalidate: 60,
         tags: ["new-arrivals-fallback"],
@@ -94,6 +104,8 @@ async function getFallbackNewArrivals(limit = 20): Promise<Product[]> {
         "Content-Type": "application/json",
       },
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) return []
 
