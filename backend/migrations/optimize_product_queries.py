@@ -17,6 +17,24 @@ from pathlib import Path
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path))
 
+# Quick check for a Postgres DB driver so we fail early with a helpful message.
+try:
+    # psycopg (v3) preferred if available
+    import psycopg as _psycopg  # type: ignore
+    _DB_DRIVER = "psycopg"
+except Exception:
+    try:
+        # psycopg2 (v2) fallback
+        import psycopg2 as _psycopg2  # type: ignore
+        _DB_DRIVER = "psycopg2"
+    except Exception:
+        print("[Error] Could not import psycopg or psycopg2: No PostgreSQL DB driver available.")
+        print("[Fix] Install one of the drivers in your environment. Recommended (simple wheel):")
+        print("  pip install psycopg2-binary")
+        print("Or, for psycopg v3:")
+        print("  pip install psycopg")
+        sys.exit(1)
+
 def create_indexes():
     """Create critical database indexes for product queries."""
     
