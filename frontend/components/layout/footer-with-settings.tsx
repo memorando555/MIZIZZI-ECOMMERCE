@@ -5,12 +5,14 @@ import Link from "next/link"
 import { Facebook, Instagram, Twitter, Linkedin, ChevronUp, ChevronDown, Gem } from "lucide-react"
 import { useState, useEffect } from "react"
 import type { FooterSettingsData } from "@/lib/server/get-footer-settings"
+import { PaymentLogo } from "@/components/payment-logos/svg-payment-logos"
 
 interface PaymentMethod {
   id: string
   name: string
   icon: string
   isImage?: boolean
+  logoType?: "mpesa" | "pesapal" | "visa" | "mastercard" | "airtel" | "amex"
 }
 
 interface FooterWithSettingsProps {
@@ -51,13 +53,13 @@ const defaultSettings: FooterSettingsData = {
   paymentMethods: ["Pesapal", "M-Pesa", "Card Payment", "Airtel Money", "Cash on Delivery"],
 }
 
-// Static payment methods - no need to fetch
+// Static payment methods - using SVG logos instead of PNG for optimization
 const staticPaymentMethods: PaymentMethod[] = [
-  { id: "mpesa", name: "M-Pesa", icon: "/m-pesa-logo-green.png", isImage: true },
-  { id: "pesapal", name: "Pesapal", icon: "/pesapal-logo.png", isImage: true },
-  { id: "visa", name: "Visa", icon: "/visa-logo-blue.png", isImage: true },
-  { id: "mastercard", name: "Mastercard", icon: "/mastercard-logo-red-yellow.png", isImage: true },
-  { id: "airtel", name: "Airtel Money", icon: "/airtel-money-logo-red.png", isImage: true },
+  { id: "mpesa", name: "M-Pesa", icon: "", isImage: false, logoType: "mpesa" },
+  { id: "pesapal", name: "Pesapal", icon: "", isImage: false, logoType: "pesapal" },
+  { id: "visa", name: "Visa", icon: "", isImage: false, logoType: "visa" },
+  { id: "mastercard", name: "Mastercard", icon: "", isImage: false, logoType: "mastercard" },
+  { id: "airtel", name: "Airtel Money", icon: "", isImage: false, logoType: "airtel" },
 ]
 
 export function FooterWithSettings({ initialSettings }: FooterWithSettingsProps) {
@@ -336,14 +338,8 @@ export function FooterWithSettings({ initialSettings }: FooterWithSettingsProps)
                       className="relative flex items-center justify-center w-12 h-8 rounded bg-white p-1 shadow-sm overflow-hidden"
                       title={method.name}
                     >
-                      {method.isImage ? (
-                        <Image
-                          src={method.icon || "/placeholder.svg"}
-                          alt={method.name}
-                          width={40}
-                          height={24}
-                          className="object-contain w-full h-full"
-                        />
+                      {method.logoType ? (
+                        <PaymentLogo type={method.logoType} className="w-full h-full" alt={method.name} />
                       ) : (
                         <span className="text-lg">{method.icon}</span>
                       )}
@@ -577,14 +573,8 @@ export function FooterWithSettings({ initialSettings }: FooterWithSettingsProps)
                       className="relative flex items-center justify-center w-12 h-8 rounded bg-white p-1 shadow-sm overflow-hidden"
                       title={method.name}
                     >
-                      {method.isImage ? (
-                        <Image
-                          src={method.icon || "/placeholder.svg"}
-                          alt={method.name}
-                          width={40}
-                          height={24}
-                          className="object-contain w-full h-full"
-                        />
+                      {method.logoType ? (
+                        <PaymentLogo type={method.logoType} className="w-full h-full" alt={method.name} />
                       ) : (
                         <span className="text-lg">{method.icon}</span>
                       )}

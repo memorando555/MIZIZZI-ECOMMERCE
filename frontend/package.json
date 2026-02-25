@@ -98,7 +98,7 @@
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18.2.0",
     "axios": "^1.12.2",
-    "baseline-browser-mapping": "^2.9.14",
+    "baseline-browser-mapping": "^2.10.0",
     "eslint": "8.51.0",
     "eslint-config-next": "14.0.0",
     "input-otp": "^1.4.2",
