@@ -12,8 +12,8 @@ const nextConfig = {
     NEXT_PUBLIC_ENABLE_WEBSOCKET: process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET || 'true',
   },
   images: {
-    // unoptimized should be false in production for proper image serving
-    unoptimized: true,
+    // Enable Next.js image optimization for proper serving, AVIF/WebP generation, and responsive sizing
+    unoptimized: false,
     
     remotePatterns: [
       {
@@ -81,16 +81,13 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     formats: ['image/avif', 'image/webp'],
     qualities: [75, 85],
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 31536000, // 1 year cache for optimized images
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; img-src * data: blob: 'self'; script-src 'none'; sandbox;",
   },
   output: 'standalone',
   turbopack: {
     root: process.cwd(),
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,

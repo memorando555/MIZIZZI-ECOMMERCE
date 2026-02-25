@@ -3,6 +3,8 @@
 import React from "react"
 import Image from "next/image"
 import { motion } from "framer-motion"
+import { UniversalImage } from "@/components/shared/universal-image"
+import { getOptimizedImageUrl } from "@/lib/image-optimization"
 import type { CarouselItem } from "@/types/carousel"
 
 interface CarouselSlideProps {
@@ -31,6 +33,13 @@ export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, i
   const imageSrc = item.image || "/placeholder.svg"
   const isDataUrl = imageSrc.startsWith("data:")
   
+  // Optimize image URL for Unsplash and svgator
+  const optimizedSrc = getOptimizedImageUrl(imageSrc, {
+    width: 1200,
+    quality: 82,
+    format: "auto",
+  })
+  
   return (
     <motion.div
       custom={direction}
@@ -52,24 +61,30 @@ export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, i
         WebkitBackfaceVisibility: "hidden",
       }}
     >
-      {/* Background Image */}
+      {/* Background Image with optimized loading */}
       <div className="relative h-full w-full bg-gray-100">
         {isDataUrl ? (
+          // Use native img for data URLs (already optimized)
           <img
             src={imageSrc || "/placeholder.svg"}
             alt={item.title}
             className="absolute inset-0 h-full w-full object-cover"
+            loading="eager"
+            decoding="async"
           />
         ) : (
+          // Use Next.js Image for network images with priority for first slide
           <Image
-            src={imageSrc || "/placeholder.svg"}
+            src={optimizedSrc || "/placeholder.svg"}
             alt={item.title}
             fill
             className="object-cover"
             priority={index === 0}
             loading={index === 0 ? "eager" : "lazy"}
+            decoding="async"
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 1200px"
-            quality={75}
+            quality={82}
+            placeholder="empty"
           />
         )}
       </div>

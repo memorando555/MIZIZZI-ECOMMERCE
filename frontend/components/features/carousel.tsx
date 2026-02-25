@@ -117,7 +117,10 @@ export const Carousel = memo(function Carousel({
                 className="object-cover"
                 priority={currentSlide === 0}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 1200px"
-                quality={75}
+                quality={82}
+                decoding="async"
+                loading={currentSlide === 0 ? "eager" : "lazy"}
+                placeholder="empty"
               />
             )}
           </div>

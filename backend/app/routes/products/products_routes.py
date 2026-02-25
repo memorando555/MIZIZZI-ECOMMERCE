@@ -96,6 +96,60 @@ def serialize_product_lightweight(product):
         return None
 
 
+def serialize_product_with_eager_loading(products_with_images):
+    """
+    Serialize products that already have images eagerly loaded.
+    
+    Args:
+        products_with_images: Product instances with .product_images pre-loaded (via joinedload)
+    
+    Returns:
+        List of serialized products
+    """
+    serialized = []
+    for product in products_with_images:
+        try:
+            # Use pre-loaded images to avoid N+1 queries
+            product_images = product.product_images if hasattr(product, 'product_images') else []
+            image_urls_from_db = [img.url for img in product_images if img.url]
+            
+            image_urls = image_urls_from_db if image_urls_from_db else product.get_image_urls()
+            
+            data = {
+                'id': product.id,
+                'name': product.name,
+                'slug': product.slug,
+                'description': product.description,
+                'price': float(product.price) if product.price else None,
+                'sale_price': float(product.sale_price) if product.sale_price else None,
+                'stock': product.stock,
+                'category_id': product.category_id,
+                'brand_id': product.brand_id,
+                'image_urls': image_urls,
+                'thumbnail_url': image_urls[0] if image_urls else product.thumbnail_url,
+                'is_featured': product.is_featured,
+                'is_new': product.is_new,
+                'is_sale': product.is_sale,
+                'is_flash_sale': product.is_flash_sale,
+                'is_luxury_deal': product.is_luxury_deal,
+                'is_trending': product.is_trending,
+                'is_top_pick': product.is_top_pick,
+                'is_daily_find': product.is_daily_find,
+                'is_new_arrival': product.is_new_arrival,
+                'is_active': product.is_active,
+                'sku': product.sku,
+                'discount_percentage': product.discount_percentage,
+                'created_at': product.created_at.isoformat() if product.created_at else None,
+                'updated_at': product.updated_at.isoformat() if product.updated_at else None
+            }
+            serialized.append(data)
+        except Exception as e:
+            current_app.logger.error(f"Error serializing product {product.id}: {str(e)}")
+            continue
+    
+    return serialized
+
+
 def serialize_product(product, include_variants=False, include_images=False):
     """
     Serialize a product to dictionary format.
@@ -109,11 +163,19 @@ def serialize_product(product, include_variants=False, include_images=False):
         Dictionary representation of the product
     """
     try:
-        # Get images from the ProductImage table
-        product_images = ProductImage.query.filter_by(product_id=product.id).order_by(
-            ProductImage.is_primary.desc(),
-            ProductImage.sort_order.asc()
-        ).all()
+        # OPTIMIZED: Check if images are pre-loaded (via joinedload) to avoid N+1 query
+        if hasattr(product, 'product_images') and product.product_images is not None:
+            # Images were eagerly loaded - use them directly
+            product_images = sorted(
+                product.product_images,
+                key=lambda x: (-int(x.is_primary), x.sort_order or 0)
+            )
+        else:
+            # Fall back to query (only when not using eager loading)
+            product_images = ProductImage.query.filter_by(product_id=product.id).order_by(
+                ProductImage.is_primary.desc(),
+                ProductImage.sort_order.asc()
+            ).all()
 
         # Extract URLs from ProductImage records
         image_urls_from_db = [img.url for img in product_images if img.url]
@@ -412,6 +474,7 @@ def get_all_cached_products():
     
     # Cache miss - fetch and cache all products
     try:
+        # OPTIMIZED: Use joinedload to eagerly load product images and avoid N+1 queries
         products = Product.query.options(
             load_only(
                 Product.id, Product.name, Product.slug, Product.price,
@@ -422,6 +485,10 @@ def get_all_cached_products():
                 Product.is_top_pick, Product.is_daily_find, Product.is_new_arrival,
                 Product.is_active, Product.is_visible, Product.category_id,
                 Product.brand_id, Product.created_at, Product.sort_order
+            ),
+            joinedload(Product.product_images).load_only(
+                ProductImage.id, ProductImage.product_id, ProductImage.url,
+                ProductImage.is_primary, ProductImage.sort_order
             )
         ).filter(
             Product.is_active == True,
@@ -635,6 +702,10 @@ def get_products():
                 Product.is_top_pick, Product.is_daily_find, Product.is_new_arrival,
                 Product.is_active, Product.is_visible, Product.category_id,
                 Product.brand_id, Product.created_at, Product.sort_order
+            ),
+            joinedload(Product.product_images).load_only(
+                ProductImage.id, ProductImage.product_id, ProductImage.url,
+                ProductImage.is_primary, ProductImage.sort_order
             )
         )
 
