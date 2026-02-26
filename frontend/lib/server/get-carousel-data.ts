@@ -163,7 +163,10 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
         revalidate: ISR_REVALIDATE_TIME,
         tags: ISR_TAGS.carousel
       },
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept-Encoding": "gzip, deflate, br",
+      },
     });
 
     if (!response.ok) {

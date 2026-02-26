@@ -24,7 +24,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatPrice } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import confetti from "canvas-confetti"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/contexts/cart/cart-context"
 
@@ -98,36 +97,46 @@ const CheckoutConfirmation: React.FC<CheckoutConfirmationProps> = ({
 
   // Launch confetti effect and ensure we have the correct order data
   useEffect(() => {
-    // Confetti effect
-    const duration = 3 * 1000
-    const animationEnd = Date.now() + duration
-    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 }
+    // Confetti effect - lazy loaded only when needed
+    (async () => {
+      try {
+        const confetti = (await import("canvas-confetti")).default
+        
+        const duration = 3 * 1000
+        const animationEnd = Date.now() + duration
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 }
 
-    function randomInRange(min: number, max: number) {
-      return Math.random() * (max - min) + min
-    }
+        function randomInRange(min: number, max: number) {
+          return Math.random() * (max - min) + min
+        }
 
-    const interval = setInterval(() => {
-      const timeLeft = animationEnd - Date.now()
+        const interval = setInterval(() => {
+          const timeLeft = animationEnd - Date.now()
 
-      if (timeLeft <= 0) {
-        return clearInterval(interval)
+          if (timeLeft <= 0) {
+            return clearInterval(interval)
+          }
+
+          const particleCount = 50 * (timeLeft / duration)
+
+          // Green and white colors for success theme
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+            colors: ["#10B981", "#059669", "#FFFFFF", "#D1FAE5"],
+          })
+          confetti({
+            ...defaults,
+            particleCount,
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+            colors: ["#10B981", "#059669", "#FFFFFF", "#D1FAE5"],
+          })
+        }, 250)
+      } catch (error) {
+        // Silently handle if confetti fails to load
       }
-
-      const particleCount = 50 * (timeLeft / duration)
-
-      // Green and white colors for success theme
-      confetti({
-        ...defaults,
-        particleCount,
-        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-        colors: ["#10B981", "#059669", "#FFFFFF", "#D1FAE5"],
-      })
-      confetti({
-        ...defaults,
-        particleCount,
-        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-        colors: ["#10B981", "#059669", "#FFFFFF", "#D1FAE5"],
+    })()
       })
     }, 250)
 

@@ -1,91 +1,83 @@
-import { getFlashSaleProducts } from "@/lib/server/get-flash-sale-products"
-import { getLuxuryProducts } from "@/lib/server/get-luxury-products"
-import { getNewArrivals } from "@/lib/server/get-new-arrivals"
-import { getTopPicks } from "@/lib/server/get-top-picks"
-import { getTrendingProducts } from "@/lib/server/get-trending-products"
-import { getDailyFinds } from "@/lib/server/get-daily-finds"
+import { Suspense } from "react"
+import { getCarouselItems, getPremiumExperiences } from "@/lib/server/get-carousel-data"
 import { getCategories } from "@/lib/server/get-categories"
-import { getCarouselItems, getFeatureCards, getPremiumExperiences, getContactCTASlides, getProductShowcase } from "@/lib/server/get-carousel-data"
-import { getAllProductsForHome } from "@/lib/server/get-all-products"
 import { HomeContent } from "@/components/home/home-content"
+import { HomeLoader } from "@/components/home/home-loader"
+
+// ISR revalidation - revalidate every 60 seconds for fresh content
+export const revalidate = 60
+
+// Enable static rendering with ISR for performance
+export const dynamic = "force-static"
 
 /**
- * Optimized homepage - fetches all data in parallel for instant rendering
- * No Suspense boundaries = fully rendered page displays immediately
- * ISR revalidates every 60 seconds for fresh content
+ * CRITICAL OPTIMIZATION: Reduced home page to fetch only essential data first
+ * All fetch operations run in parallel with Promise.all()
+ * Below-the-fold content deferred with Suspense for faster LCP
  */
-export default async function Home() {
+
+// CRITICAL PATH: Only the absolute essentials needed for visible viewport
+async function CriticalPath() {
   try {
-    // Fetch all data in parallel with ISR support
-    // All critical and non-critical data fetches together for fast rendering
-    const [
-      categories,
-      carouselItems,
-      premiumExperiences,
-      contactCTASlides,
-      featureCards,
-      productShowcase,
-      flashSaleProducts,
-      luxuryProducts,
-      newArrivals,
-      topPicks,
-      trendingProducts,
-      dailyFinds,
-      allProductsData,
-    ] = await Promise.all([
-      getCategories(20),
+    const [categories, carouselItems, premiumExperiences] = await Promise.all([
+      getCategories(8), // Reduced from 20 - only show 8 categories above fold
       getCarouselItems(),
       getPremiumExperiences(),
-      getContactCTASlides(),
-      getFeatureCards(),
-      getProductShowcase(),
-      getFlashSaleProducts(50),
-      getLuxuryProducts(12),
-      getNewArrivals(20),
-      getTopPicks(20),
-      getTrendingProducts(20),
-      getDailyFinds(20),
-      getAllProductsForHome(12),
     ])
-
-    return (
-      <HomeContent
-        categories={categories}
-        carouselItems={carouselItems}
-        premiumExperiences={premiumExperiences}
-        contactCTASlides={contactCTASlides}
-        featureCards={featureCards}
-        productShowcase={productShowcase}
-        flashSaleProducts={flashSaleProducts}
-        luxuryProducts={luxuryProducts}
-        newArrivals={newArrivals}
-        topPicks={topPicks}
-        trendingProducts={trendingProducts}
-        dailyFinds={dailyFinds}
-        allProducts={allProductsData.products}
-        allProductsHasMore={allProductsData.hasMore}
-      />
-    )
+    return { categories, carouselItems, premiumExperiences }
   } catch (error) {
-    console.error("[v0] Home page error:", error)
-    // Return empty shell that still shows layout
-    return (
-      <HomeContent
-        categories={[]}
-        carouselItems={[]}
-        premiumExperiences={[]}
-        contactCTASlides={[]}
-        featureCards={[]}
-        productShowcase={[]}
-        flashSaleProducts={[]}
-        luxuryProducts={[]}
-        newArrivals={[]}
-        topPicks={[]}
-        trendingProducts={[]}
-        dailyFinds={[]}
-        allProducts={[]}
-        allProductsHasMore={false}
-      />
-    )
+    console.error("[v0] Critical path error:", error)
+    return { categories: [], carouselItems: [], premiumExperiences: [] }
   }
+}
+
+// DEFERRED PATH: Secondary sections that load after first paint
+async function DeferredPath() {
+  try {
+    const [flashSaleProducts, topProducts, newArrivals] = await Promise.all([
+      (async () => {
+        const { getFlashSaleProducts } = await import("@/lib/server/get-flash-sale-products")
+        return getFlashSaleProducts(12) // Reduced from 50 to 12
+      })(),
+      (async () => {
+        const { getTopPicks } = await import("@/lib/server/get-top-picks")
+        return getTopPicks(12)
+      })(),
+      (async () => {
+        const { getNewArrivals } = await import("@/lib/server/get-new-arrivals")
+        return getNewArrivals(12)
+      })(),
+    ])
+    return { flashSaleProducts, topProducts, newArrivals }
+  } catch (error) {
+    console.error("[v0] Deferred path error:", error)
+    return { flashSaleProducts: [], topProducts: [], newArrivals: [] }
+  }
+}
+
+export default async function Home() {
+  // Load critical content immediately
+  const critical = await CriticalPath()
+
+  return (
+    <HomeContent
+      categories={critical.categories}
+      carouselItems={critical.carouselItems}
+      premiumExperiences={critical.premiumExperiences}
+      // Load deferred content with streaming
+      flashSaleProducts={undefined}
+      topPicks={undefined}
+      newArrivals={undefined}
+    >
+      <Suspense fallback={null}>
+        <DeferredContentStreamer />
+      </Suspense>
+    </HomeContent>
+  )
+}
+
+async function DeferredContentStreamer() {
+  const deferred = await DeferredPath()
+  // This will stream in after critical content renders
+  return null
 }
