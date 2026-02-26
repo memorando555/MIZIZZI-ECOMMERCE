@@ -41,35 +41,29 @@ class CarouselPerformanceMonitor {
     try {
       getFCP(metric => {
         this.metrics.fcp = metric.value
-        this.logMetric('FCP', metric.value)
       })
 
       getLCP(metric => {
         this.metrics.lcp = metric.value
-        this.logMetric('LCP', metric.value)
       })
 
       getCLS(metric => {
         this.metrics.cls = metric.value
-        this.logMetric('CLS', metric.value)
       })
 
       getFID(metric => {
         this.metrics.fid = metric.value
-        this.logMetric('FID', metric.value)
       })
 
       getINP(metric => {
         this.metrics.inp = metric.value
-        this.logMetric('INP', metric.value)
       })
 
       getTTFB(metric => {
         this.metrics.ttfb = metric.value
-        this.logMetric('TTFB', metric.value)
       })
     } catch (error) {
-      console.warn('[v0] Web Vitals tracking unavailable:', error)
+      // Silently fail
     }
   }
 
@@ -78,7 +72,6 @@ class CarouselPerformanceMonitor {
    */
   public recordLQIPDisplay() {
     this.lqipShowTime = performance.now()
-    console.log('[v0] Carousel: LQIP displayed instantly')
   }
 
   /**
@@ -87,13 +80,11 @@ class CarouselPerformanceMonitor {
   public recordFullImageLoad() {
     if (this.lqipShowTime > 0) {
       this.fullImageLoadTime = performance.now() - this.lqipShowTime
-      console.log(`[v0] Carousel: Full image loaded in ${this.fullImageLoadTime.toFixed(0)}ms`)
       this.metrics.fullImageLoadTime = this.fullImageLoadTime
     }
 
     const totalTime = performance.now() - this.startTime
     this.metrics.carouselLoadTime = totalTime
-    console.log(`[v0] Carousel: Total load time ${totalTime.toFixed(0)}ms`)
   }
 
   /**

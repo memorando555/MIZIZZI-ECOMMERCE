@@ -167,12 +167,10 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
     });
 
     if (!response.ok) {
-      console.log("[v0] getCarouselItems: API returned status", response.status);
       return DEFAULT_CAROUSEL_ITEMS;
     }
 
     const data = await response.json();
-    console.log("[v0] getCarouselItems: API response received", { success: data.success, count: data.items?.length || 0 });
 
     if (data.success && data.items && data.items.length > 0) {
       return data.items.map((item: any) => ({
@@ -186,10 +184,8 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
       }));
     }
 
-    console.log("[v0] getCarouselItems: No items in response");
     return DEFAULT_CAROUSEL_ITEMS;
   } catch (error) {
-    console.error("[v0] getCarouselItems: Error fetching carousel items:", error);
     return DEFAULT_CAROUSEL_ITEMS;
   }
 });

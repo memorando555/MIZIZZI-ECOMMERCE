@@ -55,14 +55,13 @@ function loadWorkingEndpoint(): string | null {
       const { endpoint, timestamp } = JSON.parse(cached)
       // Cache is valid for 24 hours
       if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-        console.log(`[v0] Loaded cached working endpoint from localStorage: ${endpoint}`)
         return endpoint
       } else {
         localStorage.removeItem("batch_endpoint_cache")
       }
     }
   } catch (error) {
-    console.warn("[v0] Failed to load cached endpoint:", error)
+    // Silently fail
   }
 
   return null
@@ -85,9 +84,8 @@ function saveWorkingEndpoint(endpoint: string): void {
         timestamp: Date.now(),
       }),
     )
-    console.log(`[Batch] Cached working endpoint to localStorage: ${endpoint}`)
   } catch (error) {
-    console.warn("[Batch] Failed to cache endpoint:", error)
+    // Silently fail
   }
 }
 

@@ -150,23 +150,8 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
 
       clearTimeout(timeoutId)
 
-      console.log("[v0] getFlashSaleProducts: Dedicated endpoint status:", response.status)
-
       if (response.ok) {
         const data = await response.json()
-        console.log("[v0] getFlashSaleProducts: Dedicated endpoint data:", {
-          hasItems: !!data.items,
-          itemCount: data.items?.length || 0,
-          hasEvent: !!data.event,
-          sampleItem: data.items?.[0]
-            ? {
-                id: data.items[0].id,
-                name: data.items[0].name,
-                items_left: data.items[0].items_left,
-                flash_sale_stock: data.items[0].flash_sale_stock,
-              }
-            : null,
-        })
 
         if (data.items && Array.isArray(data.items) && data.items.length > 0) {
           // Map products without waiting for images - images will load separately
@@ -229,12 +214,11 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
         }
       }
     } catch (err) {
-      console.error(`[v0] getFlashSaleProducts: Dedicated endpoint failed:`, err)
+      // Silently fail and try fallback endpoint
     }
 
     // Fallback to featured routes endpoint
     const featuredEndpoint = `${API_BASE_URL}/featured/fast/flash-sale?limit=${limit}`
-    console.log("[v0] getFlashSaleProducts: Trying featured endpoint:", featuredEndpoint)
 
     try {
       const controller = new AbortController()
@@ -253,12 +237,9 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
 
       clearTimeout(timeoutId)
 
-      console.log("[v0] getFlashSaleProducts: Featured endpoint status:", response.status)
-
       if (response.ok) {
         const data = await response.json()
         const products = data.items || []
-        console.log("[v0] getFlashSaleProducts: Featured endpoint returned", products.length, "products")
 
         if (products.length > 0) {
           // Map products without waiting for images - images will load separately
@@ -309,7 +290,7 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
                       }
                     }
                   } catch (error) {
-                    console.error(`Error fetching images for product ${product.id}:`, error)
+                    // Silently fail - image loading is non-critical
                   }
 
                   const enhanced = enhanceWithFlashSaleData(product)
