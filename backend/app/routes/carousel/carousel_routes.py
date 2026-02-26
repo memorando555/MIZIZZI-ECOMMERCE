@@ -11,6 +11,7 @@ import logging
 from functools import wraps
 import requests
 import os
+from ...services.image_optimization_service import ImageOptimizationService
 
 logger = logging.getLogger(__name__)
 
@@ -619,3 +620,184 @@ def carousel_health():
             "GET /api/carousel/admin/stats"
         ]
     }), 200
+
+
+# ============================================================================
+# IMAGE OPTIMIZATION ROUTES - Generate LQIP and optimized URLs for frontend
+# ============================================================================
+
+@carousel_routes.route('/optimize/lqip', methods=['POST'])
+@cached_response("carousel_lqip", ttl=3600)
+def generate_lqip():
+    """
+    Generate LQIP (Low Quality Image Placeholder) for carousel images.
+    This endpoint creates tiny blurred versions for instant display before full image loads.
+    """
+    try:
+        data = request.get_json()
+        image_url = data.get('image_url')
+        
+        if not image_url:
+            return jsonify({
+                "success": False,
+                "error": "image_url is required"
+            }), 400
+        
+        image_opt = ImageOptimizationService()
+        lqip = image_opt.generate_lqip_from_url(image_url)
+        
+        if lqip:
+            return jsonify({
+                "success": True,
+                "lqip": lqip,
+                "image_url": image_url
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "error": "Failed to generate LQIP",
+                "image_url": image_url
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error generating LQIP: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@carousel_routes.route('/optimize/responsive', methods=['POST'])
+@cached_response("carousel_responsive_urls", ttl=3600)
+def generate_responsive_urls():
+    """
+    Generate responsive image URLs for carousel images at different breakpoints.
+    Returns optimized URLs for mobile, tablet, and desktop.
+    """
+    try:
+        data = request.get_json()
+        image_url = data.get('image_url')
+        
+        if not image_url:
+            return jsonify({
+                "success": False,
+                "error": "image_url is required"
+            }), 400
+        
+        # Extract Cloudinary public ID from URL
+        if 'cloudinary.com' not in image_url:
+            return jsonify({
+                "success": False,
+                "error": "Only Cloudinary images are supported for responsive optimization"
+            }), 400
+        
+        try:
+            public_id = image_url.split('/upload/')[-1]
+            # Remove version string if present
+            if '/' in public_id:
+                public_id = public_id.split('/')[0]
+        except:
+            return jsonify({
+                "success": False,
+                "error": "Could not extract public ID from image URL"
+            }), 400
+        
+        image_opt = ImageOptimizationService()
+        urls = image_opt.generate_optimized_carousel_urls(public_id)
+        
+        return jsonify({
+            "success": True,
+            "image_url": image_url,
+            "public_id": public_id,
+            "responsive_urls": urls
+        }), 200
+            
+    except Exception as e:
+        logger.error(f"Error generating responsive URLs: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+@carousel_routes.route('/items/optimized', methods=['GET'])
+@cached_response("carousel_items_optimized", ttl=60, key_params=["position"])
+def get_optimized_carousel_items():
+    """
+    Get carousel items with optimizations: LQIP and responsive URLs pre-generated.
+    This endpoint provides everything the frontend needs for instant display.
+    """
+    try:
+        position = request.args.get('position', 'homepage')
+        limit = request.args.get('limit', 5, type=int)
+        
+        # Enforce limits
+        if limit > 5:
+            limit = 5
+        
+        if not CAROUSEL_AVAILABLE or CarouselBanner is None:
+            return jsonify({
+                "success": False,
+                "error": "Carousel system not available",
+                "items": []
+            }), 503
+        
+        items = CarouselBanner.query.filter_by(
+            position=position,
+            is_active=True
+        ).order_by(CarouselBanner.sort_order).limit(limit).all()
+        
+        image_opt = ImageOptimizationService()
+        optimized_items = []
+        
+        for item in items:
+            # Generate LQIP for ultra-fast placeholder
+            lqip = image_opt.generate_lqip_from_url(item.image_url)
+            
+            optimized_item = {
+                "id": item.id,
+                "name": item.name,
+                "title": item.title,
+                "description": item.description,
+                "badge_text": item.badge_text,
+                "discount": item.discount,
+                "button_text": item.button_text,
+                "link_url": item.link_url,
+                "image_url": item.image_url,
+                "lqip": lqip,  # Tiny blurred placeholder
+                "sort_order": item.sort_order
+            }
+            
+            # Try to generate responsive URLs if it's a Cloudinary image
+            if 'cloudinary.com' in item.image_url:
+                try:
+                    public_id = item.image_url.split('/upload/')[-1]
+                    if '/' in public_id:
+                        public_id = public_id.split('/')[0]
+                    responsive = image_opt.generate_optimized_carousel_urls(public_id)
+                    optimized_item['responsive_urls'] = responsive
+                except Exception as e:
+                    logger.warning(f"Could not generate responsive URLs for item {item.id}: {str(e)}")
+            
+            optimized_items.append(optimized_item)
+        
+        return jsonify({
+            "success": True,
+            "position": position,
+            "items": optimized_items,
+            "count": len(optimized_items),
+            "limit": limit,
+            "optimizations": {
+                "lqip": "Generated",
+                "responsive": "Included where available"
+            },
+            "cached_at": datetime.utcnow().isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching optimized carousel items: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "items": []
+        }), 500

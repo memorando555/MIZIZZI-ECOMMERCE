@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { NetworkStatus } from "@/components/shared/network-status"
 import { CategoryGrid } from "@/components/features/category-grid-enhanced"
-import { CarouselLazy } from "@/components/features/carousel-lazy"
+import { OptimizedCarousel } from "@/components/features/carousel-optimized"
 import { ShoppingBag } from "lucide-react"
 import { FlashSales } from "@/components/features/flash-sales"
 import { LuxuryDeals } from "@/components/features/luxury-deals"
@@ -62,8 +62,14 @@ export function HomeContent({
         <NetworkStatus className="mx-auto w-full max-w-[1200px] px-1 sm:px-2 md:px-4 pt-2" />
 
         <div className="w-full mt-2 sm:mt-3 sm:py-2" style={{ backgroundColor: "var(--color-background)" }}>
-          {/* Lazy load carousel after initial page render */}
-          <CarouselLazy initialFeatureCards={featureCards} />
+          {/* Ultra-optimized carousel with LQIP and blur transitions */}
+          <OptimizedCarousel
+            carouselItems={carouselItems}
+            premiumExperiences={premiumExperiences}
+            contactCTASlides={contactCTASlides}
+            featureCards={featureCards}
+            productShowcase={productShowcase}
+          />
         </div>
 
         <div className="mx-auto w-full max-w-[1200px] px-0 sm:px-3 md:px-4 mt-3 sm:mt-4">

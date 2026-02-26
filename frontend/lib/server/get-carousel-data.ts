@@ -2,6 +2,17 @@ import { cache } from "react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com";
 
+// ISR configuration for optimal performance
+// 60-second revalidation window ensures instant first load with fresh data on page rebuild
+const ISR_REVALIDATE_TIME = 60;
+const ISR_TAGS = {
+  carousel: ["carousel-items"],
+  premium: ["premium-experiences"],
+  contact: ["contact-cta"],
+  features: ["feature-cards"],
+  showcase: ["product-showcase"]
+};
+
 export interface CarouselItem {
   image: string;
   title: string;
@@ -10,6 +21,12 @@ export interface CarouselItem {
   href: string;
   badge?: string;
   discount?: string;
+  lqip?: string; // Low Quality Image Placeholder for instant display
+  responsive_urls?: {
+    mobile: { url: string; srcset: string };
+    tablet: { url: string; srcset: string };
+    desktop: { url: string; srcset: string };
+  };
 }
 
 export interface PremiumExperience {
@@ -134,11 +151,16 @@ const DEFAULT_CONTACT_SLIDES: ContactCTASlide[] = [
 // Default carousel items for instant display - empty array, only show backend data
 const DEFAULT_CAROUSEL_ITEMS: CarouselItem[] = [];
 
-// Server-side fetcher for carousel items
+// Server-side fetcher for carousel items with ISR support
+// Uses /optimized endpoint that pre-generates LQIP and responsive URLs
 export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/carousel/items?position=homepage`, {
-      next: { revalidate: 300, tags: ["carousel-items"] }, // Cache for 5 minutes
+    // Use optimized endpoint that includes LQIP and responsive URLs
+    const response = await fetch(`${API_BASE_URL}/api/carousel/items/optimized?position=homepage`, {
+      next: { 
+        revalidate: ISR_REVALIDATE_TIME,
+        tags: ISR_TAGS.carousel
+      },
       headers: { "Content-Type": "application/json" },
     });
 
@@ -155,20 +177,26 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
         href: item.link_url || "/products",
         badge: item.badge_text,
         discount: item.discount,
+        lqip: item.lqip, // Include LQIP for instant placeholder
+        responsive_urls: item.responsive_urls // Include responsive URLs if available
       }));
     }
 
     return DEFAULT_CAROUSEL_ITEMS;
   } catch (error) {
+    console.error("[v0] Error fetching carousel items:", error);
     return DEFAULT_CAROUSEL_ITEMS;
   }
 });
 
-// Server-side fetcher for premium experience
+// Server-side fetcher for premium experience with ISR
 export const getPremiumExperiences = cache(async (): Promise<PremiumExperience[]> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/panels/items?panel_type=premium_experience&position=right`, {
-      next: { revalidate: 300, tags: ["premium-experiences"] },
+      next: { 
+        revalidate: ISR_REVALIDATE_TIME,
+        tags: ISR_TAGS.premium
+      },
       headers: { "Content-Type": "application/json" },
     });
 
@@ -196,11 +224,14 @@ export const getPremiumExperiences = cache(async (): Promise<PremiumExperience[]
   }
 });
 
-// Server-side fetcher for contact CTA slides
+// Server-side fetcher for contact CTA slides with ISR
 export const getContactCTASlides = cache(async (): Promise<ContactCTASlide[]> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/contact-cta/slides`, {
-      next: { revalidate: 300, tags: ["contact-cta"] },
+      next: { 
+        revalidate: ISR_REVALIDATE_TIME,
+        tags: ISR_TAGS.contact
+      },
       headers: { "Content-Type": "application/json" },
     });
 
@@ -218,11 +249,14 @@ export const getContactCTASlides = cache(async (): Promise<ContactCTASlide[]> =>
   }
 });
 
-// Server-side fetcher for feature cards
+// Server-side fetcher for feature cards with ISR
 export const getFeatureCards = cache(async (): Promise<FeatureCard[]> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/feature-cards`, {
-      next: { revalidate: 300, tags: ["feature-cards"] },
+      next: { 
+        revalidate: ISR_REVALIDATE_TIME,
+        tags: ISR_TAGS.features
+      },
       headers: { "Content-Type": "application/json" },
     });
 
@@ -280,7 +314,10 @@ const DEFAULT_PRODUCT_SHOWCASE: ProductShowcaseCategory[] = [
 export const getProductShowcase = cache(async (): Promise<ProductShowcaseCategory[]> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/panels/items?panel_type=product_showcase&position=left`, {
-      next: { revalidate: 300, tags: ["product-showcase"] },
+      next: { 
+        revalidate: ISR_REVALIDATE_TIME,
+        tags: ISR_TAGS.showcase
+      },
       headers: { "Content-Type": "application/json" },
     });
 

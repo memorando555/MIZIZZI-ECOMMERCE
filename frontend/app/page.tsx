@@ -5,21 +5,26 @@ import { getTopPicks } from "@/lib/server/get-top-picks"
 import { getTrendingProducts } from "@/lib/server/get-trending-products"
 import { getDailyFinds } from "@/lib/server/get-daily-finds"
 import { getCategories } from "@/lib/server/get-categories"
-import { getFeatureCards } from "@/lib/server/get-carousel-data"
+import { getCarouselItems, getFeatureCards, getPremiumExperiences, getContactCTASlides, getProductShowcase } from "@/lib/server/get-carousel-data"
 import { getAllProductsForHome } from "@/lib/server/get-all-products"
 import { HomeContent } from "@/components/home/home-content"
 
 /**
- * Fetch all data in parallel without Suspense boundaries
- * This ensures cached data renders immediately, then updates silently
+ * Optimized homepage with ISR for carousel and all content
+ * Pre-renders at build time, revalidates every 60 seconds
+ * Instant display with LQIP placeholders and blur transitions
  */
 export default async function Home() {
   try {
-    // Fetch data in parallel WITHOUT carousel (it's lazy-loaded on client)
-    // This prevents the 5.3MB carousel data from blocking page load
+    // Fetch all data in parallel with ISR support
+    // Carousel data includes LQIP and responsive URLs for instant display
     const [
       categories,
+      carouselItems,
+      premiumExperiences,
+      contactCTASlides,
       featureCards,
+      productShowcase,
       flashSaleProducts,
       luxuryProducts,
       newArrivals,
@@ -29,7 +34,11 @@ export default async function Home() {
       allProductsData,
     ] = await Promise.all([
       getCategories(20),
+      getCarouselItems(),
+      getPremiumExperiences(),
+      getContactCTASlides(),
       getFeatureCards(),
+      getProductShowcase(),
       getFlashSaleProducts(50),
       getLuxuryProducts(12),
       getNewArrivals(20),
@@ -42,11 +51,11 @@ export default async function Home() {
     return (
       <HomeContent
         categories={categories}
-        carouselItems={[]}
-        premiumExperiences={[]}
-        contactCTASlides={[]}
+        carouselItems={carouselItems}
+        premiumExperiences={premiumExperiences}
+        contactCTASlides={contactCTASlides}
         featureCards={featureCards}
-        productShowcase={[]}
+        productShowcase={productShowcase}
         flashSaleProducts={flashSaleProducts}
         luxuryProducts={luxuryProducts}
         newArrivals={newArrivals}
