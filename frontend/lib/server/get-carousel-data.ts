@@ -21,12 +21,6 @@ export interface CarouselItem {
   href: string;
   badge?: string;
   discount?: string;
-  lqip?: string; // Low Quality Image Placeholder for instant display
-  responsive_urls?: {
-    mobile: { url: string; srcset: string };
-    tablet: { url: string; srcset: string };
-    desktop: { url: string; srcset: string };
-  };
 }
 
 export interface PremiumExperience {
@@ -189,8 +183,6 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
         href: item.link_url || "/products",
         badge: item.badge_text,
         discount: item.discount,
-        lqip: item.lqip,
-        responsive_urls: item.responsive_urls
       }));
     }
 

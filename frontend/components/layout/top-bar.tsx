@@ -91,7 +91,7 @@ export function TopBar() {
             {/* Mizizzi Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0 group z-10">
               <div className="relative w-6 h-6 md:w-8 md:h-8">
-                <Image src="/logo.png" alt="Mizizzi Logo" fill className="object-contain" />
+                <Image src="/logo.png" alt="Mizizzi Logo" fill sizes="32px" className="object-contain" />
               </div>
 
               <span className="text-xl md:text-2xl font-bold tracking-tighter text-white group-hover:text-gray-200 transition-colors">

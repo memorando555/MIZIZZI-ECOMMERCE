@@ -20,7 +20,7 @@ const LogoPlaceholder = () => (
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="relative h-12 w-12 sm:h-16 sm:w-16"
     >
-      <Image src="/logo.png" alt="Loading" fill className="object-contain" />
+      <Image src="/logo.png" alt="Loading" fill sizes="64px" className="object-contain" />
     </motion.div>
   </div>
 )
