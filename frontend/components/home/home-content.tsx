@@ -1,12 +1,18 @@
 'use client';
 
 import Link from "next/link"
-import dynamic from "next/dynamic"
 import { NetworkStatus } from "@/components/shared/network-status"
 import { CategoryGrid } from "@/components/features/category-grid-enhanced"
 import { Carousel } from "@/components/features/carousel"
 import { ShoppingBag } from "lucide-react"
 import { ProductGrid } from "@/components/products/product-grid"
+import { FlashSales } from "@/components/features/flash-sales"
+import { LuxuryDeals } from "@/components/features/luxury-deals"
+import { TopPicks } from "@/components/features/top-picks"
+import { NewArrivals } from "@/components/features/new-arrivals"
+import { TrendingNow } from "@/components/features/trending-now"
+import { DailyFinds } from "@/components/features/daily-finds"
+import { BrandShowcase } from "@/components/features/brand-showcase"
 import type { Product } from "@/types"
 import type { Category } from "@/lib/server/get-categories"
 import type {
@@ -16,35 +22,6 @@ import type {
   FeatureCard,
   ProductShowcaseCategory,
 } from "@/lib/server/get-carousel-data"
-
-// Lazy load heavy product sections - only load when visible
-const FlashSales = dynamic(() => import("@/components/features/flash-sales").then(m => ({ default: m.FlashSales })), {
-  loading: () => null, // No loader - render instantly
-})
-
-const LuxuryDeals = dynamic(() => import("@/components/features/luxury-deals").then(m => ({ default: m.LuxuryDeals })), {
-  loading: () => null, // No loader - render instantly
-})
-
-const TopPicks = dynamic(() => import("@/components/features/top-picks").then(m => ({ default: m.TopPicks })), {
-  loading: () => null, // No loader - render instantly
-})
-
-const NewArrivals = dynamic(() => import("@/components/features/new-arrivals").then(m => ({ default: m.NewArrivals })), {
-  loading: () => null, // No loader - render instantly
-})
-
-const TrendingNow = dynamic(() => import("@/components/features/trending-now").then(m => ({ default: m.TrendingNow })), {
-  loading: () => null, // No loader - render instantly
-})
-
-const DailyFinds = dynamic(() => import("@/components/features/daily-finds").then(m => ({ default: m.DailyFinds })), {
-  loading: () => null, // No loader - render instantly
-})
-
-const BrandShowcase = dynamic(() => import("@/components/features/brand-showcase").then(m => ({ default: m.BrandShowcase })), {
-  loading: () => null, // No loader - render instantly
-})
 
 interface HomeContentProps {
   flashSaleProducts: Product[]
