@@ -6,6 +6,12 @@ import { motion, AnimatePresence } from "framer-motion"
 
 export function LayoutRendererClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const isAdminRoute = pathname?.startsWith("/admin") || pathname?.startsWith("/auth")
+
+  // For admin and auth routes, render children directly without wrapper
+  if (isAdminRoute) {
+    return <>{children}</>
+  }
 
   return (
     <AnimatePresence mode="wait">

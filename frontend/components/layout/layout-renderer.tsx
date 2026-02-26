@@ -13,7 +13,7 @@ async function RouteDetector({ children }: { children: React.ReactNode }) {
   try {
     const headersList = await headers()
     const pathname = headersList.get("x-pathname") || ""
-    const isAdminRoute = pathname?.startsWith("/admin")
+    const isAdminRoute = pathname?.startsWith("/admin") || pathname?.startsWith("/auth")
 
     // Don't render standard layout components for admin routes
     if (isAdminRoute) {
