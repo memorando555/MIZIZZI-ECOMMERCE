@@ -10,32 +10,46 @@ import { getDailyFinds } from "@/lib/server/get-daily-finds"
 import { getAllProductsForHome } from "@/lib/server/get-all-products"
 import { HomeContent } from "@/components/home/home-content"
 
-// ISR: Cache entire page for 60 seconds, serve instantly from cache
+// ISR: Cache entire page for 60 seconds - serve from cache instantly
 export const revalidate = 60
 
-// INSTANT LOAD: Render immediately with critical data, stream rest
+// Fetch critical data first, show immediately, then stream rest
 export default async function Home() {
-  // Fast critical path - render instantly with just 4 essential fetches
-  const settled = await Promise.allSettled([
+  // Quick critical fetch - 4 items only
+  const critical = await Promise.allSettled([
     getCategories(20),
     getCarouselItems(),
     getPremiumExperiences(),
     getProductShowcase(),
-  ])
-
-  const categories = settled[0].status === 'fulfilled' ? settled[0].value as Awaited<ReturnType<typeof getCategories>> : []
-  const carousel = settled[1].status === 'fulfilled' ? settled[1].value as Awaited<ReturnType<typeof getCarouselItems>> : []
-  const premium = settled[2].status === 'fulfilled' ? settled[2].value as Awaited<ReturnType<typeof getPremiumExperiences>> : []
-  const showcase = settled[3].status === 'fulfilled' ? settled[3].value as Awaited<ReturnType<typeof getProductShowcase>> : []
+  ]).then(results => ({
+    categories: results[0].status === 'fulfilled' ? results[0].value : [],
+    carouselItems: results[1].status === 'fulfilled' ? results[1].value : [],
+    premiumExperiences: results[2].status === 'fulfilled' ? results[2].value : [],
+    productShowcase: results[3].status === 'fulfilled' ? results[3].value : [],
+  }))
 
   return (
     <>
-      {/* Critical path renders instantly - no waiting */}
+      {/* Immediate render with critical path - show shell instantly */}
+      <CriticalShell critical={critical} />
+      
+      {/* Async boundary for deferred content - streams without re-rendering critical */}
+      <Suspense fallback={null}>
+        <DeferredShell />
+      </Suspense>
+    </>
+  )
+}
+
+// Render critical content only - never updates
+function CriticalShell({ critical }: { critical: any }) {
+  return (
+    <div suppressHydrationWarning>
       <HomeContent
-        categories={categories}
-        carouselItems={carousel}
-        premiumExperiences={premium}
-        productShowcase={showcase}
+        categories={critical.categories}
+        carouselItems={critical.carouselItems}
+        premiumExperiences={critical.premiumExperiences}
+        productShowcase={critical.productShowcase}
         contactCTASlides={[]}
         featureCards={[]}
         flashSaleProducts={[]}
@@ -47,18 +61,13 @@ export default async function Home() {
         allProducts={[]}
         allProductsHasMore={false}
       />
-
-      {/* Stream secondary content - loads in background without blocking */}
-      <Suspense fallback={null}>
-        <SecondaryContent />
-      </Suspense>
-    </>
+    </div>
   )
 }
 
-// Loads 9 additional sections in parallel after critical content renders
-async function SecondaryContent() {
-  const results = await Promise.allSettled([
+// Load all deferred data in parallel
+async function DeferredShell() {
+  const deferred = await Promise.allSettled([
     getContactCTASlides(),
     getFeatureCards(),
     getFlashSaleProducts(50),
@@ -68,29 +77,37 @@ async function SecondaryContent() {
     getTrendingProducts(20),
     getDailyFinds(20),
     getAllProductsForHome(12),
-  ])
+  ]).then(results => ({
+    cta: results[0].status === 'fulfilled' ? results[0].value : [],
+    features: results[1].status === 'fulfilled' ? results[1].value : [],
+    flash: results[2].status === 'fulfilled' ? results[2].value : [],
+    luxury: results[3].status === 'fulfilled' ? results[3].value : [],
+    arrivals: results[4].status === 'fulfilled' ? results[4].value : [],
+    picks: results[5].status === 'fulfilled' ? results[5].value : [],
+    trending: results[6].status === 'fulfilled' ? results[6].value : [],
+    daily: results[7].status === 'fulfilled' ? results[7].value : [],
+    allProducts: results[8].status === 'fulfilled' ? results[8].value : { products: [], hasMore: false },
+  }))
 
-  const [cta, features, flash, luxury, arrivals, picks, trending, daily, allProducts] = results.map(r =>
-    r.status === 'fulfilled' ? r.value : []
-  )
-
-  // Re-render with complete data once all secondary content loads
+  // Single re-render with all deferred data once everything loads
   return (
-    <HomeContent
-      categories={[]}
-      carouselItems={[]}
-      premiumExperiences={[]}
-      productShowcase={[]}
-      contactCTASlides={cta as any}
-      featureCards={features as any}
-      flashSaleProducts={flash as any}
-      luxuryProducts={luxury as any}
-      newArrivals={arrivals as any}
-      topPicks={picks as any}
-      trendingProducts={trending as any}
-      dailyFinds={daily as any}
-      allProducts={(allProducts as any)?.products || []}
-      allProductsHasMore={(allProducts as any)?.hasMore || false}
-    />
+    <div suppressHydrationWarning>
+      <HomeContent
+        categories={[]}
+        carouselItems={[]}
+        premiumExperiences={[]}
+        productShowcase={[]}
+        contactCTASlides={deferred.cta as any}
+        featureCards={deferred.features as any}
+        flashSaleProducts={deferred.flash as any}
+        luxuryProducts={deferred.luxury as any}
+        newArrivals={deferred.arrivals as any}
+        topPicks={deferred.picks as any}
+        trendingProducts={deferred.trending as any}
+        dailyFinds={deferred.daily as any}
+        allProducts={(deferred.allProducts as any)?.products || []}
+        allProductsHasMore={(deferred.allProducts as any)?.hasMore || false}
+      />
+    </div>
   )
 }
