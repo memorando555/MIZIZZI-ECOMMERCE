@@ -142,7 +142,7 @@ export const Carousel = memo(function Carousel({
           <div className="absolute inset-0 z-0 bg-gray-100">
             {prevItem && (
               <Image
-                src={prevItem.image || "/placeholder.svg"}
+                src={(prevItem.image && !prevItem.image.startsWith("data:")) ? prevItem.image : "/placeholder.svg"}
                 alt=""
                 fill
                 className="object-cover"
