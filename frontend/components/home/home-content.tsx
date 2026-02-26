@@ -19,31 +19,31 @@ import type {
 
 // Lazy load heavy product sections - only load when visible
 const FlashSales = dynamic(() => import("@/components/features/flash-sales").then(m => ({ default: m.FlashSales })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
 })
 
 const LuxuryDeals = dynamic(() => import("@/components/features/luxury-deals").then(m => ({ default: m.LuxuryDeals })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
 })
 
 const TopPicks = dynamic(() => import("@/components/features/top-picks").then(m => ({ default: m.TopPicks })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
 })
 
 const NewArrivals = dynamic(() => import("@/components/features/new-arrivals").then(m => ({ default: m.NewArrivals })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
 })
 
 const TrendingNow = dynamic(() => import("@/components/features/trending-now").then(m => ({ default: m.TrendingNow })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
 })
 
 const DailyFinds = dynamic(() => import("@/components/features/daily-finds").then(m => ({ default: m.DailyFinds })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
 })
 
 const BrandShowcase = dynamic(() => import("@/components/features/brand-showcase").then(m => ({ default: m.BrandShowcase })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
 })
 
 interface HomeContentProps {

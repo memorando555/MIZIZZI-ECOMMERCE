@@ -6,37 +6,37 @@ import type { Product } from '@/types'
 
 // Lazy load product section components
 const FlashSales = dynamic(() => import('@/components/features/flash-sales').then(m => ({ default: m.FlashSales })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
   ssr: false
 })
 
 const LuxuryDeals = dynamic(() => import('@/components/features/luxury-deals').then(m => ({ default: m.LuxuryDeals })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
   ssr: false
 })
 
 const TopPicks = dynamic(() => import('@/components/features/top-picks').then(m => ({ default: m.TopPicks })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
   ssr: false
 })
 
 const NewArrivals = dynamic(() => import('@/components/features/new-arrivals').then(m => ({ default: m.NewArrivals })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
   ssr: false
 })
 
 const TrendingNow = dynamic(() => import('@/components/features/trending-now').then(m => ({ default: m.TrendingNow })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
   ssr: false
 })
 
 const DailyFinds = dynamic(() => import('@/components/features/daily-finds').then(m => ({ default: m.DailyFinds })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
   ssr: false
 })
 
 const BrandShowcase = dynamic(() => import('@/components/features/brand-showcase').then(m => ({ default: m.BrandShowcase })), {
-  loading: () => <div className="h-64 bg-gray-100 rounded animate-pulse" />,
+  loading: () => null, // No loader - render instantly
   ssr: false
 })
 
@@ -72,9 +72,7 @@ function LazyProductSection({ products, title, Component }: LazyProductSectionPr
     <div ref={ref} className="rounded-lg bg-white shadow-sm overflow-hidden">
       {isVisible ? (
         <Component products={products} />
-      ) : (
-        <div className="h-64 bg-gray-100 rounded animate-pulse" />
-      )}
+      ) : null}
     </div>
   )
 }
