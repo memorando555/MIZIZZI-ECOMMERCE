@@ -148,15 +148,23 @@ const DEFAULT_CONTACT_SLIDES: ContactCTASlide[] = [
   },
 ];
 
-// Default carousel items for instant display - empty array, only show backend data
-const DEFAULT_CAROUSEL_ITEMS: CarouselItem[] = [];
+// Default carousel items - shows fallback banner when API has no items
+const DEFAULT_CAROUSEL_ITEMS: CarouselItem[] = [
+  {
+    image: "https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=1200&h=600&fit=crop",
+    title: "Welcome to Mizizzi Store",
+    description: "Discover premium products and exclusive deals",
+    buttonText: "Shop Now",
+    href: "/products",
+    badge: "WELCOME"
+  }
+];
 
 // Server-side fetcher for carousel items with ISR support
-// Uses /optimized endpoint that pre-generates LQIP and responsive URLs
+// Uses /items endpoint that returns carousel banners for homepage
 export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
   try {
-    // Use optimized endpoint that includes LQIP and responsive URLs
-    const response = await fetch(`${API_BASE_URL}/api/carousel/items/optimized?position=homepage`, {
+    const response = await fetch(`${API_BASE_URL}/api/carousel/items?position=homepage`, {
       next: { 
         revalidate: ISR_REVALIDATE_TIME,
         tags: ISR_TAGS.carousel
@@ -164,9 +172,13 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
       headers: { "Content-Type": "application/json" },
     });
 
-    if (!response.ok) return DEFAULT_CAROUSEL_ITEMS;
+    if (!response.ok) {
+      console.log("[v0] getCarouselItems: API returned status", response.status);
+      return DEFAULT_CAROUSEL_ITEMS;
+    }
 
     const data = await response.json();
+    console.log("[v0] getCarouselItems: API response received", { success: data.success, count: data.items?.length || 0 });
 
     if (data.success && data.items && data.items.length > 0) {
       return data.items.map((item: any) => ({
@@ -177,14 +189,15 @@ export const getCarouselItems = cache(async (): Promise<CarouselItem[]> => {
         href: item.link_url || "/products",
         badge: item.badge_text,
         discount: item.discount,
-        lqip: item.lqip, // Include LQIP for instant placeholder
-        responsive_urls: item.responsive_urls // Include responsive URLs if available
+        lqip: item.lqip,
+        responsive_urls: item.responsive_urls
       }));
     }
 
+    console.log("[v0] getCarouselItems: No items in response");
     return DEFAULT_CAROUSEL_ITEMS;
   } catch (error) {
-    console.error("[v0] Error fetching carousel items:", error);
+    console.error("[v0] getCarouselItems: Error fetching carousel items:", error);
     return DEFAULT_CAROUSEL_ITEMS;
   }
 });

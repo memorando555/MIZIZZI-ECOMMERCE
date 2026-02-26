@@ -77,7 +77,16 @@ export const OptimizedCarousel = memo(function OptimizedCarousel({
   }
 
   if (carouselItems.length === 0) {
-    return null
+    // Fallback: Show feature cards if no carousel items
+    if (featureCards && featureCards.length > 0) {
+      return <FeatureCards cards={featureCards} />
+    }
+    // If no carousel and no features, return minimal placeholder
+    return (
+      <div className="mx-auto w-full max-w-[1200px] px-2 sm:px-4 py-4">
+        <div className="h-[200px] sm:h-[400px] rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 animate-pulse" />
+      </div>
+    )
   }
 
   return (
