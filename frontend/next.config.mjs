@@ -120,6 +120,71 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // Consolidate all section pages to homepage - everything scrolls on one page now
+      {
+        source: '/flash-sales',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/flash-sales/:path*',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/luxury',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/luxury/:path*',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/new-arrivals',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/new-arrivals/:path*',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/trending',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/trending/:path*',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/daily-finds',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/daily-finds/:path*',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/top-picks',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/top-picks/:path*',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       // Static HTML pages - Cache with ISR
