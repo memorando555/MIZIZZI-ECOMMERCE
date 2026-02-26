@@ -124,6 +124,14 @@ const nextConfig = {
   },
   async headers() {
     return [
+      // Static HTML pages - Cache with ISR
+      {
+        source: '/',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=3600' },
+        ],
+      },
+      // Static assets - Aggressive caching (1 year)
       {
         source: '/public/:path*',
         headers: [
@@ -131,6 +139,7 @@ const nextConfig = {
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
       },
+      // Images - Long cache with ISR fallback
       {
         source: '/:path*\\.(png|jpg|jpeg|gif|svg|webp|avif|ico)',
         headers: [
@@ -138,6 +147,28 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Methods', value: 'GET,HEAD,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Origin, X-Requested-With, Content-Type, Accept' },
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      // Font files - Very aggressive caching
+      {
+        source: '/:path*\\.(woff|woff2|ttf|otf|eot)',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      // API routes - Short cache with SWR
+      {
+        source: '/api/carousel/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+        ],
+      },
+      {
+        source: '/api/products/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, s-maxage=30, stale-while-revalidate=60' },
+          { key: 'Access-Control-Allow-Origin', value: '*' },
         ],
       },
       {
@@ -148,17 +179,16 @@ const nextConfig = {
           { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS,HEAD' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, Origin, Cache-Control' },
           { key: 'Access-Control-Max-Age', value: '86400' },
+          { key: 'Cache-Control', value: 'public, s-maxage=10, stale-while-revalidate=30' },
         ],
       },
+      // Security headers
       {
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS,HEAD' },
-          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-TOKEN, Cache-Control' },
         ],
       },
     ];
