@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { getCarouselItems, getPremiumExperiences, getProductShowcase } from "@/lib/server/get-carousel-data"
+import { getCarouselItems, getPremiumExperiences, getProductShowcase, getContactCTASlides, getFeatureCards } from "@/lib/server/get-carousel-data"
 import { getCategories } from "@/lib/server/get-categories"
 import { HomeContent } from "@/components/home/home-content"
 import { HomeLoader } from "@/components/home/home-loader"
@@ -8,19 +8,20 @@ import { HomeLoader } from "@/components/home/home-loader"
 export const revalidate = 60
 
 /**
- * CRITICAL OPTIMIZATION: Reduced home page to fetch only essential data first
- * All fetch operations run in parallel with Promise.all()
- * Below-the-fold content deferred with Suspense for faster LCP
+ * OPTIMIZED HOMEPAGE: Hybrid critical/deferred approach
+ * Critical: Carousel, categories, premium experiences, product showcase (visible immediately)
+ * Deferred: Feature cards, CTA slides, flash sales, luxury, new arrivals, top picks, trending, daily finds
+ * All data fetched in parallel, but deferred content streams in after first paint
  */
 
-// CRITICAL PATH: Only the absolute essentials needed for visible viewport
+// CRITICAL PATH: Essential data needed for initial viewport (LCP optimization)
 async function CriticalPath() {
   try {
     const [categories, carouselItems, premiumExperiences, productShowcase] = await Promise.all([
-      getCategories(8), // Reduced from 20 - only show 8 categories above fold
+      getCategories(20), // Full category list for header/sidebar
       getCarouselItems(),
       getPremiumExperiences(),
-      getProductShowcase(), // Product showcase visible on homepage
+      getProductShowcase(),
     ])
     return { categories, carouselItems, premiumExperiences, productShowcase }
   } catch (error) {
@@ -29,27 +30,81 @@ async function CriticalPath() {
   }
 }
 
-// DEFERRED PATH: Secondary sections that load after first paint
+// DEFERRED PATH: Below-the-fold sections that load after first paint
 async function DeferredPath() {
   try {
-    const [flashSaleProducts, topProducts, newArrivals] = await Promise.all([
+    const [
+      contactCTASlides,
+      featureCards,
+      flashSaleProducts,
+      luxuryProducts,
+      newArrivals,
+      topPicks,
+      trendingProducts,
+      dailyFinds,
+      allProductsData,
+    ] = await Promise.all([
       (async () => {
-        const { getFlashSaleProducts } = await import("@/lib/server/get-flash-sale-products")
-        return getFlashSaleProducts(12) // Reduced from 50 to 12
+        const { getContactCTASlides } = await import("@/lib/server/get-carousel-data")
+        return getContactCTASlides()
       })(),
       (async () => {
-        const { getTopPicks } = await import("@/lib/server/get-top-picks")
-        return getTopPicks(12)
+        const { getFeatureCards } = await import("@/lib/server/get-carousel-data")
+        return getFeatureCards()
+      })(),
+      (async () => {
+        const { getFlashSaleProducts } = await import("@/lib/server/get-flash-sale-products")
+        return getFlashSaleProducts(50)
+      })(),
+      (async () => {
+        const { getLuxuryProducts } = await import("@/lib/server/get-luxury-products")
+        return getLuxuryProducts(12)
       })(),
       (async () => {
         const { getNewArrivals } = await import("@/lib/server/get-new-arrivals")
-        return getNewArrivals(12)
+        return getNewArrivals(20)
+      })(),
+      (async () => {
+        const { getTopPicks } = await import("@/lib/server/get-top-picks")
+        return getTopPicks(20)
+      })(),
+      (async () => {
+        const { getTrendingProducts } = await import("@/lib/server/get-trending-products")
+        return getTrendingProducts(20)
+      })(),
+      (async () => {
+        const { getDailyFinds } = await import("@/lib/server/get-daily-finds")
+        return getDailyFinds(20)
+      })(),
+      (async () => {
+        const { getAllProductsForHome } = await import("@/lib/server/get-all-products")
+        return getAllProductsForHome(12)
       })(),
     ])
-    return { flashSaleProducts, topProducts, newArrivals }
+    return {
+      contactCTASlides,
+      featureCards,
+      flashSaleProducts,
+      luxuryProducts,
+      newArrivals,
+      topPicks,
+      trendingProducts,
+      dailyFinds,
+      allProductsData,
+    }
   } catch (error) {
     console.error("[v0] Deferred path error:", error)
-    return { flashSaleProducts: [], topProducts: [], newArrivals: [] }
+    return {
+      contactCTASlides: [],
+      featureCards: [],
+      flashSaleProducts: [],
+      luxuryProducts: [],
+      newArrivals: [],
+      topPicks: [],
+      trendingProducts: [],
+      dailyFinds: [],
+      allProductsData: { products: [], hasMore: false },
+    }
   }
 }
 
@@ -64,7 +119,9 @@ export default async function Home() {
         carouselItems={critical.carouselItems}
         premiumExperiences={critical.premiumExperiences}
         productShowcase={critical.productShowcase}
-        // Required product arrays - start with empty, will be populated by deferred content
+        // Deferred product data - initial empty, populated by streaming
+        contactCTASlides={[]}
+        featureCards={[]}
         flashSaleProducts={[]}
         luxuryProducts={[]}
         newArrivals={[]}
@@ -74,6 +131,7 @@ export default async function Home() {
         allProducts={[]}
         allProductsHasMore={false}
       />
+      {/* Stream deferred content after initial render */}
       <Suspense fallback={null}>
         <DeferredContentStreamer />
       </Suspense>
@@ -83,6 +141,25 @@ export default async function Home() {
 
 async function DeferredContentStreamer() {
   const deferred = await DeferredPath()
-  // This will stream in after critical content renders
-  return null
+  // Re-render HomeContent with all deferred data populated
+  // This will trigger a re-render with full content without blocking initial paint
+  return (
+    <HomeContent
+      categories={[]} // Don't re-fetch critical data
+      carouselItems={[]}
+      premiumExperiences={[]}
+      productShowcase={[]}
+      // All deferred data now available
+      contactCTASlides={deferred.contactCTASlides}
+      featureCards={deferred.featureCards}
+      flashSaleProducts={deferred.flashSaleProducts}
+      luxuryProducts={deferred.luxuryProducts}
+      newArrivals={deferred.newArrivals}
+      topPicks={deferred.topPicks}
+      trendingProducts={deferred.trendingProducts}
+      dailyFinds={deferred.dailyFinds}
+      allProducts={deferred.allProductsData.products}
+      allProductsHasMore={deferred.allProductsData.hasMore}
+    />
+  )
 }
