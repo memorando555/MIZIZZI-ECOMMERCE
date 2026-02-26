@@ -7,9 +7,6 @@ import { HomeLoader } from "@/components/home/home-loader"
 // ISR revalidation - revalidate every 60 seconds for fresh content
 export const revalidate = 60
 
-// Enable static rendering with ISR for performance
-export const dynamic = "force-static"
-
 /**
  * CRITICAL OPTIMIZATION: Reduced home page to fetch only essential data first
  * All fetch operations run in parallel with Promise.all()

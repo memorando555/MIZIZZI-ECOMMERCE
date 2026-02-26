@@ -16,8 +16,8 @@ const nextConfig = {
   poweredByHeader: false,
   // Performance: React strict mode OFF to reduce overhead (for performance, not best practice)
   reactStrictMode: false,
-  // Performance: Enable cache components (replaces PPR in Next.js 16)
-  cacheComponents: true,
+  // Performance: Use traditional ISR instead of cache components for better compatibility
+  cacheComponents: false,
   // Performance: Parallel exports for faster builds
   experimental: {
     optimizePackageImports: [

@@ -137,8 +137,6 @@ const CheckoutConfirmation: React.FC<CheckoutConfirmationProps> = ({
         // Silently handle if confetti fails to load
       }
     })()
-      })
-    }, 250)
 
     // Save order data to localStorage for future reference
     try {
