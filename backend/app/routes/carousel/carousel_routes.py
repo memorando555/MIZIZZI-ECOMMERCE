@@ -9,6 +9,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timezone
 import logging
 from functools import wraps
+import requests
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,56 @@ except ImportError as e:
             return func
         return decorator
 
+
+# ============================================================================
+# WEBHOOK HELPERS - Trigger frontend cache invalidation
+# ============================================================================
+
+def trigger_frontend_webhook(position: str, action: str = "update"):
+    """
+    Trigger webhook on frontend to invalidate carousel cache.
+    This ensures carousel changes appear instantly to users.
+    
+    Args:
+        position: carousel position (homepage, category_page, flash_sales, luxury_deals)
+        action: create, update, or delete
+    """
+    try:
+        webhook_url = os.environ.get('WEBHOOK_URL') or os.environ.get('FRONTEND_WEBHOOK_URL')
+        webhook_secret = os.environ.get('CAROUSEL_WEBHOOK_SECRET', 'your-secret-key')
+        
+        if not webhook_url:
+            logger.warning("⚠️ WEBHOOK_URL not configured - frontend cache won't update instantly")
+            return False
+        
+        payload = {
+            "position": position,
+            "action": action,
+            "secret": webhook_secret
+        }
+        
+        # Send webhook with timeout
+        response = requests.post(
+            webhook_url,
+            json=payload,
+            timeout=5,
+            headers={"Content-Type": "application/json"}
+        )
+        
+        if response.ok:
+            logger.info(f"✅ Webhook triggered for carousel {action} at {position}")
+            return True
+        else:
+            logger.warning(f"⚠️ Webhook returned {response.status_code}: {response.text}")
+            return False
+            
+    except requests.exceptions.Timeout:
+        logger.error("❌ Webhook timeout - frontend cache may not update immediately")
+        return False
+    except Exception as e:
+        logger.error(f"❌ Error triggering webhook: {str(e)}")
+        return False
+
 try:
     from ...models.carousel_model import CarouselBanner
     from ...configuration.extensions import db
@@ -74,15 +126,22 @@ def init_carousel_tables():
 # ============================================================================
 
 @carousel_routes.route('/items', methods=['GET'])
-@cached_response("carousel_items", ttl=60, key_params=["position"])
+@cached_response("carousel_items", ttl=60, key_params=["position", "limit"])
 def get_carousel_items():
     """
     Get active carousel items for a specific position.
     OPTIMIZED: Redis cached for instant frontend loading.
-    Query params: position (homepage, category_page, flash_sales, luxury_deals)
+    Query params: position (homepage, category_page, flash_sales, luxury_deals), limit (max items to return)
     """
     try:
         position = request.args.get('position', 'homepage')
+        limit = request.args.get('limit', 5, type=int)
+        
+        # Enforce maximum limit to prevent cache overflow
+        MAX_LIMIT = 5
+        if limit > MAX_LIMIT:
+            limit = MAX_LIMIT
+            logger.warning(f"Limit {request.args.get('limit')} exceeds max {MAX_LIMIT}, clamping to {MAX_LIMIT}")
         
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             logger.warning(f"Carousel system not available, returning empty items")
@@ -93,13 +152,13 @@ def get_carousel_items():
                 "position": position
             }, 503
         
-        # Get active carousel items for the position, ordered by sort_order
+        # Get active carousel items for the position, ordered by sort_order, limited to prevent cache overflow
         items = CarouselBanner.query.filter_by(
             position=position,
             is_active=True
-        ).order_by(CarouselBanner.sort_order).all()
+        ).order_by(CarouselBanner.sort_order).limit(limit).all()
         
-        logger.info(f"Retrieved {len(items)} active carousel items for position: {position}")
+        logger.info(f"Retrieved {len(items)} active carousel items for position: {position} (limit: {limit})")
         
         carousel_data = [{
             "id": item.id,
@@ -119,6 +178,7 @@ def get_carousel_items():
             "position": position,
             "items": carousel_data,
             "count": len(carousel_data),
+            "limit": limit,
             "cached": CACHE_AVAILABLE,
             "cached_at": datetime.utcnow().isoformat()
         }, 200
@@ -211,7 +271,7 @@ def get_all_carousel_items():
 @jwt_required()
 @invalidate_on_change(["carousel_items", "carousel_item"])
 def create_carousel_item():
-    """Create a new carousel item. Invalidates carousel cache."""
+    """Create a new carousel item. Invalidates carousel cache and triggers frontend webhook."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -255,6 +315,9 @@ def create_carousel_item():
         
         logger.info(f"Created carousel item: {new_item.id}")
         
+        # Trigger frontend webhook for instant cache invalidation
+        trigger_frontend_webhook(data['position'], "create")
+        
         return jsonify({
             "success": True,
             "message": "Carousel item created successfully",
@@ -274,7 +337,7 @@ def create_carousel_item():
 @jwt_required()
 @invalidate_on_change(["carousel_items", "carousel_item"])
 def update_carousel_item(item_id):
-    """Update a carousel item. Invalidates carousel cache."""
+    """Update a carousel item. Invalidates carousel cache and triggers frontend webhook."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -290,6 +353,7 @@ def update_carousel_item(item_id):
             }), 404
         
         data = request.get_json()
+        position = data.get('position', item.position)
         
         # Update fields
         if 'name' in data:
@@ -319,6 +383,9 @@ def update_carousel_item(item_id):
         
         logger.info(f"Updated carousel item: {item_id}")
         
+        # Trigger frontend webhook for instant cache invalidation
+        trigger_frontend_webhook(position, "update")
+        
         return jsonify({
             "success": True,
             "message": "Carousel item updated successfully",
@@ -338,7 +405,7 @@ def update_carousel_item(item_id):
 @jwt_required()
 @invalidate_on_change(["carousel_items", "carousel_item"])
 def delete_carousel_item(item_id):
-    """Delete a carousel item. Invalidates carousel cache."""
+    """Delete a carousel item. Invalidates carousel cache and triggers frontend webhook."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -353,10 +420,15 @@ def delete_carousel_item(item_id):
                 "error": "Carousel item not found"
             }), 404
         
+        position = item.position
+        
         db.session.delete(item)
         db.session.commit()
         
         logger.info(f"Deleted carousel item: {item_id}")
+        
+        # Trigger frontend webhook for instant cache invalidation
+        trigger_frontend_webhook(position, "delete")
         
         return jsonify({
             "success": True,
@@ -376,7 +448,7 @@ def delete_carousel_item(item_id):
 @jwt_required()
 @invalidate_on_change(["carousel_items"])
 def reorder_carousel_items():
-    """Reorder carousel items. Invalidates carousel cache."""
+    """Reorder carousel items. Invalidates carousel cache and triggers frontend webhook."""
     try:
         if not CAROUSEL_AVAILABLE or CarouselBanner is None:
             return jsonify({
@@ -387,14 +459,20 @@ def reorder_carousel_items():
         data = request.get_json()
         items_order = data.get('items', [])
         
+        position = None
         for idx, item_data in enumerate(items_order):
             item = CarouselBanner.query.get(item_data['id'])
             if item:
                 item.sort_order = idx + 1
+                position = item.position
         
         db.session.commit()
         
         logger.info(f"Reordered carousel items")
+        
+        # Trigger frontend webhook for instant cache invalidation
+        if position:
+            trigger_frontend_webhook(position, "update")
         
         return jsonify({
             "success": True,
