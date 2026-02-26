@@ -82,10 +82,12 @@ export async function getAllProducts(limit = 12, page = 1): Promise<Product[]> {
             } as Product
           })
 
-          // Non-blocking: Prefetch images in background without waiting
-          setImmediate(() => {
-            productService.prefetchProductImages(normalizedProducts.map((p) => p.id.toString()))
-          })
+            // Non-blocking: Prefetch images in background without waiting
+            // DISABLED: This causes 40+ individual API calls that block page render
+            // Images will be loaded client-side on demand instead
+            // setImmediate(() => {
+            //   productService.prefetchProductImages(normalizedProducts.map((p) => p.id.toString()))
+            // })
 
           return normalizedProducts
         }
@@ -126,9 +128,12 @@ export async function getAllProducts(limit = 12, page = 1): Promise<Product[]> {
               } as Product
             })
 
-            setImmediate(() => {
-              productService.prefetchProductImages(normalizedProducts.map((p) => p.id.toString()))
-            })
+            // Non-blocking: Prefetch images in background without waiting
+            // DISABLED: This causes 40+ individual API calls that block page render
+            // Images will be loaded client-side on demand instead
+            // setImmediate(() => {
+            //   productService.prefetchProductImages(normalizedProducts.map((p) => p.id.toString()))
+            // })
 
             return normalizedProducts
           }
