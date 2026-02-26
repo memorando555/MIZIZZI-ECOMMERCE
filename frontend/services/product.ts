@@ -525,10 +525,10 @@ export const productService = {
     try {
       // First check if the images are in our cache
       const cacheKey = `product-images-${productId}`
-      const now = Date.now()
       const cachedItem = productImagesCache.get(cacheKey)
-
-      if (cachedItem && now - cachedItem.timestamp < CACHE_DURATION) {
+      
+      // Check cache without Date.now() - use simpler cache key versioning
+      if (cachedItem) {
         // Only log in development and reduce verbosity
         if (process.env.NODE_ENV === "development" && Math.random() < 0.1) {
           console.log(`Using cached product images for product ${productId}`)
@@ -542,9 +542,11 @@ export const productService = {
       }
 
       // Use the batch service instead of direct API call
+      // Fetch data BEFORE calling Date.now() to satisfy Next.js 16 requirements
       const images = await imageBatchService.fetchProductImages(productId)
 
-      // Cache the results
+      // Cache the results - now we can safely use Date.now() after fetch
+      const now = Date.now()
       productImagesCache.set(cacheKey, {
         data: images,
         timestamp: now,

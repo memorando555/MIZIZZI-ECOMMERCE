@@ -171,44 +171,9 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
             }
           })
 
-          // Fetch images in background without blocking (non-blocking with timeout)
-          if (products.length > 0) {
-            Promise.all(
-              products
-                .filter((p: FlashSaleProduct) => !p.image_urls || p.image_urls.length === 0)
-                .slice(0, 5) // Only fetch images for first 5 products to avoid overload
-                .map(async (product: FlashSaleProduct) => {
-                  try {
-                    // Use a timeout wrapper to prevent hanging
-                    const controller = new AbortController()
-                    const timeoutId = setTimeout(() => controller.abort(), 1000) // 1 second timeout
-
-                    const images = await Promise.race([
-                      productService.getProductImages(product.id.toString()),
-                      new Promise<any[]>((_, reject) =>
-                        setTimeout(() => reject(new Error("Image fetch timeout")), 1000),
-                      ),
-                    ])
-
-                    clearTimeout(timeoutId)
-
-                    if (images && images.length > 0) {
-                      product.image_urls = images.map((img) => img.url)
-                      const primaryImage = images.find((img) => img.is_primary)
-                      if (primaryImage) {
-                        product.thumbnail_url = primaryImage.url
-                      } else if (images[0]) {
-                        product.thumbnail_url = images[0].url
-                      }
-                    }
-                  } catch (error) {
-                    // Silently fail - products will display with placeholder images
-                  }
-                }),
-            ).catch(() => {
-              // Silently handle errors
-            })
-          }
+          // Note: Image fetching is intentionally NOT done here to prevent blocking
+          // Server Component prerendering. Images will be lazy-loaded on the client side
+          // using the image batch service when the product cards are rendered.
 
           return products
         }
