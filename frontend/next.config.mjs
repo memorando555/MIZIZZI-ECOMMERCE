@@ -1,8 +1,3 @@
-// Tip: If you see warnings about ambiguous classes like `delay-[400ms]`
-// either replace them in templates with escaped brackets (e.g. `delay-&lsqb;400ms&rsqb;`)
-// or add a safelist in tailwind.config.js/cjs to keep arbitrary delay classes.
-// See /home/.../tailwind.config.cjs for an example safelist added to this repo.
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
@@ -10,6 +5,31 @@ const nextConfig = {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://mizizzi-ecommerce-87pr-ffh57x9o6-jons-projects-a41f528c.vercel.app',
     NEXT_PUBLIC_WEBSOCKET_URL: process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'wss://mizizzi-ecommerce-1.onrender.com',
     NEXT_PUBLIC_ENABLE_WEBSOCKET: process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET || 'true',
+  },
+  // Performance: Enable SWC for faster compilation
+  swcMinify: true,
+  // Performance: Aggressively optimize production builds
+  productionBrowserSourceMaps: false,
+  // Performance: Compress HTML
+  compress: true,
+  // Performance: Generate ETags
+  generateEtags: true,
+  // Performance: Poweredby header 
+  poweredByHeader: false,
+  // Performance: React strict mode OFF to reduce overhead (for performance, not best practice)
+  reactStrictMode: false,
+  // Performance: Parallel exports for faster builds
+  experimental: {
+    optimizePackageImports: [
+      'framer-motion',
+      'react-icons',
+      'recharts',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-popover',
+      'lucide-react',
+    ],
+    // Experimental: faster rendering during builds
+    ppr: true,
   },
   images: {
     // Enable Next.js image optimization for proper serving, AVIF/WebP generation, and responsive sizing
@@ -145,7 +165,11 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config, { dev }) => {
+  webpack: (config, { dev, isServer }) => {
+    // Performance: Disable source maps in production
+    if (!dev && !isServer) {
+      config.devtool = false;
+    }
     if (dev) {
       config.cache = false;
     }

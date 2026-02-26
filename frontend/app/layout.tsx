@@ -76,7 +76,8 @@ export default async function RootLayout({
         )}
       </head>
       <body className={`${inter.className} ${inter.variable} fixed inset-0 overflow-hidden`} suppressHydrationWarning>
-        <Script src="https://accounts.google.com/gsi/client" strategy="beforeInteractive" async defer />
+        {/* Defer Google Sign-In until page is interactive */}
+        <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" async defer />
 
         <ThemeProvider>
           <StateProviders>

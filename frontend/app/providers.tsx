@@ -31,7 +31,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <>
       <DisableAnimations />
       <AuthProvider>
-        <SocketProvider>
+        {/* Performance: Disable autoConnect on WebSocket to prevent blocking initial page load */}
+        <SocketProvider autoConnect={false}>
           <VerificationHandler />
           <ProductProvider>
             <CartProvider>
