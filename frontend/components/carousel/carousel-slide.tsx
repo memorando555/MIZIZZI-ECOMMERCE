@@ -30,6 +30,7 @@ const slideVariants = {
 
 export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, index, direction }) => {
   const imageSrc = item.image || "/placeholder.svg"
+  const isDataUrl = imageSrc.startsWith("data:")
   
   return (
     <motion.div
@@ -54,17 +55,27 @@ export const CarouselSlide = React.memo<CarouselSlideProps>(({ item, isActive, i
     >
       {/* Background Image with optimized loading */}
       <div className="relative h-full w-full bg-gray-100">
-        <Image
-          src={imageSrc}
-          alt={item.title}
-          fill
-          className="object-cover"
-          priority={index === 0}
-          loading={index === 0 ? "eager" : "lazy"}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 1200px"
-          quality={82}
-          placeholder="empty"
-        />
+        {isDataUrl ? (
+          // Use native img for data URLs (don't use Next.js Image for data: URLs)
+          <img
+            src={imageSrc}
+            alt={item.title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          // Use Next.js Image for network URLs
+          <Image
+            src={imageSrc}
+            alt={item.title}
+            fill
+            className="object-cover"
+            priority={index === 0}
+            loading={index === 0 ? "eager" : "lazy"}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 100vw, 1200px"
+            quality={82}
+            placeholder="empty"
+          />
+        )}
       </div>
     </motion.div>
   )
