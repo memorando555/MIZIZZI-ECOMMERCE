@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { getCarouselItems, getPremiumExperiences, getProductShowcase, getContactCTASlides, getFeatureCards } from "@/lib/server/get-carousel-data"
 import { getCategories } from "@/lib/server/get-categories"
 import { getFlashSaleProducts } from "@/lib/server/get-flash-sale-products"
@@ -9,74 +10,27 @@ import { getDailyFinds } from "@/lib/server/get-daily-finds"
 import { getAllProductsForHome } from "@/lib/server/get-all-products"
 import { HomeContent } from "@/components/home/home-content"
 
-// ISR revalidation - revalidate every 60 seconds for fresh content
+// ISR: Cache entire page for 60 seconds, serve instantly from cache
 export const revalidate = 60
 
-/**
- * OPTIMIZED HOMEPAGE: All data fetched in parallel for instant rendering
- * No lazy loading, no Suspense delays - all components render immediately
- * Critical and deferred data fetched together via Promise.all() for maximum speed
- */
-
+// INSTANT LOAD: Render immediately with critical data, stream rest
 export default async function Home() {
-  try {
-    // Fetch all data in parallel - no waterfall, no dynamic imports
-    const [
-      categories,
-      carouselItems,
-      premiumExperiences,
-      productShowcase,
-      contactCTASlides,
-      featureCards,
-      flashSaleProducts,
-      luxuryProducts,
-      newArrivals,
-      topPicks,
-      trendingProducts,
-      dailyFinds,
-      allProductsData,
-    ] = await Promise.all([
-      getCategories(20),
-      getCarouselItems(),
-      getPremiumExperiences(),
-      getProductShowcase(),
-      getContactCTASlides(),
-      getFeatureCards(),
-      getFlashSaleProducts(50),
-      getLuxuryProducts(12),
-      getNewArrivals(20),
-      getTopPicks(20),
-      getTrendingProducts(20),
-      getDailyFinds(20),
-      getAllProductsForHome(12),
-    ])
+  // Fast critical path - render instantly with just 4 essential fetches
+  const [categories, carousel, premium, showcase] = await Promise.allSettled([
+    getCategories(20),
+    getCarouselItems(),
+    getPremiumExperiences(),
+    getProductShowcase(),
+  ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : []))
 
-    return (
+  return (
+    <>
+      {/* Critical path renders instantly - no waiting */}
       <HomeContent
         categories={categories}
-        carouselItems={carouselItems}
-        premiumExperiences={premiumExperiences}
-        productShowcase={productShowcase}
-        contactCTASlides={contactCTASlides}
-        featureCards={featureCards}
-        flashSaleProducts={flashSaleProducts}
-        luxuryProducts={luxuryProducts}
-        newArrivals={newArrivals}
-        topPicks={topPicks}
-        trendingProducts={trendingProducts}
-        dailyFinds={dailyFinds}
-        allProducts={allProductsData.products}
-        allProductsHasMore={allProductsData.hasMore}
-      />
-    )
-  } catch (error) {
-    console.error("[v0] Home page error:", error)
-    return (
-      <HomeContent
-        categories={[]}
-        carouselItems={[]}
-        premiumExperiences={[]}
-        productShowcase={[]}
+        carouselItems={carousel}
+        premiumExperiences={premium}
+        productShowcase={showcase}
         contactCTASlides={[]}
         featureCards={[]}
         flashSaleProducts={[]}
@@ -88,6 +42,50 @@ export default async function Home() {
         allProducts={[]}
         allProductsHasMore={false}
       />
-    )
-  }
+      
+      {/* Stream secondary content - loads in background without blocking */}
+      <Suspense fallback={null}>
+        <SecondaryContent />
+      </Suspense>
+    </>
+  )
+}
+
+// Loads 9 additional sections in parallel after critical content renders
+async function SecondaryContent() {
+  const results = await Promise.allSettled([
+    getContactCTASlides(),
+    getFeatureCards(),
+    getFlashSaleProducts(50),
+    getLuxuryProducts(12),
+    getNewArrivals(20),
+    getTopPicks(20),
+    getTrendingProducts(20),
+    getDailyFinds(20),
+    getAllProductsForHome(12),
+  ])
+
+  const [cta, features, flash, luxury, arrivals, picks, trending, daily, allProducts] = results.map(r => 
+    r.status === 'fulfilled' ? r.value : []
+  )
+
+  // Re-render with complete data once all secondary content loads
+  return (
+    <HomeContent
+      categories={[]}
+      carouselItems={[]}
+      premiumExperiences={[]}
+      productShowcase={[]}
+      contactCTASlides={cta as any}
+      featureCards={features as any}
+      flashSaleProducts={flash as any}
+      luxuryProducts={luxury as any}
+      newArrivals={arrivals as any}
+      topPicks={picks as any}
+      trendingProducts={trending as any}
+      dailyFinds={daily as any}
+      allProducts={(allProducts as any)?.products || []}
+      allProductsHasMore={(allProducts as any)?.hasMore || false}
+    />
+  )
 }
