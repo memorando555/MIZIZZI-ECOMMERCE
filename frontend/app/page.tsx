@@ -9,24 +9,25 @@ export const revalidate = 60
 
 /**
  * OPTIMIZED HOMEPAGE: Hybrid critical/deferred approach
- * Critical: Carousel, categories, premium experiences, product showcase (visible immediately)
- * Deferred: Feature cards, CTA slides, flash sales, luxury, new arrivals, top picks, trending, daily finds
+ * Critical: Carousel, categories, premium experiences, product showcase, CTA slides (visible immediately)
+ * Deferred: Feature cards, flash sales, luxury, new arrivals, top picks, trending, daily finds
  * All data fetched in parallel, but deferred content streams in after first paint
  */
 
 // CRITICAL PATH: Essential data needed for initial viewport (LCP optimization)
 async function CriticalPath() {
   try {
-    const [categories, carouselItems, premiumExperiences, productShowcase] = await Promise.all([
+    const [categories, carouselItems, premiumExperiences, productShowcase, contactCTASlides] = await Promise.all([
       getCategories(20), // Full category list for header/sidebar
       getCarouselItems(),
       getPremiumExperiences(),
       getProductShowcase(),
+      getContactCTASlides(), // CTA slides for user engagement
     ])
-    return { categories, carouselItems, premiumExperiences, productShowcase }
+    return { categories, carouselItems, premiumExperiences, productShowcase, contactCTASlides }
   } catch (error) {
     console.error("[v0] Critical path error:", error)
-    return { categories: [], carouselItems: [], premiumExperiences: [], productShowcase: [] }
+    return { categories: [], carouselItems: [], premiumExperiences: [], productShowcase: [], contactCTASlides: [] }
   }
 }
 
@@ -34,7 +35,6 @@ async function CriticalPath() {
 async function DeferredPath() {
   try {
     const [
-      contactCTASlides,
       featureCards,
       flashSaleProducts,
       luxuryProducts,
@@ -44,10 +44,6 @@ async function DeferredPath() {
       dailyFinds,
       allProductsData,
     ] = await Promise.all([
-      (async () => {
-        const { getContactCTASlides } = await import("@/lib/server/get-carousel-data")
-        return getContactCTASlides()
-      })(),
       (async () => {
         const { getFeatureCards } = await import("@/lib/server/get-carousel-data")
         return getFeatureCards()
@@ -82,7 +78,6 @@ async function DeferredPath() {
       })(),
     ])
     return {
-      contactCTASlides,
       featureCards,
       flashSaleProducts,
       luxuryProducts,
@@ -95,7 +90,6 @@ async function DeferredPath() {
   } catch (error) {
     console.error("[v0] Deferred path error:", error)
     return {
-      contactCTASlides: [],
       featureCards: [],
       flashSaleProducts: [],
       luxuryProducts: [],
@@ -119,8 +113,8 @@ export default async function Home() {
         carouselItems={critical.carouselItems}
         premiumExperiences={critical.premiumExperiences}
         productShowcase={critical.productShowcase}
+        contactCTASlides={critical.contactCTASlides}
         // Deferred product data - initial empty, populated by streaming
-        contactCTASlides={[]}
         featureCards={[]}
         flashSaleProducts={[]}
         luxuryProducts={[]}
@@ -149,8 +143,8 @@ async function DeferredContentStreamer() {
       carouselItems={[]}
       premiumExperiences={[]}
       productShowcase={[]}
+      contactCTASlides={[]} // CTA already in critical path
       // All deferred data now available
-      contactCTASlides={deferred.contactCTASlides}
       featureCards={deferred.featureCards}
       flashSaleProducts={deferred.flashSaleProducts}
       luxuryProducts={deferred.luxuryProducts}
