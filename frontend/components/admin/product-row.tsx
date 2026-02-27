@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { adminService } from "@/services/admin"
 import type { Product } from "@/types"
 
@@ -36,6 +36,7 @@ const ProductRow = memo(function ProductRow({
   imageSrc,
 }: ProductRowProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
