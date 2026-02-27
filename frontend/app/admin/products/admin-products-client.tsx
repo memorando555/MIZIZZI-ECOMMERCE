@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   Plus,
@@ -49,7 +49,7 @@ import {
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/hooks/use-toast" // Fixed toast import - should import from hooks not components
+import { toast } from "@/hooks/use-toast"
 import { adminService } from "@/services/admin"
 import { useAdminAuth } from "@/contexts/admin/auth-context"
 import { useMobile } from "@/hooks/use-mobile"
@@ -65,7 +65,6 @@ import {
   SheetClose,
   SheetFooter,
 } from "@/components/ui/sheet"
-import { motion, AnimatePresence } from "framer-motion"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   AlertDialog,
@@ -81,9 +80,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { imageBatchService } from "@/services/image-batch-service" // Imported imageBatchService
-import { websocketService } from "@/services/websocket" // Imported websocketService
-import type { Product } from "@/types" // Imported types
+import { imageBatchService } from "@/services/image-batch-service"
+import { websocketService } from "@/services/websocket"
+import type { Product } from "@/types"
+import { ProductRow } from "@/components/admin/product-row"
+import { ProductCard } from "@/components/admin/product-card"
+import { ProductList } from "@/components/admin/product-list"
 
 // Define the filter and sort options
 type SortOption =
@@ -536,63 +538,68 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   const { isAuthenticated, isLoading: authLoading, isAdmin } = useAdminAuth()
   const isMobile = useMobile()
 
-  // State for products and loading
-  const [allProducts, setAllProducts] = useState<Product[]>(initialProducts) // Use initial products from server
-  const [isLoading, setIsLoading] = useState(false) // No loading since data is pre-fetched
-  const [error, setError] = useState<string | null>(null)
+  // Consolidated state management - reduced from 16+ to 8 main state objects
+  const [allProducts, setAllProducts] = useState<Product[]>(initialProducts)
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [productToDelete, setProductToDelete] = useState<string | null>(null)
-  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [viewMode, setViewMode] = useState<ViewMode>("list") // Updated ViewMode
-  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false)
-
-  const [productStats, setProductStats] = useState<ProductStats | null>(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState("all")
-  const [isFilterActive, setIsFilterActive] = useState(false)
-  const [productImages, setProductImages] = useState<Record<string, string>>({})
-  const [imageVersions, setImageVersions] = useState<Record<string, number>>({})
-
-  // Pagination state
+  const [categories, setCategories] = useState<any[]>([])
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(isMobile ? 8 : 10)
+  
+  // Combined UI state
+  const [uiState, setUiState] = useState({
+    viewMode: "list" as "list" | "grid" | "analytics",
+    isFilterSheetOpen: false,
+    isRefreshing: false,
+    isLoading: false,
+    isDeleting: false,
+    isDeleteDialogOpen: false,
+    isBulkDeleteDialogOpen: false,
+    isLoadingCategories: true,
+    isFilterActive: false,
+    activeTab: "all",
+  })
 
-  // Filter and sort state
-  const [searchQuery, setSearchQuery] = useState("")
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
-  const [sortOption, setSortOption] = useState<SortOption>("newest")
-  const [filterOption, setFilterOption] = useState<FilterOption>("all")
-  const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
-  const [categories, setCategories] = useState<any[]>([]) // Use the imported Category type
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+  // Combined filter/search state
+  const [filterState, setFilterState] = useState({
+    searchQuery: "",
+    debouncedSearchQuery: "",
+    sortOption: "newest" as SortOption,
+    filterOption: "all" as FilterOption,
+    categoryFilter: null as number | null,
+    pageSize: isMobile ? 8 : 10,
+  })
 
+  // Combined dialog state
+  const [dialogState, setDialogState] = useState({
+    productToDelete: null as string | null,
+    errorMessage: null as string | null,
+    operationMessage: "",
+    operationType: null as "refresh" | "fetch_images" | "bulk" | null,
+  })
+
+  // Image and loading states
+  const [productImages, setProductImages] = useState<Record<string, string>>({})
   const [itemLoadingStates, setItemLoadingStates] = useState<Record<string, boolean>>({})
-  const [operationLoading, setOperationLoading] = useState<{
-    type: "refresh" | "fetch_images" | "bulk" | null
-    message: string
-  }>({ type: null, message: "" })
 
-  // Handle search input with debounce
+  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery)
-    }, 500)
+      setFilterState(prev => ({ ...prev, debouncedSearchQuery: filterState.searchQuery }))
+    }, 300) // Reduced from 500ms to 300ms
 
     return () => clearTimeout(timer)
-  }, [searchQuery])
+  }, [filterState.searchQuery])
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [debouncedSearchQuery, sortOption, filterOption, categoryFilter, activeTab])
+  }, [filterState.debouncedSearchQuery, filterState.sortOption, filterState.filterOption, filterState.categoryFilter, uiState.activeTab])
 
-  // Set view mode based on screen size
+  // Set page size based on screen size
   useEffect(() => {
-    setPageSize(isMobile ? 8 : 10)
+    setFilterState(prev => ({ ...prev, pageSize: isMobile ? 8 : 10 }))
   }, [isMobile])
 
+  // Auth check
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       router.push("/admin/login")
@@ -603,54 +610,120 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        setIsLoadingCategories(true)
-        console.log("Fetching all categories from database...")
+        setUiState(prev => ({ ...prev, isLoadingCategories: true }))
         const response = await adminService.getCategories({ per_page: 10000 })
-
-        const fetchedCategories = response.items || []
-        console.log(`Successfully fetched ${fetchedCategories.length} categories from database`)
-
-        setCategories(fetchedCategories)
-      } catch (error) {
-        console.error("Error fetching categories:", error)
-        toast({
-          title: "Error",
-          description: "Failed to load categories. Please try again.",
-          variant: "destructive",
-        })
+        if (response && response.data) {
+          setCategories(Array.isArray(response.data) ? response.data : response.data.categories || [])
+        }
+      } catch {
+        console.error("Failed to fetch categories")
       } finally {
-        setIsLoadingCategories(false)
+        setUiState(prev => ({ ...prev, isLoadingCategories: false }))
       }
     }
 
-    if (isAuthenticated) {
-      fetchCategories()
-    }
-  }, [isAuthenticated])
+    fetchCategories()
+  }, [])
 
-  // Calculate product stats
-  const calculateProductStats = useCallback(
-    (products: Product[]) => {
-      const stats: ProductStats = {
-        totalProducts: products.length,
-        inStock: products.filter((p) => p.stock !== undefined && p.stock > 0).length,
-        outOfStock: products.filter((p) => p.stock === undefined || p.stock <= 0).length,
-        lowStock: products.filter(
-          (p) => p.stock !== undefined && p.stock > 0 && p.stock <= (p.low_stock_threshold || 10),
-        ).length,
-        onSale: products.filter((p) => p.is_sale).length,
-        featured: products.filter((p) => p.is_featured).length,
-        newProducts: products.filter((p) => p.is_new).length,
-        totalInventoryValue: products.reduce((sum, p) => sum + p.price * (p.stock || 0), 0),
-        averagePrice: products.length > 0 ? products.reduce((sum, p) => sum + p.price, 0) / products.length : 0,
-        categoriesCount: categories.length,
-        luxuryDeal: products.filter((p) => p.is_luxury_deal).length, // Added calculation for luxuryDeal
-      }
-      setProductStats(stats)
-      console.log("[v0] Product stats calculated:", stats)
-    },
-    [categories.length],
-  ) // Added categories.length as dependency
+  // Memoized product filtering and sorting - compute derived values efficiently
+  const filteredProducts = useMemo(() => {
+    let result = [...allProducts]
+
+    // Apply search filter
+    if (filterState.debouncedSearchQuery) {
+      const query = filterState.debouncedSearchQuery.toLowerCase()
+      result = result.filter(
+        (p) =>
+          p.name?.toLowerCase().includes(query) ||
+          p.sku?.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query),
+      )
+    }
+
+    // Apply status filter
+    switch (filterState.filterOption) {
+      case "in_stock":
+        result = result.filter((p) => p.stock_quantity > 0)
+        break
+      case "out_of_stock":
+        result = result.filter((p) => p.stock_quantity <= 0)
+        break
+      case "featured":
+        result = result.filter((p) => p.is_featured)
+        break
+      case "on_sale":
+        result = result.filter((p) => p.is_sale)
+        break
+      case "new":
+        result = result.filter((p) => p.is_new)
+        break
+      case "low_stock":
+        result = result.filter((p) => p.stock_quantity > 0 && p.stock_quantity <= 10)
+        break
+      case "draft":
+        result = result.filter((p) => p.status === "draft")
+        break
+    }
+
+    // Apply category filter
+    if (filterState.categoryFilter) {
+      result = result.filter((p) => p.category_id === filterState.categoryFilter)
+    }
+
+    // Apply sorting
+    switch (filterState.sortOption) {
+      case "newest":
+        result.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        break
+      case "oldest":
+        result.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+        break
+      case "name_asc":
+        result.sort((a, b) => a.name.localeCompare(b.name))
+        break
+      case "name_desc":
+        result.sort((a, b) => b.name.localeCompare(a.name))
+        break
+      case "price_high":
+        result.sort((a, b) => b.price - a.price)
+        break
+      case "price_low":
+        result.sort((a, b) => a.price - b.price)
+        break
+      case "stock_high":
+        result.sort((a, b) => (b.stock_quantity || 0) - (a.stock_quantity || 0))
+        break
+      case "stock_low":
+        result.sort((a, b) => (a.stock_quantity || 0) - (b.stock_quantity || 0))
+        break
+    }
+
+    return result
+  }, [
+    allProducts,
+    filterState.debouncedSearchQuery,
+    filterState.filterOption,
+    filterState.categoryFilter,
+    filterState.sortOption,
+  ])
+
+  // Calculate stats from filtered products
+  const productStats = useMemo(() => {
+    const stats: ProductStats = {
+      totalProducts: allProducts.length,
+      inStock: allProducts.filter((p) => (p.stock_quantity || 0) > 0).length,
+      outOfStock: allProducts.filter((p) => (p.stock_quantity || 0) <= 0).length,
+      lowStock: allProducts.filter((p) => (p.stock_quantity || 0) > 0 && (p.stock_quantity || 0) <= 10).length,
+      onSale: allProducts.filter((p) => p.is_sale).length,
+      featured: allProducts.filter((p) => p.is_featured).length,
+      newProducts: allProducts.filter((p) => p.is_new).length,
+      totalInventoryValue: allProducts.reduce((sum, p) => sum + (p.price || 0) * ((p.stock_quantity || 0) as number), 0),
+      averagePrice: allProducts.length > 0 ? allProducts.reduce((sum, p) => sum + (p.price || 0), 0) / allProducts.length : 0,
+      categoriesCount: categories.length,
+      luxuryDeal: allProducts.filter((p) => p.is_luxury_deal).length,
+    }
+    return stats
+  }, [allProducts, categories.length]) // Added categories.length as dependency
 
   const fetchProductImages = useCallback(async (products: Product[]) => {
     if (!products.length) return
@@ -1033,28 +1106,68 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     }
   }
 
-  // Handle product selection
-  const toggleProductSelection = (productId: string) => {
+  // Memoized event handlers to prevent unnecessary re-renders
+  const handleSelectProduct = useCallback((productId: string) => {
     setSelectedProducts((prev) =>
       prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId],
     )
-  }
+  }, [])
 
-  // Handle select all products
-  const toggleSelectAll = () => {
-    if (selectedProducts.length === currentProducts.length) {
+  const handleSelectAll = useCallback(() => {
+    if (selectedProducts.length === filteredProducts.length) {
       setSelectedProducts([])
     } else {
-      setSelectedProducts(currentProducts.map((product) => product.id.toString()))
+      setSelectedProducts(filteredProducts.map((product) => product.id.toString()))
     }
-  }
+  }, [selectedProducts.length, filteredProducts.length])
+
+  const handleEditProduct = useCallback((id: string) => {
+    router.push(`/admin/products/${id}/edit`)
+  }, [router])
+
+  const handleViewProduct = useCallback((id: string) => {
+    window.open(`/product/${id}`, "_blank")
+  }, [])
+
+  const handleOpenDeleteDialog = useCallback((productId: string) => {
+    setDialogState((prev) => ({ ...prev, productToDelete: productId }))
+    setUiState((prev) => ({ ...prev, isDeleteDialogOpen: true }))
+  }, [])
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setUiState((prev) => ({ ...prev, isDeleteDialogOpen: false }))
+    setDialogState((prev) => ({ ...prev, productToDelete: null }))
+  }, [])
+
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [])
+
+  const handleFilterChange = useCallback((key: keyof typeof filterState, value: any) => {
+    setFilterState((prev) => ({ ...prev, [key]: value }))
+  }, [])
+
+  const handleUIStateChange = useCallback((key: keyof typeof uiState, value: any) => {
+    setUiState((prev) => ({ ...prev, [key]: value }))
+  }, [])
+
+  // Handle product selection
+  const toggleProductSelection = useCallback((productId: string) => {
+    handleSelectProduct(productId)
+  }, [handleSelectProduct])
+
+  // Handle select all products
+  const toggleSelectAll = useCallback(() => {
+    handleSelectAll()
+  }, [handleSelectAll])
 
   // Handle delete product
-  const handleDeleteProduct = async () => {
-    if (!productToDelete) return
+  const handleDeleteProduct = useCallback(async () => {
+    if (!dialogState.productToDelete) return
 
     try {
-      setIsDeleting(true)
+      setUiState((prev) => ({ ...prev, isDeleting: true }))
 
       // Check if admin token exists before making the API call
       const adminToken = localStorage.getItem("admin_token")
@@ -1070,14 +1183,10 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
         return
       }
 
-      const response = await adminService.deleteProduct(productToDelete)
-
-      console.log("Delete response:", response)
+      await adminService.deleteProduct(dialogState.productToDelete)
 
       // Remove product from state
-      setAllProducts((prev) => prev.filter((p) => p.id.toString() !== productToDelete))
-      // Recalculate stats after deletion
-      calculateProductStats(allProducts.filter((p) => p.id.toString() !== productToDelete))
+      setAllProducts((prev) => prev.filter((p) => p.id.toString() !== dialogState.productToDelete))
 
       toast({
         title: "Success",
@@ -1085,6 +1194,18 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       })
 
       // Close dialog and reset state
+      handleCloseDeleteDialog()
+    } catch (error: any) {
+      console.error("Error deleting product:", error)
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete product",
+        variant: "destructive",
+      })
+    } finally {
+      setUiState((prev) => ({ ...prev, isDeleting: false }))
+    }
+  }, [dialogState.productToDelete, handleCloseDeleteDialog, router])
       setIsDeleteDialogOpen(false)
       setProductToDelete(null)
     } catch (error: any) {
@@ -1811,25 +1932,25 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
               {/* View Mode Toggle */}
               <div className="flex items-center space-x-2">
                 <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => setViewMode("list")}
+            variant={uiState.viewMode === "list" ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleUIStateChange("viewMode", "list")}
                   className="rounded-full"
                 >
                   <FileText className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => setViewMode("grid")}
+            variant={uiState.viewMode === "grid" ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleUIStateChange("viewMode", "grid")}
                   className="rounded-full"
                 >
                   <Package className="h-4 w-4" />
                 </Button>
                 <Button
-                  variant={viewMode === "analytics" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => setViewMode("analytics")}
+            variant={uiState.viewMode === "analytics" ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleUIStateChange("viewMode", "analytics")}
                   className="rounded-full"
                 >
                   <TrendingUp className="h-4 w-4" />
@@ -1905,26 +2026,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                   </Button>
                 </div>
               </div>
-            ) : viewMode === "grid" ? (
-              <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                <AnimatePresence>
-                  {currentProducts.map((product, index) => (
-                    <EnhancedProductCard
-                      key={product.id}
-                      product={product}
-                      isSelected={selectedProducts.includes(product.id.toString())}
-                      onSelect={() => toggleProductSelection(product.id.toString())}
-                      onEdit={() => router.push(`/admin/products/${product.id}/edit`)}
-                      onView={() => window.open(`/product/${product.id}`, "_blank")}
-                      onDelete={() => {
-                        setProductToDelete(product.id.toString())
-                        setIsDeleteDialogOpen(true)
-                      }}
-                    />
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            ) : viewMode === "analytics" ? (
+            ) : uiState.viewMode === "analytics" ? (
               <div className="space-y-8">
                 {/* Analytics dashboard content */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1961,168 +2063,19 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                 </div>
               </div>
             ) : (
-              // Enhanced table view
-              <div className="overflow-hidden rounded-2xl border border-gray-200">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50 border-gray-200">
-                      <TableHead className="w-[40px] py-4">
-                        <Checkbox
-                          checked={selectedProducts.length === currentProducts.length && currentProducts.length > 0}
-                          onCheckedChange={toggleSelectAll}
-                          className="ml-2"
-                        />
-                      </TableHead>
-                      <TableHead className="w-[300px] py-4">
-                        <span className="font-semibold text-gray-900">Product</span>
-                      </TableHead>
-                      <TableHead className="font-semibold text-gray-900">Price</TableHead>
-                      <TableHead className="font-semibold text-gray-900">Category</TableHead>
-                      <TableHead className="font-semibold text-gray-900">Stock</TableHead>
-                      <TableHead className="font-semibold text-gray-900">Status</TableHead>
-                      <TableHead className="text-right font-semibold text-gray-900">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentProducts.map((product) => (
-                      <TableRow key={product.id} className="hover:bg-gray-50 border-gray-100">
-                        <TableCell className="py-4">
-                          <Checkbox
-                            checked={selectedProducts.includes(product.id.toString())}
-                            onCheckedChange={() => toggleProductSelection(product.id.toString())}
-                            className="ml-2"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <div className="h-12 w-12 rounded-lg border border-gray-200 overflow-hidden bg-gray-50 mr-3">
-                              <OptimizedImage
-                                src={getProductImage(product)}
-                                alt={product.name}
-                                className="h-full w-full object-cover"
-                                fallback={
-                                  <div className="h-full w-full flex items-center justify-center">
-                                    <Package className="h-5 w-5 text-gray-400" />
-                                  </div>
-                                }
-                              />
-                            </div>
-                            <div>
-                              <div className="font-semibold text-gray-900 line-clamp-1">{product.name}</div>
-                              <div className="text-sm text-gray-500">SKU: {product.sku || "N/A"}</div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            {product.sale_price && product.sale_price < product.price ? (
-                              <>
-                                <span className="font-bold text-gray-900">
-                                  KSh {product.sale_price?.toLocaleString()}
-                                </span>
-                                <div className="text-sm line-through text-gray-500">
-                                  KSh {product.price?.toLocaleString()}
-                                </div>
-                              </>
-                            ) : (
-                              <span className="font-bold text-gray-900">KSh {product.price?.toLocaleString()}</span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="bg-gray-50 border-gray-200 text-gray-700 rounded-full">
-                            {(typeof product.category === "object" && product.category?.name) ||
-                              getCategoryName(product.category_id) ||
-                              "Uncategorized"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "rounded-full",
-                              product.stock === undefined || product.stock <= 0
-                                ? "bg-red-50 text-red-600 border-red-200"
-                                : product.stock < 10
-                                  ? "bg-amber-50 text-amber-600 border-amber-200"
-                                  : "bg-green-50 text-green-600 border-green-200",
-                            )}
-                          >
-                            {product.stock === undefined || product.stock <= 0
-                              ? "Out of Stock"
-                              : product.stock < 10
-                                ? `Low: ${product.stock}`
-                                : `${product.stock} in stock`}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {product.is_featured && (
-                              <Badge className="bg-blue-500 text-white rounded-full">
-                                <Star className="h-3 w-3 mr-1 fill-current" /> Featured
-                              </Badge>
-                            )}
-                            {product.is_new && <Badge className="bg-green-500 text-white rounded-full">New</Badge>}
-                            {product.is_sale && <Badge className="bg-orange-500 text-white rounded-full">Sale</Badge>}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
-                              onClick={() => window.open(`/product/${product.id}`, "_blank")}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
-                              onClick={() => router.push(`/admin/products/${product.id}/edit`)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 rounded-full hover:bg-gray-100"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="rounded-xl">
-                                <DropdownMenuItem onClick={() => router.push(`/admin/products/${product.id}`)}>
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Copy className="mr-2 h-4 w-4" />
-                                  Duplicate
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setProductToDelete(product.id.toString())
-                                    setIsDeleteDialogOpen(true)
-                                  }}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              // Responsive list view
+              <ProductList
+                products={filteredProducts.slice((currentPage - 1) * filterState.pageSize, currentPage * filterState.pageSize)}
+                selectedProducts={selectedProducts}
+                viewMode={uiState.viewMode}
+                isMobile={isMobile}
+                productImages={productImages}
+                onSelectProduct={handleSelectProduct}
+                onEditProduct={handleEditProduct}
+                onDeleteProduct={handleOpenDeleteDialog}
+                onViewProduct={handleViewProduct}
+                getProductImage={getProductImage}
+              />
             )}
 
             {/* Enhanced pagination */}
@@ -2189,7 +2142,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
         {operationLoading.type && <LoadingOverlay message={operationLoading.message} />}
       </AnimatePresence>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={uiState.isDeleteDialogOpen} onOpenChange={handleCloseDeleteDialog}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-semibold">Delete Product?</AlertDialogTitle>
@@ -2198,22 +2151,22 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel disabled={isDeleting} className="rounded-full">
+            <AlertDialogCancel disabled={uiState.isDeleting} className="rounded-full">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteProduct}
-              disabled={isDeleting}
+              disabled={uiState.isDeleting}
               className="rounded-full bg-red-600 hover:bg-red-700"
             >
-              {isDeleting ? <MiniSpinner /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {uiState.isDeleting ? <MiniSpinner /> : <Trash2 className="mr-2 h-4 w-4" />}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={isBulkDeleteDialogOpen} onOpenChange={setIsBulkDeleteDialogOpen}>
+      <AlertDialog open={uiState.isBulkDeleteDialogOpen} onOpenChange={(open) => setUiState((prev) => ({ ...prev, isBulkDeleteDialogOpen: open }))}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-semibold">
@@ -2224,15 +2177,15 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel disabled={isDeleting} className="rounded-full">
+            <AlertDialogCancel disabled={uiState.isDeleting} className="rounded-full">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBulkDelete}
-              disabled={isDeleting}
+              disabled={uiState.isDeleting}
               className="rounded-full bg-red-600 hover:bg-red-700"
             >
-              {isDeleting ? <MiniSpinner /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {uiState.isDeleting ? <MiniSpinner /> : <Trash2 className="mr-2 h-4 w-4" />}
               Delete {selectedProducts.length} Products
             </AlertDialogAction>
           </AlertDialogFooter>
