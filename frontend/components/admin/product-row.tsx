@@ -1,6 +1,7 @@
 "use client"
 
 import React, { memo, useCallback, useRef, useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, XCircle, Edit, Eye, MoreHorizontal, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -284,8 +285,7 @@ const ProductRow = memo(function ProductRow({
         </div>
       </TableCell>
     </TableRow>
-      {/* Modern Delete Dialog */}
-      {showDeleteDialog && (
+      {showDeleteDialog && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
             {/* Header with warning icon */}
@@ -350,7 +350,8 @@ const ProductRow = memo(function ProductRow({
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
