@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import { Badge } from "@/components/ui/badge"
+import { AppleDeleteDialog } from "./apple-delete-dialog"
 import type { Product } from "@/types"
 
 interface ProductRowProps {
@@ -36,6 +37,8 @@ const ProductRow = memo(function ProductRow({
   const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -46,12 +49,18 @@ const ProductRow = memo(function ProductRow({
   }, [product.id, onSelect])
 
   const handleDelete = useCallback(() => {
-    setIsLoading(true)
+    setShowDeleteDialog(true)
+    setIsMenuOpen(false)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    setIsDeleting(true)
     try {
+      await new Promise(resolve => setTimeout(resolve, 500)) // Simulate API call
       onDelete(product.id)
+      setShowDeleteDialog(false)
     } finally {
-      setIsLoading(false)
-      setIsMenuOpen(false)
+      setIsDeleting(false)
     }
   }, [product.id, onDelete])
 
@@ -133,9 +142,10 @@ const ProductRow = memo(function ProductRow({
   ]
 
   return (
-    <TableRow 
-      className="hover:bg-gray-50 transition-colors border-b border-gray-200"
-    >
+    <>
+      <TableRow 
+        className="hover:bg-gray-50 transition-colors border-b border-gray-200"
+      >
       <TableCell className="w-12" onClick={handleSelect}>
         <Checkbox checked={isSelected} onChange={() => {}} />
       </TableCell>
@@ -249,9 +259,20 @@ const ProductRow = memo(function ProductRow({
         </div>
       </TableCell>
     </TableRow>
+
+    {/* Apple-style Delete Dialog */}
+    <AppleDeleteDialog
+      isOpen={showDeleteDialog}
+      product={product}
+      isDeleting={isDeleting}
+      onConfirm={handleConfirmDelete}
+      onCancel={() => setShowDeleteDialog(false)}
+    />
+    </>
   )
 })
 
 ProductRow.displayName = "ProductRow"
 
 export { ProductRow }
+
