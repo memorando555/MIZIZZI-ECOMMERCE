@@ -20,14 +20,13 @@ export const revalidate = 60
  */
 
 async function LoadAllContent() {
-  // More reasonable timeouts for external API calls
-  // 8 seconds for critical data to give the API time to respond
-  const timeout = <T extends any[] = any>(promise: Promise<T>, ms: number = 8000): Promise<T | []> => {
+  // Fast timeouts for instant page load (all content returns within 7 seconds max)
+  // If API is slow, sections gracefully return empty arrays
+  const timeout = <T extends any[] = any>(promise: Promise<T>, ms: number = 7000): Promise<T | []> => {
     return Promise.race([
       promise as Promise<T | []>,
       new Promise<[]>(resolve => setTimeout(() => resolve([]), ms))
     ]).catch(() => {
-      console.log(`[v0] Request timed out after ${ms}ms, using empty data`)
       return [] as unknown as T
     })
   }
@@ -48,21 +47,20 @@ async function LoadAllContent() {
       dailyFinds,
       allProductsData,
     ] = await Promise.all([
-      // Critical - with 8-second timeout to allow slower APIs to respond
-      timeout(getCategories(20), 8000),
-      timeout(getCarouselItems(), 8000),
-      timeout(getPremiumExperiences(), 8000),
-      timeout(getProductShowcase(), 8000),
-      timeout(getContactCTASlides(), 8000),
-      // Deferred - with generous timeout, gracefully handle failures
-      timeout(getFeatureCards().catch(() => []), 10000),
-      timeout(getFlashSaleProducts(50).catch(() => []), 10000),
-      timeout(getLuxuryProducts(12).catch(() => []), 10000),
-      timeout(getNewArrivals(20).catch(() => []), 10000),
-      timeout(getTopPicks(20).catch(() => []), 10000),
-      timeout(getTrendingProducts(20).catch(() => []), 10000),
-      timeout(getDailyFinds(20).catch(() => []), 10000),
-      timeout(getAllProductsForHome(12).catch(() => ({ products: [], hasMore: false })), 10000),
+      // All sections fetch in parallel with 7-second timeout for instant LCP
+      timeout(getCategories(20), 7000),
+      timeout(getCarouselItems(), 7000),
+      timeout(getPremiumExperiences(), 7000),
+      timeout(getProductShowcase(), 7000),
+      timeout(getContactCTASlides(), 7000),
+      timeout(getFeatureCards().catch(() => []), 7000),
+      timeout(getFlashSaleProducts(50).catch(() => []), 7000),
+      timeout(getLuxuryProducts(12).catch(() => []), 7000),
+      timeout(getNewArrivals(20).catch(() => []), 7000),
+      timeout(getTopPicks(20).catch(() => []), 7000),
+      timeout(getTrendingProducts(20).catch(() => []), 7000),
+      timeout(getDailyFinds(20).catch(() => []), 7000),
+      timeout(getAllProductsForHome(12).catch(() => ({ products: [], hasMore: false })), 7000),
     ])
 
     return {

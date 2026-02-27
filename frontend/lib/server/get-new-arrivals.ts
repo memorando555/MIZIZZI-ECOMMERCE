@@ -39,13 +39,13 @@ function normalizeProductPrices(product: Product): Product {
 }
 
 export async function getNewArrivals(limit = 20): Promise<Product[]> {
-  // Try up to 3 times with exponential backoff
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Try up to 2 times with exponential backoff (no excessive retries)
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const url = `${API_BASE_URL}/api/products/?is_new_arrival=true&per_page=${limit}`
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
 
       const response = await fetch(url, {
         signal: controller.signal,
@@ -61,11 +61,11 @@ export async function getNewArrivals(limit = 20): Promise<Product[]> {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        console.error(`[SSR] Attempt ${attempt + 1} failed with status ${response.status}`)
+        console.log(`[v0] getNewArrivals: Attempt ${attempt + 1} failed with status ${response.status}`)
         
         // Wait before retry
-        if (attempt < 2) {
-          const waitTime = 500 * Math.pow(2, attempt)
+        if (attempt < 1) {
+          const waitTime = 300 * Math.pow(2, attempt)
           await new Promise(resolve => setTimeout(resolve, waitTime))
         }
         continue
@@ -74,7 +74,7 @@ export async function getNewArrivals(limit = 20): Promise<Product[]> {
     const data = await response.json()
     let products: Product[] = extractProducts(data)
 
-    products = products.filter((p) => p.is_new_arrival)
+    products = products.filter((p) => p.is_new_arrival).slice(0, limit)
 
     if (products.length === 0) {
       return await getFallbackNewArrivals(limit)
@@ -90,11 +90,11 @@ export async function getNewArrivals(limit = 20): Promise<Product[]> {
 
       return enhancedProducts
     } catch (error) {
-      console.error(`[SSR] Attempt ${attempt + 1} error fetching new arrivals:`, error)
+      console.log(`[v0] getNewArrivals: Attempt ${attempt + 1} error:`, error instanceof Error ? error.message : String(error))
       
       // Wait before retry
-      if (attempt < 2) {
-        const waitTime = 500 * Math.pow(2, attempt)
+      if (attempt < 1) {
+        const waitTime = 300 * Math.pow(2, attempt)
         await new Promise(resolve => setTimeout(resolve, waitTime))
       }
     }
@@ -105,13 +105,13 @@ export async function getNewArrivals(limit = 20): Promise<Product[]> {
 }
 
 async function getFallbackNewArrivals(limit = 20): Promise<Product[]> {
-  // Try fallback with 2 retries
+  // Try fallback with 1 retry (fast fail)
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const url = `${API_BASE_URL}/api/products/?per_page=${limit}&sort_by=created_at&sort_order=desc`
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
 
       const response = await fetch(url, {
         signal: controller.signal,
@@ -128,13 +128,13 @@ async function getFallbackNewArrivals(limit = 20): Promise<Product[]> {
 
       if (!response.ok) {
         if (attempt < 1) {
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 300))
         }
         continue
       }
 
       const data = await response.json()
-      const products: Product[] = extractProducts(data)
+      const products: Product[] = extractProducts(data).slice(0, limit)
 
       return products.map((product) => {
         product = normalizeProductPrices(product)
@@ -144,8 +144,9 @@ async function getFallbackNewArrivals(limit = 20): Promise<Product[]> {
         } as Product
       })
     } catch (error) {
+      console.log(`[v0] getFallbackNewArrivals: Attempt ${attempt + 1} error:`, error instanceof Error ? error.message : String(error))
       if (attempt < 1) {
-        await new Promise(resolve => setTimeout(resolve, 500))
+        await new Promise(resolve => setTimeout(resolve, 300))
       }
     }
   }

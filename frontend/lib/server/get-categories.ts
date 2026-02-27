@@ -44,14 +44,14 @@ function normalizeImageUrl(url: string | undefined | null): string | undefined {
 export const getCategories = cache(async (limit = 20): Promise<Category[]> => {
   let lastError: Error | null = null
 
-  // Try up to 3 times with exponential backoff
-  for (let attempt = 0; attempt < 3; attempt++) {
+  // Try up to 2 times with fast backoff
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const url = `${BASE_URL}/api/categories?parent_id=null&per_page=${limit}&include_product_count=true`
-      console.log(`[v0] getCategories: Attempt ${attempt + 1} to fetch from ${url}`)
+      console.log(`[v0] getCategories: Attempt ${attempt + 1}`)
       
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
 
       // Fetch with include_product_count to get real-time item counts
       const response = await fetch(url, {
@@ -65,12 +65,12 @@ export const getCategories = cache(async (limit = 20): Promise<Category[]> => {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        console.warn(`[v0] getCategories: Attempt ${attempt + 1} failed with status ${response.status}`)
+        console.log(`[v0] getCategories: Attempt ${attempt + 1} failed with status ${response.status}`)
         lastError = new Error(`HTTP ${response.status}`)
         
         // Wait before retry
-        if (attempt < 2) {
-          const waitTime = 500 * Math.pow(2, attempt) // 500ms, 1000ms
+        if (attempt < 1) {
+          const waitTime = 300 * Math.pow(2, attempt)
           await new Promise(resolve => setTimeout(resolve, waitTime))
         }
         continue

@@ -43,7 +43,7 @@ export async function getTopPicks(limit = 20): Promise<Product[]> {
     const url = `${API_BASE_URL}/api/products/?is_top_pick=true&per_page=${limit}`
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -59,12 +59,12 @@ export async function getTopPicks(limit = 20): Promise<Product[]> {
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      console.error(`[SSR] Failed to fetch top picks: ${response.status}`)
+      console.log(`[v0] getTopPicks: Failed with status ${response.status}`)
       return await getFallbackTopPicks(limit)
     }
 
     const data = await response.json()
-    let products: Product[] = extractProducts(data)
+    let products: Product[] = extractProducts(data).slice(0, limit)
 
     products = products.filter((p) => p.is_top_pick)
 
@@ -83,7 +83,7 @@ export async function getTopPicks(limit = 20): Promise<Product[]> {
 
     return enhancedProducts
   } catch (error) {
-    console.error("[SSR] Error fetching top picks:", error)
+    console.log(`[v0] getTopPicks: Error:`, error instanceof Error ? error.message : String(error))
     return await getFallbackTopPicks(limit)
   }
 }
@@ -93,7 +93,7 @@ async function getFallbackTopPicks(limit = 20): Promise<Product[]> {
     const url = `${API_BASE_URL}/api/products/?per_page=${limit}&sort_by=rating&sort_order=desc`
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -111,7 +111,7 @@ async function getFallbackTopPicks(limit = 20): Promise<Product[]> {
     if (!response.ok) return []
 
     const data = await response.json()
-    const products: Product[] = extractProducts(data)
+    const products: Product[] = extractProducts(data).slice(0, limit)
 
     return products.map((product) => {
       product = normalizeProductPrices(product)
@@ -122,7 +122,7 @@ async function getFallbackTopPicks(limit = 20): Promise<Product[]> {
       }
     })
   } catch (error) {
-    console.error("[SSR] Error fetching fallback top picks:", error)
+    console.log(`[v0] getFallbackTopPicks: Error:`, error instanceof Error ? error.message : String(error))
     return []
   }
 }

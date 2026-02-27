@@ -43,7 +43,7 @@ export async function getDailyFinds(limit = 20): Promise<Product[]> {
     const url = `${API_BASE_URL}/api/products/?is_daily_find=true&per_page=${limit}`
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -59,12 +59,12 @@ export async function getDailyFinds(limit = 20): Promise<Product[]> {
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      console.error(`[SSR] Failed to fetch daily finds: ${response.status}`)
+      console.log(`[v0] getDailyFinds: Failed with status ${response.status}`)
       return await getFallbackDailyFinds(limit)
     }
 
     const data = await response.json()
-    let products: Product[] = extractProducts(data)
+    let products: Product[] = extractProducts(data).slice(0, limit)
 
     products = products.filter((p) => p.is_daily_find)
 
@@ -83,7 +83,7 @@ export async function getDailyFinds(limit = 20): Promise<Product[]> {
 
     return enhancedProducts as unknown as Product[]
   } catch (error) {
-    console.error("[SSR] Error fetching daily finds:", error)
+    console.log(`[v0] getDailyFinds: Error:`, error instanceof Error ? error.message : String(error))
     return await getFallbackDailyFinds(limit)
   }
 }
@@ -93,7 +93,7 @@ async function getFallbackDailyFinds(limit = 20): Promise<Product[]> {
     const url = `${API_BASE_URL}/api/products/?has_sale=true&per_page=${limit}&sort_by=updated_at&sort_order=desc`
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -111,7 +111,7 @@ async function getFallbackDailyFinds(limit = 20): Promise<Product[]> {
     if (!response.ok) return []
 
     const data = await response.json()
-    const products: Product[] = extractProducts(data)
+    const products: Product[] = extractProducts(data).slice(0, limit)
 
     return products.map((product) => {
       product = normalizeProductPrices(product)
@@ -122,7 +122,7 @@ async function getFallbackDailyFinds(limit = 20): Promise<Product[]> {
       }
     }) as unknown as Product[]
   } catch (error) {
-    console.error("[SSR] Error fetching fallback daily finds:", error)
+    console.log(`[v0] getFallbackDailyFinds: Error:`, error instanceof Error ? error.message : String(error))
     return []
   }
 }

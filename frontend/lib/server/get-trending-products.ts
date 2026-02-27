@@ -43,7 +43,7 @@ export async function getTrendingProducts(limit = 20): Promise<Product[]> {
     const url = `${API_BASE_URL}/api/products/?is_trending=true&per_page=${limit}`
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -59,12 +59,12 @@ export async function getTrendingProducts(limit = 20): Promise<Product[]> {
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      console.error(`[SSR] Failed to fetch trending products: ${response.status}`)
+      console.log(`[v0] getTrendingProducts: Failed with status ${response.status}`)
       return await getFallbackTrendingProducts(limit)
     }
 
     const data = await response.json()
-    let products: Product[] = extractProducts(data)
+    let products: Product[] = extractProducts(data).slice(0, limit)
 
     products = products.filter((p) => p.is_trending)
 
@@ -83,7 +83,7 @@ export async function getTrendingProducts(limit = 20): Promise<Product[]> {
 
     return enhancedProducts
   } catch (error) {
-    console.error("[SSR] Error fetching trending products:", error)
+    console.log(`[v0] getTrendingProducts: Error:`, error instanceof Error ? error.message : String(error))
     return await getFallbackTrendingProducts(limit)
   }
 }
@@ -93,7 +93,7 @@ async function getFallbackTrendingProducts(limit = 20): Promise<Product[]> {
     const url = `${API_BASE_URL}/api/products/?per_page=${limit}&sort_by=view_count&sort_order=desc`
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
     const response = await fetch(url, {
       signal: controller.signal,
@@ -111,7 +111,7 @@ async function getFallbackTrendingProducts(limit = 20): Promise<Product[]> {
     if (!response.ok) return []
 
     const data = await response.json()
-    const products: Product[] = extractProducts(data)
+    const products: Product[] = extractProducts(data).slice(0, limit)
 
     return products.map((product) => {
       product = normalizeProductPrices(product)
@@ -122,7 +122,7 @@ async function getFallbackTrendingProducts(limit = 20): Promise<Product[]> {
       }
     })
   } catch (error) {
-    console.error("[SSR] Error fetching fallback trending products:", error)
+    console.log(`[v0] getFallbackTrendingProducts: Error:`, error instanceof Error ? error.message : String(error))
     return []
   }
 }

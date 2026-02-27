@@ -126,16 +126,13 @@ function getDefaultEvent(): FlashSaleEvent {
  * Returns products with items_left, progress bar data, and countdown timer info
  */
 export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct[]> {
-  console.log("[v0] getFlashSaleProducts: Starting fetch from", API_BASE_URL)
-
   try {
     // Try the dedicated flash sale endpoint first (has stock tracking data)
     const flashSaleEndpoint = `${API_BASE_URL}/api/flash-sale/products?limit=${limit}`
-    console.log("[v0] getFlashSaleProducts: Trying dedicated endpoint:", flashSaleEndpoint)
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
       const response = await fetch(flashSaleEndpoint, {
         signal: controller.signal,
@@ -155,7 +152,7 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
 
         if (data.items && Array.isArray(data.items) && data.items.length > 0) {
           // Map products without waiting for images - images will load separately
-          const products = data.items.map((p: Product) => {
+          const products = data.items.slice(0, limit).map((p: Product) => {
             const product = normalizeProductPrices(p)
 
             return {
@@ -171,15 +168,11 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
             }
           })
 
-          // Note: Image fetching is intentionally NOT done here to prevent blocking
-          // Server Component prerendering. Images will be lazy-loaded on the client side
-          // using the image batch service when the product cards are rendered.
-
           return products
         }
       }
     } catch (err) {
-      // Silently fail and try fallback endpoint
+      console.log("[v0] getFlashSaleProducts: Dedicated endpoint failed, trying fallback")
     }
 
     // Fallback to featured routes endpoint
@@ -187,7 +180,7 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
       const response = await fetch(featuredEndpoint, {
         signal: controller.signal,
@@ -204,7 +197,7 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
 
       if (response.ok) {
         const data = await response.json()
-        const products = data.items || []
+        const products = (data.items || []).slice(0, limit)
 
         if (products.length > 0) {
           // Map products without waiting for images - images will load separately
@@ -224,55 +217,11 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
             }
           })
 
-          // Fetch images in background without blocking (non-blocking with timeout)
-          if (mappedProducts.length > 0) {
-            const productsWithImages = await Promise.all(
-              mappedProducts
-                .filter((p: FlashSaleProduct) => !p.image_urls || p.image_urls.length === 0)
-                .slice(0, 5) // Only fetch images for first 5 products to avoid overload
-                .map(async (product: FlashSaleProduct) => {
-                  try {
-                    // Use a timeout wrapper to prevent hanging
-                    const controller = new AbortController()
-                    const timeoutId = setTimeout(() => controller.abort(), 1000) // 1 second timeout
-
-                    const images = await Promise.race([
-                      productService.getProductImages(product.id.toString()),
-                      new Promise<any[]>((_, reject) =>
-                        setTimeout(() => reject(new Error("Image fetch timeout")), 1000),
-                      ),
-                    ])
-
-                    clearTimeout(timeoutId)
-
-                    if (images && images.length > 0) {
-                      product.image_urls = images.map((img) => img.url)
-                      const primaryImage = images.find((img) => img.is_primary)
-                      if (primaryImage) {
-                        product.thumbnail_url = primaryImage.url
-                      } else if (images[0]) {
-                        product.thumbnail_url = images[0].url
-                      }
-                    }
-                  } catch (error) {
-                    // Silently fail - image loading is non-critical
-                  }
-
-                  const enhanced = enhanceWithFlashSaleData(product)
-                  return {
-                    ...enhanced,
-                    seller: product.seller || defaultSeller,
-                    product_type: "flash_sale" as const,
-                  }
-                }),
-            )
-
-            return productsWithImages
-          }
+          return mappedProducts
         }
       }
     } catch (err) {
-      console.error(`[v0] getFlashSaleProducts: Featured endpoint failed:`, err)
+      console.log("[v0] getFlashSaleProducts: Featured endpoint failed, trying generic fallback")
     }
 
     // Final fallback: query products with is_flash_sale=true
@@ -284,10 +233,9 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
     let allProducts: Product[] = []
 
     for (const url of urls) {
-      console.log("[v0] getFlashSaleProducts: Trying fallback URL:", url)
       try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
 
         const response = await fetch(url, {
           signal: controller.signal,
@@ -305,17 +253,15 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
         if (response.ok) {
           const data = await response.json()
           const products = extractProducts(data)
-          console.log("[v0] getFlashSaleProducts: Fallback returned", products.length, "products from", url)
           allProducts = [...allProducts, ...products]
         }
       } catch (err) {
-        console.error(`[v0] getFlashSaleProducts: Fallback failed for ${url}:`, err)
+        console.log(`[v0] getFlashSaleProducts: Generic fallback error:`, err instanceof Error ? err.message : String(err))
       }
     }
 
     // Filter for flash sale products only
     let flashSaleProducts = allProducts.filter(isFlashSaleProduct)
-    console.log("[v0] getFlashSaleProducts: After filtering, found", flashSaleProducts.length, "flash sale products")
 
     // Remove duplicates
     const seenIds = new Set<string | number>()
@@ -339,49 +285,9 @@ export async function getFlashSaleProducts(limit = 50): Promise<FlashSaleProduct
         }
       })
 
-    // Fetch images in background without blocking (non-blocking with timeout)
-    if (enhancedProducts.length > 0) {
-      Promise.all(
-        enhancedProducts
-          .filter((p: FlashSaleProduct) => !p.image_urls || p.image_urls.length === 0)
-          .slice(0, 5) // Only fetch images for first 5 products to avoid overload
-          .map(async (product: FlashSaleProduct) => {
-            try {
-              // Use a timeout wrapper to prevent hanging
-              const controller = new AbortController()
-              const timeoutId = setTimeout(() => controller.abort(), 1000) // 1 second timeout
-
-              const images = await Promise.race([
-                productService.getProductImages(product.id.toString()),
-                new Promise<any[]>((_, reject) =>
-                  setTimeout(() => reject(new Error("Image fetch timeout")), 1000),
-                ),
-              ])
-
-              clearTimeout(timeoutId)
-
-              if (images && images.length > 0) {
-                product.image_urls = images.map((img) => img.url)
-                const primaryImage = images.find((img) => img.is_primary)
-                if (primaryImage) {
-                  product.thumbnail_url = primaryImage.url
-                } else if (images[0]) {
-                  product.thumbnail_url = images[0].url
-                }
-              }
-            } catch (error) {
-              // Silently fail - products will display with placeholder images
-            }
-          }),
-      ).catch(() => {
-        // Silently handle errors
-      })
-    }
-
-    console.log("[v0] getFlashSaleProducts: Returning", enhancedProducts.length, "enhanced products")
     return enhancedProducts
   } catch (error) {
-    console.error("[v0] getFlashSaleProducts: Critical error:", error)
+    console.log("[v0] getFlashSaleProducts: Error:", error instanceof Error ? error.message : String(error))
     return []
   }
 }

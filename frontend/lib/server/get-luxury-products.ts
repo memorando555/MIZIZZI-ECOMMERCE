@@ -47,18 +47,18 @@ function normalizeProductPrices(product: Product): Product {
  */
 export async function getLuxuryProducts(limit = 12): Promise<Product[]> {
   const urls = [
-    `${API_BASE_URL}/api/products/?is_luxury=true&per_page=${limit}`,
     `${API_BASE_URL}/api/products/?is_luxury_deal=true&per_page=${limit}`,
+    `${API_BASE_URL}/api/products/?is_luxury=true&per_page=${limit}`,
   ]
 
   let allProducts: Product[] = []
 
-  // Try fetching from both endpoints with retries
+  // Try fetching from both endpoints with fast retries
   for (const url of urls) {
-    for (let attempt = 0; attempt < 3; attempt++) {
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
 
         const response = await fetch(url, {
           signal: controller.signal,
@@ -78,14 +78,14 @@ export async function getLuxuryProducts(limit = 12): Promise<Product[]> {
           const products: Product[] = extractProducts(data)
           allProducts = [...allProducts, ...products]
           break // Success, move to next URL
-        } else if (attempt < 2) {
-          const waitTime = 500 * Math.pow(2, attempt)
+        } else if (attempt < 1) {
+          const waitTime = 300 * Math.pow(2, attempt)
           await new Promise(resolve => setTimeout(resolve, waitTime))
         }
       } catch (e) {
-        console.error(`[SSR] Attempt ${attempt + 1} failed for ${url}:`, e)
-        if (attempt < 2) {
-          const waitTime = 500 * Math.pow(2, attempt)
+        console.log(`[v0] getLuxuryProducts: Attempt ${attempt + 1} error for ${url}:`, e instanceof Error ? e.message : String(e))
+        if (attempt < 1) {
+          const waitTime = 300 * Math.pow(2, attempt)
           await new Promise(resolve => setTimeout(resolve, waitTime))
         }
       }
