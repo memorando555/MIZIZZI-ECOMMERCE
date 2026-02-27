@@ -1,8 +1,6 @@
-"use client"
-
-import React, { useState, useCallback, useMemo } from "react"
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Trash2, Save, Eye, EyeOff } from "lucide-react"
+import { ChevronLeft, Trash2, Save, Eye, EyeOff, Check, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { adminService } from "@/services/admin"
@@ -12,6 +10,7 @@ import { ProductPricing } from "./components/product-pricing"
 import { ProductInventory } from "./components/product-inventory"
 import { ProductImages } from "./components/product-images"
 import { ProductActions } from "./components/product-actions"
+import { ProductPreview } from "./components/product-preview"
 
 interface ProductDetailClientProps {
   initialProduct: Product
@@ -24,24 +23,55 @@ export function ProductDetailClient({ initialProduct }: ProductDetailClientProps
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const saveTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Track changes
   const handleProductChange = useCallback((updatedProduct: Partial<Product>) => {
     setProduct((prev) => ({ ...prev, ...updatedProduct }))
     setHasChanges(true)
+    setSaveStatus("idle")
   }, [])
+
+  // Auto-save with debounce
+  useEffect(() => {
+    if (!hasChanges) return
+
+    // Clear previous timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Set new timeout for auto-save (3 seconds after last change)
+    saveTimeoutRef.current = setTimeout(() => {
+      handleSave()
+    }, 3000)
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [product])
 
   // Save product changes
   const handleSave = useCallback(async () => {
     try {
+      setSaveStatus("saving")
       setIsSaving(true)
       await adminService.updateProduct(product.id.toString(), product)
       setHasChanges(false)
+      setSaveStatus("saved")
+      
+      // Reset saved status after 2 seconds
+      setTimeout(() => setSaveStatus("idle"), 2000)
+      
       toast({
         title: "Success",
         description: "Product updated successfully",
       })
     } catch (error) {
+      setSaveStatus("error")
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save product",
@@ -75,12 +105,12 @@ export function ProductDetailClient({ initialProduct }: ProductDetailClientProps
   }, [product.id, router])
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header - Sticky */}
-      <div className="sticky top-0 z-40 border-b border-gray-200 bg-white/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-white">
+      {/* Header - Sticky with Glass Morphism */}
+      <div className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4">
-            <div className="flex items-center gap-4 min-w-0">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
               <Button
                 variant="ghost"
                 size="icon"
@@ -89,8 +119,28 @@ export function ProductDetailClient({ initialProduct }: ProductDetailClientProps
               >
                 <ChevronLeft className="h-5 w-5" />
               </Button>
-              <div className="min-w-0">
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{product.name}</h1>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{product.name}</h1>
+                  {saveStatus === "saving" && (
+                    <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                      <div className="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-gray-900" />
+                      Saving...
+                    </div>
+                  )}
+                  {saveStatus === "saved" && (
+                    <div className="flex items-center gap-1.5 text-sm text-green-600">
+                      <Check className="h-4 w-4" />
+                      Saved
+                    </div>
+                  )}
+                  {saveStatus === "error" && (
+                    <div className="flex items-center gap-1.5 text-sm text-red-600">
+                      <AlertCircle className="h-4 w-4" />
+                      Error
+                    </div>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 truncate">SKU: {product.sku || "N/A"}</p>
               </div>
             </div>
@@ -109,21 +159,23 @@ export function ProductDetailClient({ initialProduct }: ProductDetailClientProps
                 </Button>
               )}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 className="rounded-full"
-                title="View product"
+                onClick={() => {
+                  // Preview logic
+                  window.open(`/products/${product.id}`, "_blank")
+                }}
               >
                 <Eye className="h-5 w-5" />
               </Button>
               <Button
-                variant="destructive"
+                variant="ghost"
                 size="icon"
-                className="rounded-full"
                 onClick={() => setShowDeleteConfirm(true)}
-                disabled={isDeleting}
+                className="rounded-full hover:bg-red-50"
               >
-                <Trash2 className="h-5 w-5" />
+                <Trash2 className="h-5 w-5 text-red-600" />
               </Button>
             </div>
           </div>
@@ -158,13 +210,51 @@ export function ProductDetailClient({ initialProduct }: ProductDetailClientProps
               <h2 className="text-lg font-semibold text-gray-900">Inventory</h2>
               <ProductInventory product={product} onProductChange={handleProductChange} />
             </section>
-          </div>
+
+            {/* Product Preview - How it looks to customers */}
+            <section className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6" style={{ contain: "layout" }}>
+              <ProductPreview product={product} />
+            </section>
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6 lg:sticky lg:top-24" style={{ contain: "layout" }}>
             <ProductActions product={product} onProductChange={handleProductChange} />
           </div>
         </div>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 text-center mb-2">Delete Product?</h2>
+            <p className="text-gray-600 text-center mb-6">
+              Are you sure you want to delete <strong>{product.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="rounded-lg"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="rounded-lg"
+              >
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
 
       {/* Delete Confirmation Dialog */}
@@ -199,19 +289,6 @@ export function ProductDetailClient({ initialProduct }: ProductDetailClientProps
     </div>
   )
 }
-
-            {/* Delete Section - Bottom */}
-            {showDeleteConfirm && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-3">
-                <p className="text-sm font-medium text-red-900">
-                  Are you sure you want to delete this product? This action cannot be undone.
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1"
                   >
                     Cancel
                   </Button>

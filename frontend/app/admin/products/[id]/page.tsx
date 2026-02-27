@@ -70,8 +70,11 @@ function normalizeProduct(product: any): Product {
 
 export const metadata = {
   title: "Product Details - Mizizzi Admin",
-  description: "Manage product details and settings",
+  description: "Manage product details, pricing, inventory, and features",
+  robots: "noindex, nofollow", // Admin pages should not be indexed
 }
+
+export const revalidate = 60 // ISR: revalidate every 60 seconds
 
 interface PageProps {
   params: Promise<{ id: string }>
