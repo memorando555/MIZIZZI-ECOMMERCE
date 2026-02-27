@@ -11,16 +11,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { adminService } from "@/services/admin"
@@ -360,11 +350,6 @@ const EnhancedProductCard = ({
                 Edit
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-red-600 text-xs">
-              <Trash2 className="mr-2 h-3 w-3" />
-              Delete
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -994,21 +979,26 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   }, [])
 
   // Handle product deletion from ProductRow
-  const handleDeleteProductFromList = useCallback((productId: string | number) => {
-    const id = String(productId)
-    console.log("[v0] Removing product from list:", id)
-    
-    // Remove product from all products list
-    setAllProducts((prev) => prev.filter((p) => String(p.id) !== id))
-    
-    // Remove from selected products if it was selected
-    setSelectedProducts((prev) => prev.filter((pId) => pId !== id))
-    
-    // Reset pagination if needed
-    if (currentPage > 1 && paginatedProducts.length <= 1) {
-      setCurrentPage(Math.max(1, currentPage - 1))
-    }
-  }, [currentPage, paginatedProducts.length])
+    const handleDeleteProductFromList = useCallback((productId: string | number) => {
+      const id = String(productId)
+      console.log("[v0] Removing product from list:", id)
+      
+      // Remove product from all products list
+      setAllProducts((prev) => prev.filter((p) => String(p.id) !== id))
+      
+      // Remove from selected products if it was selected
+      setSelectedProducts((prev) => prev.filter((pId) => pId !== id))
+      
+      // Compute current page item count using filteredProducts to avoid referencing paginatedProducts before its declaration
+      const startIndex = (currentPage - 1) * filterState.pageSize
+      const endIndex = startIndex + filterState.pageSize
+      const currentPageItemsCount = filteredProducts.slice(startIndex, endIndex).length
+  
+      // Reset pagination if needed (go back one page when current page becomes empty)
+      if (currentPage > 1 && currentPageItemsCount <= 1) {
+        setCurrentPage(Math.max(1, currentPage - 1))
+      }
+    }, [currentPage, filterState.pageSize, filteredProducts])
 
   // Bulk delete selected products
   const handleBulkDelete = useCallback(async () => {
@@ -1711,55 +1701,6 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
 
       {/* Loading overlay - no AnimatePresence for better performance */}
       {dialogState.operationType && <LoadingOverlay message={dialogState.operationMessage || "Processing..."} />}
-
-      {/* Apple-style Delete Confirmation Dialog */}
-      <AlertDialog open={!!dialogState.productToDelete} onOpenChange={(open) => {
-        if (!open) {
-          handleCloseDeleteDialog()
-        }
-      }}>
-        <AlertDialogContent className="max-w-sm rounded-2xl">
-          <AlertDialogHeader className="space-y-3">
-            <div className="flex justify-center">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
-              </div>
-            </div>
-            <AlertDialogTitle className="text-center text-lg font-semibold text-gray-900">
-              Delete Product?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-gray-600">
-              {dialogState.productToDelete && allProducts.find(p => p.id?.toString() === dialogState.productToDelete)?.name && (
-                <>
-                  This will permanently delete <strong className="text-gray-900">{allProducts.find(p => p.id?.toString() === dialogState.productToDelete)?.name}</strong>. This action cannot be undone.
-                </>
-              )}
-              {!allProducts.find(p => p.id?.toString() === dialogState.productToDelete) && (
-                <>This action cannot be undone.</>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-3 pt-4">
-            <AlertDialogCancel className="rounded-lg border-gray-200 text-gray-700 hover:bg-gray-50">
-              Keep Product
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteProduct}
-              disabled={uiState.isDeleting}
-              className="rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium"
-            >
-              {uiState.isDeleting ? (
-                <div className="flex items-center gap-2">
-                  <MiniSpinner />
-                  <span>Deleting...</span>
-                </div>
-              ) : (
-                'Delete'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
