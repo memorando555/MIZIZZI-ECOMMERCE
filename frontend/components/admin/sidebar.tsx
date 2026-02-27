@@ -96,12 +96,6 @@ const menuItems: MenuItem[] = [
     path: "/admin/products",
     submenu: [
       { title: "All Products", path: "/admin/products" },
-      { title: "Add New", path: "/admin/products/new" },
-      { title: "Categories", path: "/admin/categories" },
-      { title: "Brands", path: "/admin/brands" },
-      { title: "Attributes", path: "/admin/attributes" },
-      { title: "Product Variants", path: "/admin/products/variants" },
-      { title: "Product Images", path: "/admin/products/images" },
       { title: "Reviews", path: "/admin/reviews", badge: 15 },
     ],
   },
