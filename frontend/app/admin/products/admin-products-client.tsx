@@ -17,6 +17,8 @@ import { adminService } from "@/services/admin"
 import { useAdminAuth } from "@/contexts/admin/auth-context"
 import { useMobile } from "@/hooks/use-mobile"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import {
   Sheet,
@@ -49,6 +51,37 @@ import type { Product } from "@/types"
 import { ProductRow } from "@/components/admin/product-row"
 import { ProductCard } from "@/components/admin/product-card"
 import { ProductList } from "@/components/admin/product-list"
+import { Button } from "@/components/ui/button"
+import {
+  Package,
+  Star,
+  Zap,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  Tag,
+  Sparkles,
+  DollarSign,
+  TrendingUp,
+  Crown,
+  Search,
+  Filter,
+  X,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  Download,
+  Upload,
+  Plus,
+  XCircle,
+  Percent,
+  AlertCircle,
+  PieChart,
+} from "lucide-react"
 
 // Define the filter and sort options
 type SortOption =
@@ -384,7 +417,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [currentPage, setCurrentPage] = useState(1)
-  
+
   // Combined UI state
   const [uiState, setUiState] = useState({
     viewMode: "list" as "list" | "grid" | "analytics",
@@ -397,6 +430,10 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     isLoadingCategories: true,
     isFilterActive: false,
     activeTab: "all",
+    // Operation state for long-running actions
+    isOperating: false,
+    operationType: null as null | "refresh" | "fetch_images" | "bulk",
+    operationMessage: "",
   })
 
   // Combined filter/search state
@@ -414,6 +451,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     errorMessage: null as string | null,
     operationMessage: "",
     operationType: null as "refresh" | "fetch_images" | "bulk" | null,
+    isBulkDeleteDialogOpen: false,
   })
 
   // Image and loading states
@@ -775,7 +813,12 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       return productImages[product.id]
     }
     if (product.images && product.images.length > 0) {
-      return product.images[0]
+      const firstImage = product.images[0]
+      if (typeof firstImage === "string") {
+        return firstImage
+      }
+      // handle { url: string } style image objects
+      return (firstImage && (firstImage as any).url) || "/placeholder-product.png"
     }
     return "/placeholder-product.png"
   }
@@ -856,7 +899,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       filterState.filterOption !== "all" ||
       filterState.categoryFilter !== null ||
       filterState.sortOption !== "newest"
-    
+
     setUiState((prev: typeof uiState) => ({ ...prev, isFilterActive: isActive }))
   }, [filterState.debouncedSearchQuery, uiState.activeTab, filterState.filterOption, filterState.categoryFilter, filterState.sortOption])
 
@@ -943,14 +986,14 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     try {
       setUiState((prev) => ({ ...prev, isOperating: true, operationType: null }))
       await adminService.deleteProduct(dialogState.productToDelete)
-      
-      setAllProducts((prev) => prev.filter((p) => p.id !== dialogState.productToDelete))
-      
+
+      setAllProducts((prev) => prev.filter((p) => p.id?.toString() !== dialogState.productToDelete))
+
       toast({
         title: "Success",
         description: "Product deleted successfully.",
       })
-      
+
       setDialogState((prev) => ({ ...prev, productToDelete: null }))
     } catch (error: any) {
       toast({
@@ -968,19 +1011,19 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
 
     try {
       setUiState((prev) => ({ ...prev, isOperating: true, operationType: "bulk" }))
-      
+
       for (const productId of selectedProducts) {
         await adminService.deleteProduct(productId)
       }
-      
-      setAllProducts((prev) => prev.filter((p) => !selectedProducts.includes(p.id)))
+
+      setAllProducts((prev) => prev.filter((p) => !selectedProducts.includes(p.id?.toString())))
       setSelectedProducts([])
-      
+
       toast({
         title: "Success",
         description: `${selectedProducts.length} product(s) deleted successfully.`,
       })
-      
+
       setDialogState((prev) => ({ ...prev, isBulkDeleteDialogOpen: false }))
     } catch (error: any) {
       toast({
@@ -1167,10 +1210,10 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                             id="filter-in-stock"
                             checked={uiState.activeTab === "in_stock"}
                             onCheckedChange={() => {
-              const newTab = uiState.activeTab === "in_stock" ? "all" : "in_stock"
-              setUiState((prev) => ({ ...prev, activeTab: newTab }))
-              handleFilterChange("filterOption", newTab === "all" ? "all" : "in_stock")
-            }}
+                              const newTab = uiState.activeTab === "in_stock" ? "all" : "in_stock"
+                              setUiState((prev) => ({ ...prev, activeTab: newTab }))
+                              handleFilterChange("filterOption", newTab === "all" ? "all" : "in_stock")
+                            }}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-in-stock" className="ml-2 text-sm text-gray-700">
@@ -1181,7 +1224,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                           <Checkbox
                             id="filter-out-of-stock"
                             checked={uiState.activeTab === "out_of_stock"}
-                            onCheckedChange={() => handleToggleTab("out_of_stock", "out_of_stock")}
+                            onCheckedChange={() => handleToggleTab("out_of_stock")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-out-of-stock" className="ml-2 text-sm text-gray-700">
@@ -1192,7 +1235,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                           <Checkbox
                             id="filter-featured"
                             checked={uiState.activeTab === "featured"}
-                            onCheckedChange={() => handleToggleTab("featured", "featured")}
+                            onCheckedChange={() => handleToggleTab("featured")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-featured" className="ml-2 text-sm text-gray-700">
@@ -1203,7 +1246,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                           <Checkbox
                             id="filter-on-sale"
                             checked={uiState.activeTab === "on_sale"}
-                            onCheckedChange={() => handleToggleTab("on_sale", "on_sale")}
+                            onCheckedChange={() => handleToggleTab("on_sale")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-on-sale" className="ml-2 text-sm text-gray-700">
@@ -1236,16 +1279,16 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                           <Checkbox
                             id="filter-luxury-deal"
                             checked={uiState.activeTab === "luxury_deal"}
-                onCheckedChange={() => handleToggleTab(uiState.activeTab === "luxury_deal" ? "all" : "luxury_deal")}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-purple-50 text-purple-700 border border-purple-200">
-                <Crown className="h-3 w-3 mr-1" /> Luxury Deals ({productStats?.luxuryDeal || 0})
-              </Badge>
-              <Checkbox
-                checked={uiState.activeTab === "luxury_deal"}
-                onCheckedChange={() => handleToggleTab(uiState.activeTab === "trending" ? "all" : "trending")}
+                            onCheckedChange={() => handleToggleTab(uiState.activeTab === "luxury_deal" ? "all" : "luxury_deal")}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-purple-50 text-purple-700 border border-purple-200">
+                            <Crown className="h-3 w-3 mr-1" /> Luxury Deals ({productStats?.luxuryDeal || 0})
+                          </Badge>
+                          <Checkbox
+                            checked={uiState.activeTab === "luxury_deal"}
+                            onCheckedChange={() => handleToggleTab(uiState.activeTab === "trending" ? "all" : "trending")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-trending" className="ml-2 text-sm text-gray-700">
@@ -1316,7 +1359,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
 
                     <div>
                       <h3 className="text-sm font-medium text-gray-700 mb-2">Sort By</h3>
-        <Select value={filterState.sortOption}             onValueChange={(value: SortOption) => handleFilterChange("sortOption", value)}>
+                      <Select value={filterState.sortOption} onValueChange={(value: SortOption) => handleFilterChange("sortOption", value)}>
                         <SelectTrigger className="w-full rounded-full border-gray-200">
                           <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
@@ -1347,7 +1390,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                 </SheetContent>
               </Sheet>
 
-              {isFilterActive && (
+              {uiState.isFilterActive && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -1383,7 +1426,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                 </div>
               )}
 
-              <Select value={filterState.sortOption}             onValueChange={(value: SortOption) => handleFilterChange("sortOption", value)}>
+              <Select value={filterState.sortOption} onValueChange={(value: SortOption) => handleFilterChange("sortOption", value)}>
                 <SelectTrigger className="w-[180px] rounded-full border-gray-200">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -1405,25 +1448,25 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
               {/* View Mode Toggle */}
               <div className="flex items-center space-x-2">
                 <Button
-            variant={uiState.viewMode === "list" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleUIStateChange("viewMode", "list")}
+                  variant={uiState.viewMode === "list" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleUIStateChange("viewMode", "list")}
                   className="rounded-full"
                 >
                   <FileText className="h-4 w-4" />
                 </Button>
                 <Button
-            variant={uiState.viewMode === "grid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleUIStateChange("viewMode", "grid")}
+                  variant={uiState.viewMode === "grid" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleUIStateChange("viewMode", "grid")}
                   className="rounded-full"
                 >
                   <Package className="h-4 w-4" />
                 </Button>
                 <Button
-            variant={uiState.viewMode === "analytics" ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleUIStateChange("viewMode", "analytics")}
+                  variant={uiState.viewMode === "analytics" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleUIStateChange("viewMode", "analytics")}
                   className="rounded-full"
                 >
                   <TrendingUp className="h-4 w-4" />
@@ -1433,7 +1476,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
           </div>
         </div>
 
-            <Tabs defaultValue="all" value={uiState.activeTab} onValueChange={(value) => setUiState((prev) => ({ ...prev, activeTab: value }))}>
+        <Tabs defaultValue="all" value={uiState.activeTab} onValueChange={(value) => setUiState((prev) => ({ ...prev, activeTab: value }))}>
           <div className="px-6 py-4 border-b border-gray-100">
             <TabsList className="grid grid-cols-4 md:grid-cols-8 gap-1 bg-gray-50 p-1 rounded-2xl">
               {[
@@ -1463,11 +1506,11 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
           </div>
 
           <div className="p-6">
-            {error ? (
+            {dialogState.errorMessage ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <AlertCircle className="h-16 w-16 text-red-500 mb-6" />
                 <h3 className="text-2xl font-bold mb-3">Failed to load products</h3>
-                <p className="text-gray-600 mb-6 max-w-md">{error}</p>
+                <p className="text-gray-600 mb-6 max-w-md">{dialogState.errorMessage || "Failed to load products."}</p>
                 <Button onClick={fetchProducts} className="rounded-full bg-gray-900 hover:bg-gray-800">
                   {" "}
                   {/* Use fetchProducts */}
@@ -1480,12 +1523,12 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                 <Package className="h-16 w-16 text-gray-400 mb-6" />
                 <h3 className="text-2xl font-bold mb-3">No products found</h3>
                 <p className="text-gray-600 mb-6 max-w-md">
-          {uiState.isFilterActive
+                  {uiState.isFilterActive
                     ? "Try adjusting your filters to see more results"
                     : "Get started by adding your first product to the catalog"}
                 </p>
                 <div className="flex gap-3">
-          {uiState.isFilterActive && (
+                  {uiState.isFilterActive && (
                     <Button variant="outline" onClick={resetFilters} className="rounded-full bg-transparent">
                       <X className="mr-2 h-4 w-4" />
                       Reset Filters
