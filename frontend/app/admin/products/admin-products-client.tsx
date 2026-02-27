@@ -814,9 +814,22 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
 
   // Helper functions
   const getProductImage = (product: Product): string => {
+    // First check cached images from state
     if (productImages[product.id]) {
       return productImages[product.id]
     }
+    
+    // Then check product.thumbnail_url
+    if (product.thumbnail_url) {
+      return product.thumbnail_url
+    }
+    
+    // Check product.image_urls array
+    if (product.image_urls && Array.isArray(product.image_urls) && product.image_urls.length > 0) {
+      return product.image_urls[0]
+    }
+    
+    // Check product.images array
     if (product.images && product.images.length > 0) {
       const firstImage = product.images[0]
       if (typeof firstImage === "string") {
@@ -825,6 +838,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       // handle { url: string } style image objects
       return (firstImage && (firstImage as any).url) || "/placeholder-product.png"
     }
+    
     return "/placeholder-product.png"
   }
 

@@ -1667,7 +1667,7 @@ export default function AdminDashboard() {
 
               {/* Products Tab */}
               <TabsContent value="products" className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <Card className="border-0 shadow-sm bg-white">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -1702,7 +1702,56 @@ export default function AdminDashboard() {
                     </CardContent>
                   </Card>
 
+                  {/* Carousel/Deal Sections */}
                   <Card className="border-0 shadow-sm bg-white">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-yellow-600" />
+                        Carousel Sections
+                      </CardTitle>
+                      <CardDescription>Featured deal categories</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-yellow-700 font-medium">Flash Sales</p>
+                              <p className="text-lg font-bold text-yellow-900">{data.counts.flash_sale_products}</p>
+                            </div>
+                            <Zap className="h-5 w-5 text-yellow-600" />
+                          </div>
+                        </div>
+                        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-purple-700 font-medium">Luxury Deals</p>
+                              <p className="text-lg font-bold text-purple-900">{data.counts.luxury_products}</p>
+                            </div>
+                            <Crown className="h-5 w-5 text-purple-600" />
+                          </div>
+                        </div>
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-blue-700 font-medium">Trending Now</p>
+                              <p className="text-lg font-bold text-blue-900">{data.counts.sale_products}</p>
+                            </div>
+                            <TrendingUp className="h-5 w-5 text-blue-600" />
+                          </div>
+                        </div>
+                        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-green-700 font-medium">Daily Finds</p>
+                              <p className="text-lg font-bold text-green-900">{data.counts.new_products}</p>
+                            </div>
+                            <Target className="h-5 w-5 text-green-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-red-600" />
