@@ -2,18 +2,21 @@
 
 import React, { memo, useCallback, useRef, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, XCircle, Edit, Eye, MoreHorizontal, Loader2 } from "lucide-react"
+import { CheckCircle2, XCircle, Edit, Eye, MoreHorizontal, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/components/ui/use-toast"
+import { adminService } from "@/services/admin"
 import type { Product } from "@/types"
 
 interface ProductRowProps {
   product: Product
   isSelected: boolean
   onSelect: (id: string) => void
+  onDelete?: (id: string) => void
   imageSrc?: string
 }
 
@@ -29,11 +32,14 @@ const ProductRow = memo(function ProductRow({
   product,
   isSelected,
   onSelect,
+  onDelete,
   imageSrc,
 }: ProductRowProps) {
   const router = useRouter()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -62,6 +68,39 @@ const ProductRow = memo(function ProductRow({
       setIsLoading(false)
     }
   }, [product.id, router])
+
+  const handleDeleteClick = useCallback(() => {
+    setShowDeleteDialog(true)
+    setIsMenuOpen(false)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    setIsDeleting(true)
+    try {
+      const result = await adminService.deleteProduct(String(product.id))
+      
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: `"${product.name}" has been deleted successfully`,
+          variant: "success",
+          duration: 3000,
+        })
+        setShowDeleteDialog(false)
+        onDelete?.(String(product.id))
+      }
+    } catch (error: any) {
+      const errorMessage = error?.message || "Failed to delete product"
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 4000,
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [product.id, product.name, onDelete])
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -115,6 +154,13 @@ const ProductRow = memo(function ProductRow({
       label: "Edit Product",
       icon: <Edit className="w-4 h-4" />,
       onClick: handleEdit,
+      disabled: isLoading,
+    },
+    {
+      label: "Delete",
+      icon: <Trash2 className="w-4 h-4" />,
+      onClick: handleDeleteClick,
+      color: "danger",
       disabled: isLoading,
     },
   ]
@@ -237,6 +283,74 @@ const ProductRow = memo(function ProductRow({
         </div>
       </TableCell>
     </TableRow>
+      {/* Modern Delete Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+            {/* Header with warning icon */}
+            <div className="bg-gradient-to-r from-red-50 to-red-100/50 px-6 py-6 flex items-start gap-4">
+              <div className="flex-shrink-0 pt-0.5">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-gray-900">Delete Product?</h2>
+                <p className="text-sm text-gray-600 mt-1">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-4">
+              <p className="text-sm text-gray-700 mb-4">
+                You are about to permanently delete <span className="font-semibold text-gray-900">"{product.name}"</span>. This will:
+              </p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-start gap-3 text-sm text-gray-600">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Remove the product from your catalog</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-600">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Delete all associated images and data</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-600">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Cannot be recovered</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Footer with actions */}
+            <div className="bg-gray-50 px-6 py-4 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Product
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 })
