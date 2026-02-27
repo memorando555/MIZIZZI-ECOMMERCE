@@ -790,8 +790,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     if (!isAuthenticated) return
 
     try {
-      setIsLoading(true)
-      setError(null)
+      setUiState((prev) => ({ ...prev, isLoading: true }))
+      setDialogState((prev) => ({ ...prev, errorMessage: null }))
 
       // Fetch all products with a very large limit
       console.log("Fetching all products from database...")
@@ -801,7 +801,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       console.log(`Successfully fetched ${fetchedProducts.length} products from database`)
 
       setAllProducts(fetchedProducts)
-      calculateProductStats(fetchedProducts)
+      // productStats will be computed by useMemo from the fetched products
 
       // Fetch images for the products (in batches to avoid too many requests)
       if (fetchedProducts.length > 0) {
@@ -818,17 +818,16 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       // Removed analytics fetching as it's no longer used
     } catch (error: any) {
       console.error("Error fetching products:", error)
-      setError(error.message || "Failed to load products. Please try again.")
+      setDialogState((prev) => ({ ...prev, errorMessage: error.message || "Failed to load products. Please try again." }))
       toast({
         title: "Error",
         description: "Failed to load products. Please try again.",
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
-      setIsRefreshing(false)
+      setUiState((prev) => ({ ...prev, isLoading: false, isRefreshing: false }))
     }
-  }, [isAuthenticated, calculateProductStats, fetchProductImages])
+  }, [isAuthenticated, fetchProductImages])
 
   // Fetch products when authenticated - REMOVED since data is passed as props for SSR
   // useEffect(() => {
@@ -1075,14 +1074,17 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   const totalPages = Math.ceil(filteredProducts.length / pageSize)
 
   // Get current page products
-  const currentProducts = filteredProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+  // Pagination - compute current page products
+  const currentProducts = useMemo(() => {
+    return filteredProducts.slice((currentPage - 1) * filterState.pageSize, currentPage * filterState.pageSize)
+  }, [filteredProducts, currentPage, filterState.pageSize])
 
   const handleRefresh = async () => {
-    setOperationLoading({ type: "refresh", message: "Refreshing products..." })
+    setDialogState((prev) => ({ ...prev, operationType: "refresh" }))
     try {
-      setIsRefreshing(true)
+      setUiState((prev) => ({ ...prev, isRefreshing: true }))
       setProductImages({})
-      setImageVersions({})
+      // Clear image versions from state
       imageBatchService.clearCache()
 
       if (typeof localStorage !== "undefined") {
@@ -1206,57 +1208,13 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       setUiState((prev) => ({ ...prev, isDeleting: false }))
     }
   }, [dialogState.productToDelete, handleCloseDeleteDialog, router])
-      setIsDeleteDialogOpen(false)
-      setProductToDelete(null)
-    } catch (error: any) {
-      console.error("Delete operation failed:", error)
 
-      // Check if this is an authentication error
-      if (error.message && error.message.includes("Authentication")) {
-        toast({
-          title: "Authentication Error",
-          description: "Your session has expired. Please log in again.",
-          variant: "destructive",
-        })
-
-        // Redirect to login page
-        router.push("/admin/login")
-        return
-      }
-
-      // Check if the error message actually indicates success
-      if (error.message && error.message.includes("deleted successfully")) {
-        // This is actually a success case
-        setAllProducts((prev) => prev.filter((p) => p.id.toString() !== productToDelete))
-        calculateProductStats(allProducts.filter((p) => p.id.toString() !== productToDelete))
-
-        toast({
-          title: "Success",
-          description: "Product deleted successfully",
-        })
-
-        // Close dialog and reset state
-        setIsDeleteDialogOpen(false)
-        setProductToDelete(null)
-      } else {
-        // This is a real error
-        toast({
-          title: "Error",
-          description: error.message || "Failed to delete product. Please try again.",
-          variant: "destructive",
-        })
-      }
-    } finally {
-      setIsDeleting(false)
-    }
-  }
-
-  // Handle bulk delete
+  // Handle bulk delete products
   const handleBulkDelete = async () => {
     if (selectedProducts.length === 0) return
 
     try {
-      setIsDeleting(true)
+      setUiState((prev) => ({ ...prev, isDeleting: true }))
 
       // Check if admin token exists before making the API call
       const adminToken = localStorage.getItem("admin_token")
@@ -1307,7 +1265,6 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       // Remove successfully deleted products from state
       if (successfulDeletes.length > 0) {
         setAllProducts((prev) => prev.filter((p) => !successfulDeletes.includes(p.id.toString())))
-        calculateProductStats(allProducts.filter((p) => !successfulDeletes.includes(p.id.toString())))
       }
 
       // Show appropriate toast message
@@ -1319,6 +1276,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
 
         // Clear selection
         setSelectedProducts([])
+        setUiState((prev) => ({ ...prev, isBulkDeleteDialogOpen: false }))
       } else if (successfulDeletes.length > 0) {
         toast({
           title: "Partial Success",
@@ -1343,19 +1301,25 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
         variant: "destructive",
       })
     } finally {
-      setIsDeleting(false)
-      setIsBulkDeleteDialogOpen(false)
+      setUiState((prev) => ({ ...prev, isDeleting: false, isBulkDeleteDialogOpen: false }))
     }
   }
 
-  // Reset all filters
-  const resetFilters = () => {
-    setSearchQuery("")
-    setDebouncedSearchQuery("")
-    setActiveTab("all")
-    setFilterOption("all")
-    setCategoryFilter(null)
-    setSortOption("newest")
+  const handleToggleTab = useCallback((tabName: string, filterName: FilterOption) => {
+    const newTab = uiState.activeTab === tabName ? "all" : tabName
+    setUiState((prev) => ({ ...prev, activeTab: newTab }))
+    handleFilterChange("filterOption", newTab === "all" ? "all" : filterName)
+  }, [uiState.activeTab])
+    setFilterState({
+      searchQuery: "",
+      debouncedSearchQuery: "",
+      sortOption: "newest",
+      filterOption: "all",
+      categoryFilter: null,
+      pageSize: isMobile ? 8 : 10,
+    })
+    setUiState((prev) => ({ ...prev, activeTab: "all" }))
+    setCurrentPage(1)
     setIsFilterSheetOpen(false) // Close the filter sheet
   }
 
@@ -1637,7 +1601,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                 <Input
                   placeholder="Search products..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => handleFilterChange("searchQuery", e.target.value)}
                   className="pl-10 w-80 rounded-full border-gray-200 focus:border-gray-300"
                 />
               </div>
@@ -1668,7 +1632,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                       <h3 className="text-sm font-medium text-gray-700 mb-2">Category</h3>
                       <Select
                         value={categoryFilter?.toString() || "all"}
-                        onValueChange={(value) => setCategoryFilter(value === "all" ? null : Number.parseInt(value))}
+                        onValueChange={(value) => handleFilterChange("categoryFilter", value === "all" ? null : Number.parseInt(value))}
                       >
                         <SelectTrigger className="w-full rounded-full border-gray-200">
                           <SelectValue placeholder="All Categories" />
@@ -1690,8 +1654,12 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-in-stock"
-                            checked={activeTab === "in_stock"}
-                            onCheckedChange={() => setActiveTab(activeTab === "in_stock" ? "all" : "in_stock")}
+                            checked={uiState.activeTab === "in_stock"}
+                            onCheckedChange={() => {
+              const newTab = uiState.activeTab === "in_stock" ? "all" : "in_stock"
+              setUiState((prev) => ({ ...prev, activeTab: newTab }))
+              handleFilterChange("filterOption", newTab === "all" ? "all" : "in_stock")
+            }}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-in-stock" className="ml-2 text-sm text-gray-700">
@@ -1701,8 +1669,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-out-of-stock"
-                            checked={activeTab === "out_of_stock"}
-                            onCheckedChange={() => setActiveTab(activeTab === "out_of_stock" ? "all" : "out_of_stock")}
+                            checked={uiState.activeTab === "out_of_stock"}
+                            onCheckedChange={() => handleToggleTab("out_of_stock", "out_of_stock")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-out-of-stock" className="ml-2 text-sm text-gray-700">
@@ -1712,8 +1680,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-featured"
-                            checked={activeTab === "featured"}
-                            onCheckedChange={() => setActiveTab(activeTab === "featured" ? "all" : "featured")}
+                            checked={uiState.activeTab === "featured"}
+                            onCheckedChange={() => handleToggleTab("featured", "featured")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-featured" className="ml-2 text-sm text-gray-700">
@@ -1723,8 +1691,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-on-sale"
-                            checked={activeTab === "on_sale"}
-                            onCheckedChange={() => setActiveTab(activeTab === "on_sale" ? "all" : "on_sale")}
+                            checked={uiState.activeTab === "on_sale"}
+                            onCheckedChange={() => handleToggleTab("on_sale", "on_sale")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-on-sale" className="ml-2 text-sm text-gray-700">
@@ -1734,8 +1702,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-new"
-                            checked={activeTab === "new"}
-                            onCheckedChange={() => setActiveTab(activeTab === "new" ? "all" : "new")}
+                            checked={uiState.activeTab === "new"}
+                            onCheckedChange={() => setActiveTab(uiState.activeTab === "new" ? "all" : "new")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-new" className="ml-2 text-sm text-gray-700">
@@ -1745,8 +1713,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-flash-sale"
-                            checked={activeTab === "flash_sale"}
-                            onCheckedChange={() => setActiveTab(activeTab === "flash_sale" ? "all" : "flash_sale")}
+                            checked={uiState.activeTab === "flash_sale"}
+                            onCheckedChange={() => setActiveTab(uiState.activeTab === "flash_sale" ? "all" : "flash_sale")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-flash-sale" className="ml-2 text-sm text-gray-700">
@@ -1756,8 +1724,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-luxury-deal"
-                            checked={activeTab === "luxury_deal"}
-                            onCheckedChange={() => setActiveTab(activeTab === "luxury_deal" ? "all" : "luxury_deal")}
+                            checked={uiState.activeTab === "luxury_deal"}
+                            onCheckedChange={() => setActiveTab(uiState.activeTab === "luxury_deal" ? "all" : "luxury_deal")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-luxury-deal" className="ml-2 text-sm text-gray-700">
@@ -1767,8 +1735,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-trending"
-                            checked={activeTab === "trending"}
-                            onCheckedChange={() => setActiveTab(activeTab === "trending" ? "all" : "trending")}
+                            checked={uiState.activeTab === "trending"}
+                            onCheckedChange={() => setActiveTab(uiState.activeTab === "trending" ? "all" : "trending")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-trending" className="ml-2 text-sm text-gray-700">
@@ -1778,8 +1746,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-low-stock"
-                            checked={activeTab === "low_stock"}
-                            onCheckedChange={() => setActiveTab(activeTab === "low_stock" ? "all" : "low_stock")}
+                            checked={uiState.activeTab === "low_stock"}
+                            onCheckedChange={() => setActiveTab(uiState.activeTab === "low_stock" ? "all" : "low_stock")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-low-stock" className="ml-2 text-sm text-gray-700">
@@ -1789,9 +1757,9 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-high-performing"
-                            checked={activeTab === "high_performing"}
+                            checked={uiState.activeTab === "high_performing"}
                             onCheckedChange={() =>
-                              setActiveTab(activeTab === "high_performing" ? "all" : "high_performing")
+                              setActiveTab(uiState.activeTab === "high_performing" ? "all" : "high_performing")
                             }
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
@@ -1802,9 +1770,9 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-needs-attention"
-                            checked={activeTab === "needs_attention"}
+                            checked={uiState.activeTab === "needs_attention"}
                             onCheckedChange={() =>
-                              setActiveTab(activeTab === "needs_attention" ? "all" : "needs_attention")
+                              setActiveTab(uiState.activeTab === "needs_attention" ? "all" : "needs_attention")
                             }
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
@@ -1815,8 +1783,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-draft"
-                            checked={activeTab === "draft"}
-                            onCheckedChange={() => setActiveTab(activeTab === "draft" ? "all" : "draft")}
+                            checked={uiState.activeTab === "draft"}
+                            onCheckedChange={() => setActiveTab(uiState.activeTab === "draft" ? "all" : "draft")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-draft" className="ml-2 text-sm text-gray-700">
@@ -1826,8 +1794,8 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                         <div className="flex items-center">
                           <Checkbox
                             id="filter-archived"
-                            checked={activeTab === "archived"}
-                            onCheckedChange={() => setActiveTab(activeTab === "archived" ? "all" : "archived")}
+                            checked={uiState.activeTab === "archived"}
+                            onCheckedChange={() => setActiveTab(uiState.activeTab === "archived" ? "all" : "archived")}
                             className="h-4 w-4 rounded-md border-gray-300"
                           />
                           <label htmlFor="filter-archived" className="ml-2 text-sm text-gray-700">
@@ -1839,7 +1807,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
 
                     <div>
                       <h3 className="text-sm font-medium text-gray-700 mb-2">Sort By</h3>
-                      <Select value={sortOption} onValueChange={(value: SortOption) => setSortOption(value)}>
+                      <Select value={sortOption}             onValueChange={(value: SortOption) => handleFilterChange("sortOption", value)}>
                         <SelectTrigger className="w-full rounded-full border-gray-200">
                           <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
@@ -1910,7 +1878,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                 </motion.div>
               )}
 
-              <Select value={sortOption} onValueChange={(value: SortOption) => setSortOption(value)}>
+              <Select value={sortOption}             onValueChange={(value: SortOption) => handleFilterChange("sortOption", value)}>
                 <SelectTrigger className="w-[180px] rounded-full border-gray-200">
                   <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -1960,7 +1928,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
           </div>
         </div>
 
-        <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+            <Tabs defaultValue="all" value={uiState.activeTab} onValueChange={(value) => setUiState((prev) => ({ ...prev, activeTab: value }))}>
           <div className="px-6 py-4 border-b border-gray-100">
             <TabsList className="grid grid-cols-4 md:grid-cols-8 gap-1 bg-gray-50 p-1 rounded-2xl">
               {[
