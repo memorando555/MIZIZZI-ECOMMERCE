@@ -2,7 +2,6 @@ import { notFound } from "next/navigation"
 import type { Product } from "@/types"
 import { productService } from "@/services/product"
 import { adminService } from "@/services/admin"
-import { ProductDetailClient } from "./product-detail-client"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
@@ -88,5 +87,4 @@ export default async function ProductDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  return <ProductDetailClient initialProduct={product} />
 }

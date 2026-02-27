@@ -11,6 +11,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import { adminService } from "@/services/admin"
@@ -1702,6 +1712,54 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       {/* Loading overlay - no AnimatePresence for better performance */}
       {dialogState.operationType && <LoadingOverlay message={dialogState.operationMessage || "Processing..."} />}
 
+      {/* Apple-style Delete Confirmation Dialog */}
+      <AlertDialog open={!!dialogState.productToDelete} onOpenChange={(open) => {
+        if (!open) {
+          handleCloseDeleteDialog()
+        }
+      }}>
+        <AlertDialogContent className="max-w-sm rounded-2xl">
+          <AlertDialogHeader className="space-y-3">
+            <div className="flex justify-center">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+            <AlertDialogTitle className="text-center text-lg font-semibold text-gray-900">
+              Delete Product?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-gray-600">
+              {dialogState.productToDelete && allProducts.find(p => p.id?.toString() === dialogState.productToDelete)?.name && (
+                <>
+                  This will permanently delete <strong className="text-gray-900">{allProducts.find(p => p.id?.toString() === dialogState.productToDelete)?.name}</strong>. This action cannot be undone.
+                </>
+              )}
+              {!allProducts.find(p => p.id?.toString() === dialogState.productToDelete) && (
+                <>This action cannot be undone.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-3 pt-4">
+            <AlertDialogCancel className="rounded-lg border-gray-200 text-gray-700 hover:bg-gray-50">
+              Keep Product
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteProduct}
+              disabled={uiState.isDeleting}
+              className="rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium"
+            >
+              {uiState.isDeleting ? (
+                <div className="flex items-center gap-2">
+                  <MiniSpinner />
+                  <span>Deleting...</span>
+                </div>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
