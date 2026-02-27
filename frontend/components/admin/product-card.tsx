@@ -22,10 +22,9 @@ interface ProductCardProps {
   product: Product
   isSelected: boolean
   onSelect: (id: string) => void
-  onEdit?: (id: string) => void
+  onEdit: (id: string) => void
   onDelete: (id: string) => void
-  onDeleteFromList?: (id: string | number) => void
-  onView?: (id: string) => void
+  onView: (id: string) => void
   imageSrc?: string
 }
 
@@ -35,7 +34,6 @@ const ProductCard = memo(function ProductCard({
   onSelect,
   onEdit,
   onDelete,
-  onDeleteFromList,
   onView,
   imageSrc,
 }: ProductCardProps) {

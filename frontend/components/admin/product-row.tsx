@@ -42,7 +42,6 @@ const ProductRow = memo(function ProductRow({
   const [isLoading, setIsLoading] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [deleteSuccess, setDeleteSuccess] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
 
@@ -83,23 +82,14 @@ const ProductRow = memo(function ProductRow({
       const result = await adminService.deleteProduct(String(product.id))
       
       if (result.success) {
-        // Show success state in dialog first
-        setDeleteSuccess(true)
-        
-        // Show toast notification
         toast({
           title: "Success",
           description: `"${product.name}" has been deleted successfully`,
           variant: "success",
           duration: 3000,
         })
-        
-        // Close dialog after showing success state
-        setTimeout(() => {
-          setShowDeleteDialog(false)
-          setDeleteSuccess(false)
-          onDelete?.(String(product.id))
-        }, 1500)
+        setShowDeleteDialog(false)
+        onDelete?.(String(product.id))
       }
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to delete product"
@@ -109,6 +99,7 @@ const ProductRow = memo(function ProductRow({
         variant: "destructive",
         duration: 4000,
       })
+    } finally {
       setIsDeleting(false)
     }
   }, [product.id, product.name, onDelete])
@@ -297,83 +288,67 @@ const ProductRow = memo(function ProductRow({
       {showDeleteDialog && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
-            {deleteSuccess ? (
-              // Success state
-              <>
-                <div className="bg-gradient-to-r from-green-50 to-green-100/50 px-6 py-8 flex flex-col items-center justify-center">
-                  <div className="rounded-full bg-green-100 p-3 mb-4">
-                    <CheckCircle2 className="w-8 h-8 text-green-600 animate-in scale-in duration-300" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-gray-900 text-center">Product Deleted!</h2>
-                  <p className="text-sm text-gray-600 mt-2 text-center">"{product.name}" has been removed from your catalog</p>
-                </div>
-              </>
-            ) : (
-              // Confirmation state
-              <>
-                {/* Header with warning icon */}
-                <div className="bg-gradient-to-r from-red-50 to-red-100/50 px-6 py-6 flex items-start gap-4">
-                  <div className="flex-shrink-0 pt-0.5">
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h2 className="text-lg font-semibold text-gray-900">Delete Product?</h2>
-                    <p className="text-sm text-gray-600 mt-1">This action cannot be undone.</p>
-                  </div>
-                </div>
+            {/* Header with warning icon */}
+            <div className="bg-gradient-to-r from-red-50 to-red-100/50 px-6 py-6 flex items-start gap-4">
+              <div className="flex-shrink-0 pt-0.5">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-gray-900">Delete Product?</h2>
+                <p className="text-sm text-gray-600 mt-1">This action cannot be undone.</p>
+              </div>
+            </div>
 
-                {/* Content */}
-                <div className="px-6 py-4">
-                  <p className="text-sm text-gray-700 mb-4">
-                    You are about to permanently delete <span className="font-semibold text-gray-900">"{product.name}"</span>. This will:
-                  </p>
-                  <ul className="space-y-2 mb-4">
-                    <li className="flex items-start gap-3 text-sm text-gray-600">
-                      <span className="text-red-500 mt-0.5">•</span>
-                      <span>Remove the product from your catalog</span>
-                    </li>
-                    <li className="flex items-start gap-3 text-sm text-gray-600">
-                      <span className="text-red-500 mt-0.5">•</span>
-                      <span>Delete all associated images and data</span>
-                    </li>
-                    <li className="flex items-start gap-3 text-sm text-gray-600">
-                      <span className="text-red-500 mt-0.5">•</span>
-                      <span>Cannot be recovered</span>
-                    </li>
-                  </ul>
-                </div>
+            {/* Content */}
+            <div className="px-6 py-4">
+              <p className="text-sm text-gray-700 mb-4">
+                You are about to permanently delete <span className="font-semibold text-gray-900">"{product.name}"</span>. This will:
+              </p>
+              <ul className="space-y-2 mb-4">
+                <li className="flex items-start gap-3 text-sm text-gray-600">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Remove the product from your catalog</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-600">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Delete all associated images and data</span>
+                </li>
+                <li className="flex items-start gap-3 text-sm text-gray-600">
+                  <span className="text-red-500 mt-0.5">•</span>
+                  <span>Cannot be recovered</span>
+                </li>
+              </ul>
+            </div>
 
-                {/* Footer with actions */}
-                <div className="bg-gray-50 px-6 py-4 flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setShowDeleteDialog(false)}
-                    disabled={isDeleting}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    className="flex-1"
-                    onClick={handleConfirmDelete}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Product
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </>
-            )}
+            {/* Footer with actions */}
+            <div className="bg-gray-50 px-6 py-4 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Product
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>,
         document.body
