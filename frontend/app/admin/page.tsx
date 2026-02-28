@@ -1698,18 +1698,7 @@ const ActivityItem = ({
     </div>
   )
 }
-  }, [isAuthenticated, isLoading, router])
 
-  // Fetch dashboard data
-  const fetchDashboardData = async () => {
-    try {
-      setIsLoadingData(true)
-      setIsRefreshing(true)
-      setError(null)
-
-      if (!isAuthenticated) {
-        throw new Error("User not authenticated")
-      }
 
       const fromDate = dateRange.from ? dateRange.from.toISOString().split("T")[0] : ""
       const toDate = dateRange.to ? dateRange.to.toISOString().split("T")[0] : ""
