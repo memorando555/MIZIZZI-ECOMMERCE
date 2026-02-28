@@ -59,24 +59,39 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     return token
   }
 
-  // Helper to also store token in cookies for SSR
+  // Helper to store token in cookies via API route (server-side)
   const storeTokenInCookie = (token: string) => {
     if (typeof window === "undefined") return
-    // Store in cookie via server action - this will make it accessible server-side
-    fetch("/api/auth/set-cookie", {
+    // Call API route to set cookie on the server
+    fetch("/api/auth/store-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
-    }).catch((e) => console.log("[v0] Failed to set cookie:", e))
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          console.log("[v0] Token stored in cookie successfully")
+        }
+      })
+      .catch((e) => console.error("[v0] Failed to store token in cookie:", e))
   }
 
   const storeRefreshTokenInCookie = (token: string) => {
     if (typeof window === "undefined") return
-    fetch("/api/auth/set-refresh-cookie", {
+    // Call API route to set cookie on the server
+    fetch("/api/auth/store-token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    }).catch((e) => console.log("[v0] Failed to set refresh cookie:", e))
+      body: JSON.stringify({ refreshToken: token }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          console.log("[v0] Refresh token stored in cookie successfully")
+        }
+      })
+      .catch((e) => console.error("[v0] Failed to store refresh token in cookie:", e))
   }
 
   const refreshToken = async (): Promise<boolean> => {
