@@ -23,13 +23,6 @@ import {
   AlertCircle,
   CheckCircle,
   ChevronRight,
-  Settings,
-  LayoutList,
-  Grid3x3,
-  Palette,
-  FileText,
-  Layers,
-  MessageSquare,
 } from "lucide-react"
 import { useAdminAuth } from "@/contexts/admin/auth-context"
 import { Loader } from "@/components/ui/loader"
@@ -272,196 +265,95 @@ export default function AdminDashboardPage() {
           </div>
         ) : (
           <div className="space-y-6 md:space-y-8">
-            {/* Primary KPI Cards - Colored Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+            {/* Primary KPI Cards - Apple Style */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {/* Total Revenue Card */}
-              <div className="bg-blue-600 hover:bg-blue-700 rounded-lg p-4 shadow-md text-white transition-all duration-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <DollarSign className="h-4 w-4 text-white" strokeWidth={1.5} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Total Revenue</p>
-                  <p className="text-lg sm:text-xl font-bold text-white tracking-tight">{`$${((safeData.sales?.total_revenue || 0) / 1000000).toFixed(1)}M`}</p>
-                  <p className="text-xs text-white/70">All-time revenue</p>
-                </div>
-              </div>
+              <AppleCard
+                icon={<DollarSign className="h-5 w-5 text-blue-600" />}
+                title="Total Revenue"
+                value={`$${((safeData.sales?.total_revenue || 0) / 1000000).toFixed(1)}M`}
+                subtitle="All-time revenue"
+                trend={safeData.sales?.today_trend}
+                bgColor="bg-blue-50"
+              />
 
               {/* Today's Sales Card */}
-              <div className="bg-green-600 hover:bg-green-700 rounded-lg p-4 shadow-md text-white transition-all duration-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <TrendingUp className="h-4 w-4 text-white" strokeWidth={1.5} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Today's Sales</p>
-                  <p className="text-lg sm:text-xl font-bold text-white tracking-tight">{`$${((safeData.sales?.today || 0) / 1000).toFixed(1)}K`}</p>
-                  <p className="text-xs text-white/70">{Math.abs(salesGrowth)}% {salesGrowth >= 0 ? "increase" : "decrease"} vs yesterday</p>
-                </div>
-              </div>
+              <AppleCard
+                icon={<TrendingUp className="h-5 w-5 text-green-600" />}
+                title="Today's Sales"
+                value={`$${((safeData.sales?.today || 0) / 1000).toFixed(1)}K`}
+                subtitle={`${Math.abs(salesGrowth)}% ${salesGrowth >= 0 ? "increase" : "decrease"} vs yesterday`}
+                trend={salesGrowth}
+                bgColor="bg-green-50"
+              />
 
               {/* Total Orders Card */}
-              <div className="bg-amber-500 hover:bg-amber-600 rounded-lg p-4 shadow-md text-white transition-all duration-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <ShoppingCart className="h-4 w-4 text-white" strokeWidth={1.5} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Total Orders</p>
-                  <p className="text-lg sm:text-xl font-bold text-white tracking-tight">{safeData.counts.orders.toString()}</p>
-                  <p className="text-xs text-white/70">{safeData.counts.pending_payments} pending</p>
-                </div>
-              </div>
+              <AppleCard
+                icon={<ShoppingCart className="h-5 w-5 text-orange-600" />}
+                title="Total Orders"
+                value={safeData.counts.orders.toString()}
+                subtitle={`${safeData.counts.pending_payments} pending`}
+                bgColor="bg-orange-50"
+              />
 
               {/* Total Customers Card */}
-              <div className="bg-purple-600 hover:bg-purple-700 rounded-lg p-4 shadow-md text-white transition-all duration-200">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Users className="h-4 w-4 text-white" strokeWidth={1.5} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Total Customers</p>
-                  <p className="text-lg sm:text-xl font-bold text-white tracking-tight">{safeData.counts.users.toString()}</p>
-                  <p className="text-xs text-white/70">{safeData.counts.new_signups_today} new today</p>
-                </div>
-              </div>
+              <AppleCard
+                icon={<Users className="h-5 w-5 text-purple-600" />}
+                title="Total Customers"
+                value={safeData.counts.users.toString()}
+                subtitle={`${safeData.counts.new_signups_today} new today`}
+                bgColor="bg-purple-50"
+              />
             </div>
 
-            {/* Quick Actions Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-              {/* Orders */}
-              <button
-                onClick={() => router.push("/admin/orders")}
-                className="bg-indigo-600 hover:bg-indigo-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start h-full"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <ShoppingCart className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Orders</p>
-                <p className="text-lg font-bold text-white mt-1">{safeData.counts.orders}</p>
-              </button>
-
+            {/* Secondary Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
               {/* Products */}
-              <button
-                onClick={() => router.push("/admin/products")}
-                className="bg-emerald-600 hover:bg-emerald-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start h-full"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <Package className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Products</p>
-                <p className="text-lg font-bold text-white mt-1">{safeData.counts.products}</p>
-              </button>
+              <MetricCard
+                label="Products"
+                value={safeData.counts.products}
+                sublabel={`${safeData.counts.low_stock_count} low stock`}
+                icon={<Package className="h-4 w-4" />}
+                color="blue"
+              />
 
               {/* Categories */}
-              <button
-                onClick={() => router.push("/admin/shop-categories")}
-                className="bg-rose-600 hover:bg-rose-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start h-full"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <BarChart3 className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Categories</p>
-                <p className="text-lg font-bold text-white mt-1">{safeData.counts.categories}</p>
-              </button>
+              <MetricCard
+                label="Categories"
+                value={safeData.counts.categories}
+                sublabel="Product categories"
+                icon={<BarChart3 className="h-4 w-4" />}
+                color="green"
+              />
 
-              {/* Customers */}
-              <button
-                onClick={() => router.push("/admin/customers")}
-                className="bg-cyan-600 hover:bg-cyan-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start h-full"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <Users className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Customers</p>
-                <p className="text-lg font-bold text-white mt-1">{safeData.counts.users}</p>
-              </button>
+              {/* Orders in Transit */}
+              <MetricCard
+                label="In Transit"
+                value={safeData.counts.orders_in_transit}
+                sublabel="Active shipments"
+                icon={<ShoppingCart className="h-4 w-4" />}
+                color="orange"
+              />
 
-              {/* Inventory */}
-              <button
-                onClick={() => router.push("/admin/inventory")}
-                className="bg-teal-600 hover:bg-teal-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start h-full"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <Layers className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Inventory</p>
-                <p className="text-lg font-bold text-white mt-1">{safeData.counts.low_stock_count}</p>
-              </button>
+              {/* Pending Payments */}
+              <MetricCard
+                label="Pending"
+                value={safeData.counts.pending_payments}
+                sublabel="Awaiting payment"
+                icon={<AlertTriangle className="h-4 w-4" />}
+                color="red"
+              />
+
+              {/* Newsletter */}
+              <MetricCard
+                label="Subscribers"
+                value={safeData.counts.newsletter_subscribers}
+                sublabel="Newsletter list"
+                icon={<Users className="h-4 w-4" />}
+                color="purple"
+              />
             </div>
 
-            {/* Settings & Management Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-              {/* Top Bar */}
-              <button
-                onClick={() => router.push("/admin/top-bar")}
-                className="bg-violet-600 hover:bg-violet-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <LayoutList className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Top Bar</p>
-              </button>
-
-              {/* Side Panel */}
-              <button
-                onClick={() => router.push("/admin/side-panels")}
-                className="bg-fuchsia-600 hover:bg-fuchsia-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <Grid3x3 className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Side Panels</p>
-              </button>
-
-              {/* Footer */}
-              <button
-                onClick={() => router.push("/admin/footer-management")}
-                className="bg-pink-600 hover:bg-pink-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <FileText className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Footer</p>
-              </button>
-
-              {/* Contact CTA */}
-              <button
-                onClick={() => router.push("/admin/contact-cta")}
-                className="bg-red-600 hover:bg-red-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <MessageSquare className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Contact CTA</p>
-              </button>
-
-              {/* Theme */}
-              <button
-                onClick={() => router.push("/admin/theme")}
-                className="bg-orange-600 hover:bg-orange-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <Palette className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Theme</p>
-              </button>
-
-              {/* Settings */}
-              <button
-                onClick={() => router.push("/admin/settings")}
-                className="bg-slate-600 hover:bg-slate-700 rounded-lg p-4 shadow-md text-white transition-all duration-200 flex flex-col items-start justify-start"
-              >
-                <div className="p-2 bg-white/20 rounded-lg mb-3">
-                  <Settings className="h-4 w-4 text-white" strokeWidth={1.5} />
-                </div>
-                <p className="text-xs font-medium text-white/85 uppercase tracking-wide">Settings</p>
-              </button>
-            </div>
             {/* Sales & Customer Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Sales Analytics */}
@@ -818,8 +710,81 @@ export default function AdminDashboardPage() {
 }
 
 // ============================================================================
-// HELPER COMPONENTS
+// APPLE-INSPIRED COMPONENTS
 // ============================================================================
+
+function AppleCard({
+  icon,
+  title,
+  value,
+  subtitle,
+  trend,
+  bgColor,
+}: {
+  icon: React.ReactNode
+  title: string
+  value: string
+  subtitle: string
+  trend?: number
+  bgColor: string
+}) {
+  const safeTrend = trend ?? undefined
+  return (
+    <div className={`${bgColor} rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm text-gray-600 font-medium">{title}</p>
+          <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900 mt-2">{value}</h3>
+          <p className="text-xs text-gray-600 mt-2">{subtitle}</p>
+        </div>
+        <div className="flex-shrink-0">{icon}</div>
+      </div>
+      {safeTrend !== undefined && (
+        <div className={`flex items-center gap-1 mt-4 text-xs font-medium ${
+          safeTrend >= 0 ? "text-green-600" : "text-red-600"
+        }`}>
+          {safeTrend >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+          <span>{Math.abs(safeTrend)}% vs last period</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  sublabel,
+  icon,
+  color,
+}: {
+  label: string
+  value: number
+  sublabel: string
+  icon: React.ReactNode
+  color: string
+}) {
+  const colorMap: Record<string, string> = {
+    blue: "bg-blue-50 text-blue-600 border-blue-200",
+    green: "bg-green-50 text-green-600 border-green-200",
+    orange: "bg-orange-50 text-orange-600 border-orange-200",
+    red: "bg-red-50 text-red-600 border-red-200",
+    purple: "bg-purple-50 text-purple-600 border-purple-200",
+  }
+
+  return (
+    <div className={`${colorMap[color]} rounded-xl p-4 border`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-gray-600 uppercase">{label}</p>
+          <p className="text-2xl font-semibold text-gray-900 mt-1">{value || 0}</p>
+          <p className="text-xs text-gray-600 mt-1">{sublabel}</p>
+        </div>
+        <div className="flex-shrink-0 text-lg">{icon}</div>
+      </div>
+    </div>
+  )
+}
 
 function TrendIndicator({ value }: { value: number }) {
   const safeValue = value || 0
