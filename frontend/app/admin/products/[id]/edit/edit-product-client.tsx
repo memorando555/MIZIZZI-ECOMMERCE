@@ -26,41 +26,34 @@ import { ProductSeoTab } from "@/components/admin/products/product-seo-tab"
 import { ProductSpecificationsHighlightsTab } from "@/components/admin/products/product-specifications-highlights-tab"
 import { useProductForm } from "@/hooks/use-product-form"
 import type { Product } from "@/types"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { websocketService } from "@/services/websocket"
-import { FormProvider } from "react-hook-form"
-import { NetworkDetector } from "@/components/network-detector"
-import { productService } from "@/services/product"
+import { useProduct, useProductImages, useCategories, useBrands } from "@/hooks/use-swr-product"
 
 interface EditProductClientProps {
   productId: string
-  initialProduct: Product
-  initialCategories: any[]
-  initialBrands: any[]
-  initialImages?: any[]
 }
 
-export function EditProductClient({
-  productId,
-  initialProduct,
-  initialCategories,
-  initialBrands,
-  initialImages = [],
-}: EditProductClientProps) {
+// Function to check if productId is a valid number
+const isValidProductId = (productId: string): boolean => {
+  return !isNaN(Number(productId)) && Number(productId) > 0
+}
+
+// Client component that receives the productId as a prop
+export function EditProductClient({ productId }: EditProductClientProps) {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading, logout, refreshAccessToken, getToken } = useAdminAuth()
 
-  // Use initial data from server instead of SWR hooks
-  const [product, setProduct] = useState<Product | null>(initialProduct)
-  const [categories, setCategories] = useState<any[]>(initialCategories)
-  const [brands, setBrands] = useState<any[]>(initialBrands)
-  
-  const isLoadingProduct = false
-  const productError = !product
-  const isLoadingCategories = false
-  const categoriesError = false
-  const isLoadingBrands = false
-  const brandsError = false
+  // Use SWR hooks to fetch data client-side
+  const { product, isLoading: isLoadingProduct, isError: productError, mutate: mutateProduct } = useProduct(productId)
+  const { images: productImages, mutate: mutateImages } = useProductImages(
+    isValidProductId(productId) ? productId : undefined,
+  )
+  const {
+    categories,
+    isLoading: isLoadingCategories,
+    isError: categoriesError,
+    mutate: mutateCategories,
+  } = useCategories()
+  const { brands, isLoading: isLoadingBrands, isError: brandsError } = useBrands()
   
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("basic")

@@ -1,33 +1,13 @@
-"use server"
-
 import { EditProductClient } from "./edit-product-client"
-import { getProductData } from "./server-data"
-import { redirect } from "next/navigation"
 
-interface PageProps {
-  params: Promise<{ id: string }>
-}
+export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  // In Next.js 16, params is a Promise that needs to be awaited
+  const resolvedParams = await params
+  const id = resolvedParams.id
 
-export default async function EditProductPage(props: PageProps) {
-  const params = await props.params
-  const id = params.id
-
-  // Fetch product data server-side only - no browser APIs
-  const result = await getProductData(id)
-
-  if (result.error || !result.product) {
-    redirect("/admin/products")
-  }
-
-  return (
-    <EditProductClient
-      productId={id}
-      initialProduct={result.product}
-      initialCategories={result.categories}
-      initialBrands={result.brands}
-      initialImages={result.images}
-    />
-  )
+  // Pass the unwrapped id to the client component
+  // Client component will handle data fetching with SWR hooks
+  return <EditProductClient productId={id} />
 }
 
 
