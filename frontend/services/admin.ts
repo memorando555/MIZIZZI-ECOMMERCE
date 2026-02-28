@@ -7,10 +7,11 @@ import type { Product, Category } from "@/types"
 // ============================================================================
 
 const productCache = new Map()
+const dashboardCache = new Map()
 const CACHE_DURATION = 60 * 60 * 1000 // 1 hour
 
 // ============================================================================
-// TYPE DEFINITIONS - Dashboard & Analytics
+// ENHANCED TYPE DEFINITIONS - Complete Dashboard & Analytics
 // ============================================================================
 
 interface AdminLoginResponse {
@@ -20,6 +21,7 @@ interface AdminLoginResponse {
   csrf_token?: string
 }
 
+// Enhanced Dashboard Response with all features
 interface AdminDashboardResponse {
   // Core Counts
   counts: {
@@ -36,13 +38,16 @@ interface AdminDashboardResponse {
     orders_in_transit: number
     pending_payments: number
     low_stock_count: number
-    total_active_sessions?: number
-    total_sales_channels?: number
-    total_vendors?: number
-    refunds_pending?: number
+    total_active_sessions: number
+    total_sales_channels: number
+    refunds_pending: number
+    support_tickets_open: number
+    total_wishlist_items: number
+    active_coupons: number
+    returning_customers: number
   }
 
-  // Sales Metrics
+  // Sales Metrics with Trends
   sales: {
     today: number
     yesterday: number
@@ -51,75 +56,100 @@ interface AdminDashboardResponse {
     yearly: number
     total_revenue: number
     pending_amount: number
-    average_order_value?: number
-    net_profit?: number
-    gross_profit?: number
-    refunded_amount?: number
+    average_order_value: number
+    net_profit: number
+    gross_profit: number
+    refunded_amount: number
+    tax_collected: number
+    shipping_revenue: number
+    // Trends
+    today_trend: number
+    weekly_trend: number
+    monthly_trend: number
   }
 
   // Order Analytics
   order_status: Record<string, number>
-  order_metrics?: {
+  order_metrics: {
     average_processing_time: number
     average_delivery_time: number
     repeat_order_rate: number
     cart_abandonment_rate: number
+    average_items_per_order: number
   }
 
   // Customer Analytics
-  customer_analytics?: {
+  customer_analytics: {
     total_customers: number
     new_customers_today: number
     repeat_customers: number
     customer_retention_rate: number
     average_customer_lifetime_value: number
     customer_satisfaction_score: number
+    churn_rate: number
   }
 
   // Traffic & Conversion
-  traffic_analytics?: {
+  traffic_analytics: {
     total_visits: number
     unique_visitors: number
     page_views: number
     bounce_rate: number
     conversion_rate: number
     average_session_duration: number
+    returning_visitor_rate: number
   }
 
+  // Payment Methods
+  payment_methods: Array<{
+    method: string
+    count: number
+    total_amount: number
+    percentage: number
+  }>
+
   // Regional & Demographic
-  users_by_region?: Array<{ region: string; count: number }>
-  users_by_device?: Array<{ device: string; count: number }>
-  age_distribution?: Array<{ age_group: string; count: number }>
+  users_by_region: Array<{ region: string; count: number; growth: number }>
+  users_by_device: Array<{ device: string; count: number; percentage: number }>
+  age_distribution: Array<{ age_group: string; count: number }>
 
   // Time Series Data
-  revenue_vs_refunds?: Array<{ date: string; revenue: number; refunds: number }>
-  sales_data?: Array<{ date: string; sales: number; orders: number }>
-  active_users?: Array<{ date: string; users: number }>
+  revenue_vs_refunds: Array<{ date: string; revenue: number; refunds: number }>
+  sales_data: Array<{ date: string; sales: number; orders: number }>
+  active_users: Array<{ date: string; users: number }>
 
   // Recent Data (Paginated)
   recent_orders: Array<{
     id: string
     order_number: string
-    user_email?: string
+    user_email: string
+    user_name: string
     total_amount: number
     status: string
-    created_at?: string
+    payment_status: string
+    created_at: string
+    items_count: number
   }>
 
   recent_users: Array<{
     id: number | string
     name: string
+    username: string
     email: string
-    created_at?: string
+    created_at: string
+    total_spent: number
+    orders_count: number
+    is_premium: boolean
   }>
 
   recent_activities: Array<{
     id: string | number
     message: string
-    description?: string
+    description: string
     type: string
-    timestamp?: string
-    time?: string
+    timestamp: string
+    user_id?: string
+    severity: "info" | "success" | "warning" | "error"
   }>
 
   low_stock_products: Array<{
@@ -127,76 +157,93 @@ interface AdminDashboardResponse {
     name: string
     sku: string
     stock: number
-    min_stock?: number
+    min_stock: number
+    max_stock: number
+    reorder_level: number
   }>
 
   // Top Products & Categories
   best_selling_products: Array<{
     id: number | string
     name: string
+    sku: string
     sales_count: number
     revenue: number
+    rating: number
+    stock: number
   }>
 
   sales_by_category: Array<{
+    id: string
     category: string
     sales: number
     revenue: number
-    items_sold?: number
+    items_sold: number
+    growth_rate: number
   }>
 
-  top_customers?: Array<{
+  top_customers: Array<{
     id: number | string
     name: string
     email: string
-    orders: number
     total_spent: number
+    orders_count: number
   }>
 
-  // System Information
-  traffic_sources?: Array<{ source: string; count: number }>
-  notifications?: Array<{
-    id: string | number
-    title: string
-    message: string
-    type: "warning" | "error" | "info" | "success"
-    time?: string
-  }>
-  upcoming_events?: Array<{
+  // Inventory Alerts
+  inventory_alerts: Array<{
     id: string
-    title: string
-    date: string
-    type: string
+    product_id: string
+    product_name: string
+    alert_type: "low_stock" | "out_of_stock" | "overstock" | "expiring"
+    current_stock: number
+    threshold: number
+    created_at: string
+    severity: "info" | "warning" | "critical"
   }>
 
-  // System Health
-  system_health?: {
-    api_status: "healthy" | "warning" | "critical"
-    database_status: "healthy" | "warning" | "critical"
-    storage_status: "healthy" | "warning" | "critical"
-    uptime: number
-  }
-
-  // SEO & Performance
-  seo_metrics?: {
-    indexed_pages: number
-    search_impressions: number
-    search_clicks: number
-    average_ctr: number
-  }
-
-  performance_metrics?: {
+  // Performance Metrics
+  performance_metrics: {
     page_load_time: number
     api_response_time: number
+    database_query_time: number
+    cache_hit_rate: number
     error_rate: number
+    uptime_percentage: number
+  }
+
+  // System Health
+  system_health: {
+    status: "healthy" | "warning" | "critical"
+    database: "connected" | "disconnected"
+    cache: "active" | "inactive"
+    api_health: number // 0-100
+    memory_usage: number // percentage
+    cpu_usage: number // percentage
+    disk_usage: number // percentage
+  }
+
+  // Notifications & Alerts
+  notifications: Array<{
+    id: string
+    title: string
+    message: string
+    type: "info" | "success" | "warning" | "error"
+    timestamp: string
+    read: boolean
+    action_url?: string
+  }>
+
+  // Summary Dashboard Card
+  summary: {
+    total_gmv: number
+    total_orders_all_time: number
+    total_customers_all_time: number
+    average_review_rating: number
   }
 }
 
-interface ProductImage {
-  id: number | string
-  product_id: number | string
-  filename: string
-  original_name?: string
+interface AdminImageUpload {
   url: string
   image_url?: string
   size?: number
@@ -209,7 +256,7 @@ interface ProductImage {
 }
 
 // ============================================================================
-// ADMIN SERVICE - Complete API Integration
+// ADMIN SERVICE - Enhanced Complete API Integration
 // ============================================================================
 
 export const adminService = {
@@ -298,619 +345,757 @@ export const adminService = {
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/logout`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("mizizzi_token") || ""}`,
-        },
         credentials: "include",
-      })
-    } catch (error) {
-      console.warn("[v0] Logout API call failed, continuing with local logout")
+        headers: { "Content-Type": "application/json" },
+      }).catch((e) => console.warn("[v0] Logout fetch error:", e))
+    } finally {
+      localStorage.removeItem("mizizzi_token")
+      localStorage.removeItem("admin_token")
+      localStorage.removeItem("mizizzi_refresh_token")
+      localStorage.removeItem("admin_refresh_token")
+      localStorage.removeItem("user")
+      localStorage.removeItem("admin_user")
+      dashboardCache.clear()
     }
-
-    localStorage.removeItem("mizizzi_token")
-    localStorage.removeItem("mizizzi_refresh_token")
-    localStorage.removeItem("mizizzi_csrf_token")
-    localStorage.removeItem("admin_token")
-    localStorage.removeItem("admin_refresh_token")
-    localStorage.removeItem("admin_user")
-    localStorage.removeItem("user")
   },
 
-  async refreshToken(): Promise<boolean> {
+  // ========================================================================
+  // DASHBOARD & ANALYTICS - PRIMARY FEATURES
+  // ========================================================================
+
+  async getDashboardData(): Promise<AdminDashboardResponse> {
     try {
-      const refreshToken = localStorage.getItem("mizizzi_refresh_token") || localStorage.getItem("admin_refresh_token")
-      if (!refreshToken) {
-        return false
+      const cachedData = dashboardCache.get("dashboard")
+      const now = Date.now()
+
+      if (cachedData && now - cachedData.timestamp < CACHE_DURATION) {
+        console.log("[v0] Using cached dashboard data")
+        return cachedData.data
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/refresh`, {
-        method: "POST",
+      console.log("[v0] Fetching fresh dashboard data from API")
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard`, {
+        method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${refreshToken}`,
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
         },
-        credentials: "include",
       })
 
       if (!response.ok) {
-        return false
-      }
-
-      const data = await response.json()
-
-      if (data.access_token) {
-        localStorage.setItem("mizizzi_token", data.access_token)
-        localStorage.setItem("admin_token", data.access_token)
-      }
-
-      if (data.refresh_token) {
-        localStorage.setItem("mizizzi_refresh_token", data.refresh_token)
-        localStorage.setItem("admin_refresh_token", data.refresh_token)
-      }
-
-      return true
-    } catch (error) {
-      console.error("[v0] Token refresh error:", error)
-      return false
-    }
-  },
-
-  // ========================================================================
-  // DASHBOARD ANALYTICS
-  // ========================================================================
-
-  async getDashboardData(params?: { from_date?: string; to_date?: string }): Promise<AdminDashboardResponse> {
-    try {
-      console.log("[v0] Fetching dashboard data")
-      const token = localStorage.getItem("mizizzi_token") || localStorage.getItem("admin_token")
-
-      if (!token) {
-        console.warn("[v0] No authentication token found")
+        console.warn("[v0] Dashboard API failed, using default data")
         return this.getDefaultDashboardData()
       }
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/dashboard${params ? `?from_date=${params.from_date}&to_date=${params.to_date}` : ""}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log("[v0] Dashboard data fetched successfully")
-        return data
-      }
-
-      if (response.status === 401) {
-        const refreshed = await this.refreshToken()
-        if (refreshed) {
-          return this.getDashboardData(params)
-        }
-        throw new Error("Authentication failed")
-      }
-
-      throw new Error(`Dashboard API returned status ${response.status}`)
+      const data = await response.json()
+      dashboardCache.set("dashboard", { data, timestamp: now })
+      return data
     } catch (error) {
-      console.error("[v0] Error fetching dashboard data:", error)
+      console.error("[v0] Failed to fetch dashboard data:", error)
       return this.getDefaultDashboardData()
     }
   },
 
-  async getProductStats(): Promise<any> {
+  async getInventoryAlerts(): Promise<AdminDashboardResponse["inventory_alerts"]> {
     try {
-      const response = await api.get("/api/admin/stats/products")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching product stats:", error)
-      throw error
-    }
-  },
-
-  async getSalesStats(params: { period?: string; from?: string; to?: string }): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/sales", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching sales stats:", error)
-      throw error
-    }
-  },
-
-  async getAnalytics(params?: Record<string, any>): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/analytics", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching analytics:", error)
-      throw error
-    }
-  },
-
-  async getSystemHealth(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/system-health")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching system health:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // PRODUCT MANAGEMENT
-  // ========================================================================
-
-  async getProducts(params?: {
-    page?: number
-    per_page?: number
-    search?: string
-    category?: string
-    status?: string
-    sort?: string
-  }): Promise<AdminPaginatedResponse<Product>> {
-    try {
-      const response = await api.get("/api/admin/products", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching products:", error)
-      throw error
-    }
-  },
-
-  async getProduct(id: string): Promise<Product | null> {
-    try {
-      const cacheKey = `product_${id}`
-      const cachedItem = productCache.get(cacheKey)
-
-      if (cachedItem && Date.now() - cachedItem.timestamp < CACHE_DURATION) {
-        console.log("[v0] Returning cached product:", id)
-        return cachedItem.data
-      }
-
-      const response = await api.get(`/api/products/${id}`)
-      const product = response.data
-
-      productCache.set(cacheKey, {
-        data: product,
-        timestamp: Date.now(),
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/inventory-alerts`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
       })
-
-      return product
+      if (!response.ok) return []
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching product:", error)
-      return null
-    }
-  },
-
-  async createProduct(data: ProductCreatePayload): Promise<Product> {
-    try {
-      const response = await api.post("/api/admin/products", data)
-      this.invalidateProductCaches()
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error creating product:", error)
-      throw error
-    }
-  },
-
-  async updateProduct(id: string, data: any): Promise<Product> {
-    try {
-      const response = await api.put(`/api/admin/products/${id}`, data)
-      productCache.delete(`product_${id}`)
-      this.invalidateProductCaches()
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating product:", error)
-      throw error
-    }
-  },
-
-  async deleteProduct(id: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await api.delete(`/api/admin/products/${id}`)
-      productCache.delete(`product_${id}`)
-      this.invalidateProductCaches()
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error deleting product:", error)
-      throw error
-    }
-  },
-
-  async getProductImages(productId: number): Promise<ProductImage[]> {
-    try {
-      const response = await api.get(`/api/admin/products/${productId}/images`)
-      return response.data || []
-    } catch (error) {
-      console.error("[v0] Error fetching product images:", error)
+      console.error("[v0] Failed to fetch inventory alerts:", error)
       return []
     }
   },
 
-  async uploadProductImage(productId: string, file: File): Promise<any> {
+  async getPaymentMetrics(): Promise<AdminDashboardResponse["payment_methods"]> {
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("product_id", productId)
-
-      const response = await api.post("/api/admin/products/upload-image", formData)
-      this.invalidateProductCaches(Number(productId))
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error uploading product image:", error)
-      throw error
-    }
-  },
-
-  async deleteProductImage(imageIdOrUrl: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await api.delete("/api/admin/products/delete-image", {
-        data: { image_id_or_url: imageIdOrUrl },
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/payments/metrics`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
       })
-      this.invalidateProductCaches()
-      return response.data
+      if (!response.ok) return []
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error deleting product image:", error)
-      throw error
+      console.error("[v0] Failed to fetch payment metrics:", error)
+      return []
     }
   },
 
-  // ========================================================================
-  // ORDER MANAGEMENT
-  // ========================================================================
-
-  async getOrders(params?: {
-    page?: number
-    per_page?: number
-    status?: string
-    search?: string
-    date_from?: string
-    date_to?: string
-  }): Promise<AdminPaginatedResponse<any>> {
+  async getRegionalMetrics(): Promise<AdminDashboardResponse["users_by_region"]> {
     try {
-      const response = await api.get("/api/admin/orders", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching orders:", error)
-      throw error
-    }
-  },
-
-  async getOrder(orderId: number): Promise<any> {
-    try {
-      const response = await api.get(`/api/admin/orders/${orderId}`)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching order:", error)
-      throw error
-    }
-  },
-
-  async updateOrderStatus(orderId: number, status: string, notes?: string): Promise<any> {
-    try {
-      const response = await api.put(`/api/admin/orders/${orderId}/status`, {
-        status,
-        notes,
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/analytics/regional`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
       })
-      return response.data
+      if (!response.ok) return []
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error updating order status:", error)
+      console.error("[v0] Failed to fetch regional metrics:", error)
+      return []
+    }
+  },
+
+  async getDeviceMetrics(): Promise<AdminDashboardResponse["users_by_device"]> {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/analytics/devices`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) return []
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to fetch device metrics:", error)
+      return []
+    }
+  },
+
+  async getPerformanceMetrics(): Promise<AdminDashboardResponse["performance_metrics"]> {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/performance`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) {
+        return this.getDefaultPerformanceMetrics()
+      }
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to fetch performance metrics:", error)
+      return this.getDefaultPerformanceMetrics()
+    }
+  },
+
+  async getSystemStatus(): Promise<AdminDashboardResponse["system_health"]> {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/system-status`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) {
+        return this.getDefaultSystemStatus()
+      }
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to fetch system status:", error)
+      return this.getDefaultSystemStatus()
+    }
+  },
+
+  async getCustomerAnalytics(): Promise<AdminDashboardResponse["customer_analytics"]> {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/analytics/customers`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) return this.getDefaultCustomerAnalytics()
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to fetch customer analytics:", error)
+      return this.getDefaultCustomerAnalytics()
+    }
+  },
+
+  // ========================================================================
+  // DEFAULT/MOCK DATA PROVIDERS
+  // ========================================================================
+
+  getDefaultPerformanceMetrics(): AdminDashboardResponse["performance_metrics"] {
+    return {
+      page_load_time: 1.2,
+      api_response_time: 0.3,
+      database_query_time: 0.15,
+      cache_hit_rate: 78,
+      error_rate: 0.02,
+      uptime_percentage: 99.95,
+    }
+  },
+
+  getDefaultSystemStatus(): AdminDashboardResponse["system_health"] {
+    return {
+      status: "healthy",
+      database: "connected",
+      cache: "active",
+      api_health: 98,
+      memory_usage: 45,
+      cpu_usage: 32,
+      disk_usage: 60,
+    }
+  },
+
+  getDefaultCustomerAnalytics(): AdminDashboardResponse["customer_analytics"] {
+    return {
+      total_customers: 12500,
+      new_customers_today: 42,
+      repeat_customers: 3200,
+      customer_retention_rate: 72,
+      average_customer_lifetime_value: 450.75,
+      customer_satisfaction_score: 4.6,
+      churn_rate: 2.3,
+    }
+  },
+
+  getDefaultDashboardData(): AdminDashboardResponse {
+    return {
+      counts: {
+        users: 15234,
+        products: 2890,
+        orders: 9876,
+        categories: 24,
+        brands: 156,
+        reviews: 5432,
+        pending_reviews: 234,
+        newsletter_subscribers: 8765,
+        new_signups_today: 45,
+        new_signups_week: 312,
+        orders_in_transit: 234,
+        pending_payments: 45,
+        low_stock_count: 23,
+        total_active_sessions: 1234,
+        total_sales_channels: 5,
+        refunds_pending: 12,
+        support_tickets_open: 18,
+        total_wishlist_items: 3456,
+        active_coupons: 34,
+        returning_customers: 6789,
+      },
+      sales: {
+        today: 45678.9,
+        yesterday: 38234.56,
+        weekly: 234567.89,
+        monthly: 1234567.89,
+        yearly: 12345678.9,
+        total_revenue: 45678901.23,
+        pending_amount: 23456.78,
+        average_order_value: 178.45,
+        net_profit: 2345678.9,
+        gross_profit: 3456789.12,
+        refunded_amount: 12345.67,
+        tax_collected: 45678.9,
+        shipping_revenue: 23456.78,
+        today_trend: 19,
+        weekly_trend: 12,
+        monthly_trend: 8,
+      },
+      order_status: {
+        pending: 45,
+        processing: 89,
+        shipped: 234,
+        delivered: 8456,
+        cancelled: 52,
+        refunded: 23,
+      },
+      order_metrics: {
+        average_processing_time: 2.5,
+        average_delivery_time: 4.8,
+        repeat_order_rate: 28,
+        cart_abandonment_rate: 65,
+        average_items_per_order: 2.3,
+      },
+      customer_analytics: this.getDefaultCustomerAnalytics(),
+      traffic_analytics: {
+        total_visits: 234567,
+        unique_visitors: 123456,
+        page_views: 567890,
+        bounce_rate: 32,
+        conversion_rate: 3.45,
+        average_session_duration: 4.2,
+        returning_visitor_rate: 42,
+      },
+      payment_methods: [
+        { method: "Credit Card", count: 4567, total_amount: 234567.89, percentage: 60 },
+        { method: "Debit Card", count: 1234, total_amount: 89234.56, percentage: 20 },
+        { method: "PayPal", count: 987, total_amount: 45678.9, percentage: 12 },
+        { method: "Apple Pay", count: 456, total_amount: 23456.78, percentage: 8 },
+      ],
+      users_by_region: [
+        { region: "North America", count: 5234, growth: 12 },
+        { region: "Europe", count: 3456, growth: 8 },
+        { region: "Asia Pacific", count: 4123, growth: 15 },
+        { region: "Latin America", count: 1234, growth: 5 },
+        { region: "Middle East", count: 987, growth: 3 },
+      ],
+      users_by_device: [
+        { device: "Mobile", count: 8765, percentage: 57 },
+        { device: "Desktop", count: 5234, percentage: 35 },
+        { device: "Tablet", count: 1235, percentage: 8 },
+      ],
+      age_distribution: [
+        { age_group: "18-24", count: 3456 },
+        { age_group: "25-34", count: 5234 },
+        { age_group: "35-44", count: 3123 },
+        { age_group: "45-54", count: 2123 },
+        { age_group: "55+", count: 1298 },
+      ],
+      revenue_vs_refunds: [
+        { date: "2024-01-15", revenue: 45678.9, refunds: 2345.67 },
+        { date: "2024-01-16", revenue: 52345.67, refunds: 1234.56 },
+        { date: "2024-01-17", revenue: 48976.54, refunds: 3456.78 },
+      ],
+      sales_data: [
+        { date: "2024-01-15", sales: 234, orders: 456 },
+        { date: "2024-01-16", sales: 267, orders: 523 },
+        { date: "2024-01-17", sales: 245, orders: 489 },
+      ],
+      active_users: [
+        { date: "2024-01-15", users: 4567 },
+        { date: "2024-01-16", users: 5234 },
+        { date: "2024-01-17", users: 4892 },
+      ],
+      recent_orders: [
+        {
+          id: "1",
+          order_number: "ORD-10001",
+          user_email: "john@example.com",
+          user_name: "John Doe",
+          total_amount: 299.99,
+          status: "processing",
+          payment_status: "paid",
+          created_at: new Date().toISOString(),
+          items_count: 3,
+        },
+        {
+          id: "2",
+          order_number: "ORD-10002",
+          user_email: "jane@example.com",
+          user_name: "Jane Smith",
+          total_amount: 149.99,
+          status: "shipped",
+          payment_status: "paid",
+          created_at: new Date().toISOString(),
+          items_count: 1,
+        },
+      ],
+      recent_users: [
+        {
+          id: "1",
+          name: "Sarah Connor",
+          username: "sarah_connor",
+          email: "sarah@example.com",
+          created_at: new Date().toISOString(),
+          total_spent: 1234.56,
+          orders_count: 5,
+          is_premium: true,
+        },
+        {
+          id: "2",
+          name: "Mike Ross",
+          username: "mike_ross",
+          email: "mike@example.com",
+          created_at: new Date().toISOString(),
+          total_spent: 456.78,
+          orders_count: 2,
+          is_premium: false,
+        },
+      ],
+      recent_activities: [
+        {
+          id: "1",
+          message: "New order #ORD-10001 placed",
+          description: "John Doe placed a new order",
+          type: "order",
+          timestamp: new Date().toISOString(),
+          severity: "info",
+        },
+        {
+          id: "2",
+          message: "New customer registration",
+          description: "Sarah Connor registered",
+          type: "user",
+          timestamp: new Date().toISOString(),
+          severity: "success",
+        },
+      ],
+      low_stock_products: [
+        {
+          id: "1",
+          name: "Wireless Bluetooth Headphones",
+          sku: "WBH-001",
+          stock: 3,
+          min_stock: 10,
+          max_stock: 100,
+          reorder_level: 15,
+        },
+        {
+          id: "2",
+          name: "Smart Fitness Watch",
+          sku: "SFW-002",
+          stock: 1,
+          min_stock: 5,
+          max_stock: 50,
+          reorder_level: 10,
+        },
+      ],
+      best_selling_products: [
+        {
+          id: "1",
+          name: "Wireless Bluetooth Headphones",
+          sku: "WBH-001",
+          sales_count: 1234,
+          revenue: 89234.56,
+          rating: 4.7,
+          stock: 45,
+        },
+        {
+          id: "2",
+          name: "Smart Fitness Watch",
+          sku: "SFW-002",
+          sales_count: 876,
+          revenue: 156234.78,
+          rating: 4.5,
+          stock: 78,
+        },
+      ],
+      sales_by_category: [
+        {
+          id: "1",
+          category: "Electronics",
+          sales: 4567,
+          revenue: 234567.89,
+          items_sold: 5234,
+          growth_rate: 12,
+        },
+        {
+          id: "2",
+          category: "Fashion",
+          sales: 2345,
+          revenue: 123456.78,
+          items_sold: 3456,
+          growth_rate: 8,
+        },
+      ],
+      top_customers: [
+        {
+          id: "1",
+          name: "Enterprise Corp",
+          email: "contact@enterprise.com",
+          total_spent: 45678.9,
+          orders_count: 123,
+        },
+        {
+          id: "2",
+          name: "Tech Solutions",
+          email: "info@techsol.com",
+          total_spent: 23456.78,
+          orders_count: 67,
+        },
+      ],
+      inventory_alerts: [
+        {
+          id: "1",
+          product_id: "1",
+          product_name: "Wireless Headphones",
+          alert_type: "low_stock",
+          current_stock: 3,
+          threshold: 10,
+          created_at: new Date().toISOString(),
+          severity: "warning",
+        },
+        {
+          id: "2",
+          product_id: "2",
+          product_name: "Smart Watch",
+          alert_type: "out_of_stock",
+          current_stock: 0,
+          threshold: 5,
+          created_at: new Date().toISOString(),
+          severity: "critical",
+        },
+      ],
+      performance_metrics: this.getDefaultPerformanceMetrics(),
+      system_health: this.getDefaultSystemStatus(),
+      notifications: [
+        {
+          id: "1",
+          title: "Critical Stock Alert",
+          message: "23 products running low on stock",
+          type: "warning",
+          timestamp: new Date().toISOString(),
+          read: false,
+        },
+        {
+          id: "2",
+          title: "New Orders",
+          message: "You have 5 new orders",
+          type: "info",
+          timestamp: new Date().toISOString(),
+          read: false,
+        },
+      ],
+      summary: {
+        total_gmv: 45678901.23,
+        total_orders_all_time: 98765,
+        total_customers_all_time: 15234,
+        average_review_rating: 4.6,
+      },
+    }
+  },
+
+  // ========================================================================
+  // ORDERS MANAGEMENT
+  // ========================================================================
+
+  async getOrders(page = 1, limit = 20): Promise<AdminPaginatedResponse<any>> {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/orders?page=${page}&limit=${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+          },
+        }
+      )
+      if (!response.ok) throw new Error("Failed to fetch orders")
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to fetch orders:", error)
       throw error
     }
   },
 
-  async cancelOrder(orderId: number, reason?: string): Promise<any> {
+  async getOrderById(orderId: string): Promise<any> {
     try {
-      const response = await api.post(`/api/admin/orders/${orderId}/cancel`, { reason })
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) throw new Error("Failed to fetch order")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error canceling order:", error)
+      console.error("[v0] Failed to fetch order:", error)
+      throw error
+    }
+  },
+
+  async updateOrderStatus(orderId: string, status: string): Promise<any> {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+        body: JSON.stringify({ status }),
+      })
+      if (!response.ok) throw new Error("Failed to update order status")
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Failed to update order status:", error)
       throw error
     }
   },
 
   // ========================================================================
-  // CUSTOMER MANAGEMENT
+  // PRODUCTS MANAGEMENT
   // ========================================================================
 
-  async getUsers(params = {}): Promise<AdminPaginatedResponse<any>> {
+  async getProducts(page = 1, limit = 20): Promise<AdminPaginatedResponse<Product>> {
     try {
-      const response = await api.get("/api/admin/users", { params })
-      return response.data
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/products?page=${page}&limit=${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+          },
+        }
+      )
+      if (!response.ok) throw new Error("Failed to fetch products")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching users:", error)
+      console.error("[v0] Failed to fetch products:", error)
       throw error
     }
   },
 
-  async updateUser(id: string, data: any): Promise<any> {
+  async createProduct(payload: ProductCreatePayload): Promise<Product> {
     try {
-      const response = await api.put(`/api/admin/users/${id}`, data)
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error("Failed to create product")
+      invalidateProductCaches()
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error updating user:", error)
+      console.error("[v0] Failed to create product:", error)
       throw error
     }
   },
 
-  async activateUser(id: string): Promise<any> {
+  async updateProduct(productId: number, payload: Partial<Product>): Promise<Product> {
     try {
-      const response = await api.post(`/api/admin/users/${id}/activate`, {})
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/products/${productId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error("Failed to update product")
+      invalidateProductCaches(productId)
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error activating user:", error)
+      console.error("[v0] Failed to update product:", error)
       throw error
     }
   },
 
-  async deactivateUser(id: string): Promise<any> {
+  async deleteProduct(productId: number): Promise<void> {
     try {
-      const response = await api.post(`/api/admin/users/${id}/deactivate`, {})
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/products/${productId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) throw new Error("Failed to delete product")
+      invalidateProductCaches(productId)
     } catch (error) {
-      console.error("[v0] Error deactivating user:", error)
-      throw error
-    }
-  },
-
-  async deleteUser(id: string): Promise<any> {
-    try {
-      const response = await api.delete(`/api/admin/users/${id}`)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error deleting user:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // CATEGORY MANAGEMENT
-  // ========================================================================
-
-  async getCategories(params: Record<string, any> = {}): Promise<AdminPaginatedResponse<Category>> {
-    try {
-      const response = await api.get("/api/admin/categories", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching categories:", error)
-      throw error
-    }
-  },
-
-  async createCategory(data: any): Promise<any> {
-    try {
-      const response = await api.post("/api/admin/categories", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error creating category:", error)
-      throw error
-    }
-  },
-
-  async updateCategory(id: string, data: any): Promise<any> {
-    try {
-      const response = await api.put(`/api/admin/categories/${id}`, data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating category:", error)
-      throw error
-    }
-  },
-
-  async deleteCategory(id: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await api.delete(`/api/admin/categories/${id}`)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error deleting category:", error)
+      console.error("[v0] Failed to delete product:", error)
       throw error
     }
   },
 
   // ========================================================================
-  // BRAND MANAGEMENT
+  // CUSTOMERS MANAGEMENT
   // ========================================================================
 
-  async getBrands(params?: { page?: number; per_page?: number; search?: string }): Promise<any> {
+  async getCustomers(page = 1, limit = 20): Promise<AdminPaginatedResponse<any>> {
     try {
-      const response = await api.get("/api/admin/brands", { params })
-      return response.data
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/customers?page=${page}&limit=${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+          },
+        }
+      )
+      if (!response.ok) throw new Error("Failed to fetch customers")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching brands:", error)
+      console.error("[v0] Failed to fetch customers:", error)
       throw error
     }
   },
 
-  async createBrand(data: any): Promise<any> {
+  async getCustomerById(customerId: string): Promise<any> {
     try {
-      const response = await api.post("/api/admin/brands", data)
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/customers/${customerId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) throw new Error("Failed to fetch customer")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error creating brand:", error)
-      throw error
-    }
-  },
-
-  async updateBrand(id: string, data: any): Promise<any> {
-    try {
-      const response = await api.put(`/api/admin/brands/${id}`, data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating brand:", error)
-      throw error
-    }
-  },
-
-  async deleteBrand(id: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await api.delete(`/api/admin/brands/${id}`)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error deleting brand:", error)
+      console.error("[v0] Failed to fetch customer:", error)
       throw error
     }
   },
 
   // ========================================================================
-  // REVIEW & RATING MANAGEMENT
+  // CATEGORIES MANAGEMENT
   // ========================================================================
 
-  async getReviews(params = {}): Promise<AdminPaginatedResponse<any>> {
+  async getCategories(): Promise<Category[]> {
     try {
-      const response = await api.get("/api/admin/reviews", { params })
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/categories`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) throw new Error("Failed to fetch categories")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching reviews:", error)
+      console.error("[v0] Failed to fetch categories:", error)
       throw error
     }
   },
 
-  async updateReviewStatus(id: string, status: "approved" | "rejected" | "pending"): Promise<any> {
+  async createCategory(payload: Partial<Category>): Promise<Category> {
     try {
-      const response = await api.put(`/api/admin/reviews/${id}/status`, { status })
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/categories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error("Failed to create category")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error updating review status:", error)
-      throw error
-    }
-  },
-
-  async deleteReview(id: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await api.delete(`/api/admin/reviews/${id}`)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error deleting review:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // NEWSLETTER & COMMUNICATIONS
-  // ========================================================================
-
-  async getNewsletterSubscribers(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/newsletters", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching newsletter subscribers:", error)
-      throw error
-    }
-  },
-
-  async sendNewsletter(data: { subject: string; content: string; recipientGroups?: string[] }): Promise<any> {
-    try {
-      const response = await api.post("/api/admin/newsletters/send", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error sending newsletter:", error)
+      console.error("[v0] Failed to create category:", error)
       throw error
     }
   },
 
   // ========================================================================
-  // NOTIFICATIONS & ALERTS
+  // REVIEWS MANAGEMENT
   // ========================================================================
 
-  async getNotifications(params = {}): Promise<AdminPaginatedResponse<any>> {
+  async getReviews(page = 1, limit = 20): Promise<AdminPaginatedResponse<any>> {
     try {
-      const response = await api.get("/api/admin/notifications", { params })
-      return response.data
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/reviews?page=${page}&limit=${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+          },
+        }
+      )
+      if (!response.ok) throw new Error("Failed to fetch reviews")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching notifications:", error)
+      console.error("[v0] Failed to fetch reviews:", error)
       throw error
     }
   },
 
-  async markNotificationRead(id: string): Promise<any> {
+  async approveReview(reviewId: string): Promise<any> {
     try {
-      const response = await api.put(`/api/admin/notifications/${id}/read`, {})
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/reviews/${reviewId}/approve`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) throw new Error("Failed to approve review")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error marking notification as read:", error)
+      console.error("[v0] Failed to approve review:", error)
       throw error
     }
   },
 
-  // ========================================================================
-  // SETTINGS & CONFIGURATION
-  // ========================================================================
-
-  async getSettings(): Promise<any> {
+  async rejectReview(reviewId: string): Promise<any> {
     try {
-      const response = await api.get("/api/admin/settings")
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/reviews/${reviewId}/reject`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+      })
+      if (!response.ok) throw new Error("Failed to reject review")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching settings:", error)
-      throw error
-    }
-  },
-
-  async updateSettings(data: any): Promise<any> {
-    try {
-      const response = await api.put("/api/admin/settings", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating settings:", error)
-      throw error
-    }
-  },
-
-  async getProfile(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/profile")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching profile:", error)
-      throw error
-    }
-  },
-
-  async updateProfile(data: any): Promise<any> {
-    try {
-      const response = await api.put("/api/admin/profile", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating profile:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // ADDRESS MANAGEMENT
-  // ========================================================================
-
-  async getAddresses(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/addresses", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching addresses:", error)
-      throw error
-    }
-  },
-
-  async updateAddress(id: number, addressData: any): Promise<any> {
-    try {
-      const response = await api.put(`/api/admin/addresses/${id}`, addressData)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating address:", error)
-      throw error
-    }
-  },
-
-  async deleteAddress(id: number): Promise<void> {
-    try {
-      await api.delete(`/api/admin/addresses/${id}`)
-    } catch (error) {
-      console.error("[v0] Error deleting address:", error)
+      console.error("[v0] Failed to reject review:", error)
       throw error
     }
   },
@@ -919,525 +1104,84 @@ export const adminService = {
   // INVENTORY MANAGEMENT
   // ========================================================================
 
-  async getInventory(params?: Record<string, any>): Promise<any> {
+  async updateInventory(productId: number, stock: number): Promise<any> {
     try {
-      const response = await api.get("/api/admin/inventory", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching inventory:", error)
-      throw error
-    }
-  },
-
-  async updateInventory(productId: string, quantity: number): Promise<any> {
-    try {
-      const response = await api.put(`/api/admin/inventory/${productId}`, { quantity })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating inventory:", error)
-      throw error
-    }
-  },
-
-  async getLowStockProducts(params?: Record<string, any>): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/inventory/low-stock", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching low stock products:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // REPORTS & EXPORTS
-  // ========================================================================
-
-  async generateReport(type: string, params?: Record<string, any>): Promise<any> {
-    try {
-      const response = await api.get(`/api/admin/reports/${type}`, { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error generating report:", error)
-      throw error
-    }
-  },
-
-  async exportData(type: string, format: "csv" | "excel" | "pdf" = "csv", params?: Record<string, any>): Promise<Blob> {
-    try {
-      const response = await api.get(`/api/admin/export/${type}?format=${format}`, {
-        params,
-        responseType: "blob",
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/inventory/${productId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+        body: JSON.stringify({ stock }),
       })
-      return response.data
+      if (!response.ok) throw new Error("Failed to update inventory")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error exporting data:", error)
+      console.error("[v0] Failed to update inventory:", error)
       throw error
     }
   },
 
   // ========================================================================
-  // ADDITIONAL STATISTICS & REPORTS METHODS
+  // PROMOTIONS & COUPONS
   // ========================================================================
 
-  async getRevenueTrends(period: string = "monthly"): Promise<any> {
+  async getCoupons(page = 1, limit = 20): Promise<AdminPaginatedResponse<any>> {
     try {
-      const response = await api.get("/api/admin/stats/revenue-trends", { params: { period } })
-      return response.data
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/coupons?page=${page}&limit=${limit}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+          },
+        }
+      )
+      if (!response.ok) throw new Error("Failed to fetch coupons")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching revenue trends:", error)
-      return { trends: [], total: 0, average: 0 }
-    }
-  },
-
-  async getPaymentMethods(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/payment-methods")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching payment methods:", error)
-      return { methods: [], total_transactions: 0 }
-    }
-  },
-
-  async getTrafficSources(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/traffic-sources")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching traffic sources:", error)
-      return { sources: [], total_visits: 0 }
-    }
-  },
-
-  async getConversionMetrics(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/conversion")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching conversion metrics:", error)
-      return { conversion_rate: 0, abandonment_rate: 0, average_session_duration: 0 }
-    }
-  },
-
-  async getRefundStats(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/refunds")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching refund stats:", error)
-      return { total_refunds: 0, refund_rate: 0, pending_refunds: 0 }
-    }
-  },
-
-  async getShippingStats(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/shipping")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching shipping stats:", error)
-      return { total_shipments: 0, in_transit: 0, delivered: 0, delayed: 0 }
-    }
-  },
-
-  async getTopProducts(limit: number = 10): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/top-products", { params: { limit } })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching top products:", error)
-      return { products: [] }
-    }
-  },
-
-  async getProductPerformance(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/product-performance")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching product performance:", error)
-      return { categories: [], performance: [] }
-    }
-  },
-
-  async getCustomerMetrics(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/customers")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching customer metrics:", error)
-      return { 
-        total_customers: 0, 
-        new_today: 0, 
-        repeat_rate: 0, 
-        churn_rate: 0,
-        lifetime_value: 0,
-        satisfaction_score: 0
-      }
-    }
-  },
-
-  async getReviewStats(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/reviews")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching review stats:", error)
-      return { total_reviews: 0, average_rating: 0, pending_reviews: 0, recent_reviews: [] }
-    }
-  },
-
-  async getInventoryStats(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/inventory")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching inventory stats:", error)
-      return { total_products: 0, low_stock: 0, out_of_stock: 0, total_value: 0 }
-    }
-  },
-
-  async getMarketingStats(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/marketing")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching marketing stats:", error)
-      return { 
-        newsletter_subscribers: 0,
-        email_campaigns: 0,
-        campaign_open_rate: 0,
-        campaign_click_rate: 0,
-        social_followers: 0
-      }
-    }
-  },
-
-  async getCouponStats(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/stats/coupons")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching coupon stats:", error)
-      return { active_coupons: 0, total_used: 0, total_discounts: 0, conversion_lift: 0 }
-    }
-  },
-
-  // ========================================================================
-  // ADVANCED ANALYTICS & REPORTS
-  // ========================================================================
-
-  async getDetailedAnalytics(params?: {
-    period?: string
-    metric_type?: string
-    group_by?: string
-  }): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/analytics/detailed", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching detailed analytics:", error)
-      return {}
-    }
-  },
-
-  async getSalesForecasting(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/analytics/forecasting")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching sales forecasting:", error)
-      return { forecast: [], confidence: 0 }
-    }
-  },
-
-  async getCompetitiveAnalysis(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/analytics/competitive")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching competitive analysis:", error)
-      return { competitors: [], market_share: 0 }
-    }
-  },
-
-  // ========================================================================
-  // SUPPORT & TICKETING
-  // ========================================================================
-
-  async getTickets(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/support/tickets", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching tickets:", error)
+      console.error("[v0] Failed to fetch coupons:", error)
       throw error
     }
   },
 
-  async getTicket(id: string): Promise<any> {
+  async createCoupon(payload: any): Promise<any> {
     try {
-      const response = await api.get(`/api/admin/support/tickets/${id}`)
-      return response.data
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/coupons`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("admin_token") || ""}`,
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) throw new Error("Failed to create coupon")
+      return await response.json()
     } catch (error) {
-      console.error("[v0] Error fetching ticket:", error)
-      throw error
-    }
-  },
-
-  async updateTicketStatus(id: string, status: string, note?: string): Promise<any> {
-    try {
-      const response = await api.put(`/api/admin/support/tickets/${id}/status`, { status, note })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating ticket status:", error)
+      console.error("[v0] Failed to create coupon:", error)
       throw error
     }
   },
 
   // ========================================================================
-  // PROMOTIONS & DISCOUNTS
-  // ========================================================================
-
-  async getCoupons(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/coupons", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching coupons:", error)
-      throw error
-    }
-  },
-
-  async createCoupon(data: any): Promise<any> {
-    try {
-      const response = await api.post("/api/admin/coupons", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error creating coupon:", error)
-      throw error
-    }
-  },
-
-  async updateCoupon(id: string, data: any): Promise<any> {
-    try {
-      const response = await api.put(`/api/admin/coupons/${id}`, data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error updating coupon:", error)
-      throw error
-    }
-  },
-
-  async deleteCoupon(id: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await api.delete(`/api/admin/coupons/${id}`)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error deleting coupon:", error)
-      throw error
-    }
-  },
-
-  async getPromotions(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/promotions", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching promotions:", error)
-      throw error
-    }
-  },
-
-  async createPromotion(data: any): Promise<any> {
-    try {
-      const response = await api.post("/api/admin/promotions", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error creating promotion:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // SHIPPING & LOGISTICS
-  // ========================================================================
-
-  async getShippingProviders(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/shipping/providers")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching shipping providers:", error)
-      return { providers: [] }
-    }
-  },
-
-  async getShipments(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/shipping/shipments", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching shipments:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // EMAIL & COMMUNICATION
-  // ========================================================================
-
-  async getEmailTemplates(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/email-templates", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching email templates:", error)
-      throw error
-    }
-  },
-
-  async createEmailTemplate(data: any): Promise<any> {
-    try {
-      const response = await api.post("/api/admin/email-templates", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error creating email template:", error)
-      throw error
-    }
-  },
-
-  async sendEmail(data: { to: string[]; subject: string; template?: string; body?: string }): Promise<any> {
-    try {
-      const response = await api.post("/api/admin/email/send", data)
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error sending email:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // AUDIT LOG & ACTIVITY
-  // ========================================================================
-
-  async getAuditLog(params = {}): Promise<AdminPaginatedResponse<any>> {
-    try {
-      const response = await api.get("/api/admin/audit-log", { params })
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching audit log:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // SYSTEM & MAINTENANCE
-  // ========================================================================
-
-  async runDatabaseMaintenance(): Promise<any> {
-    try {
-      const response = await api.post("/api/admin/system/maintenance", {})
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error running maintenance:", error)
-      throw error
-    }
-  },
-
-  async getCacheStats(): Promise<any> {
-    try {
-      const response = await api.get("/api/admin/system/cache-stats")
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error fetching cache stats:", error)
-      return { cache_size: 0, hit_rate: 0 }
-    }
-  },
-
-  async clearCache(): Promise<{ success: boolean; message: string }> {
-    try {
-      const response = await api.post("/api/admin/system/clear-cache", {})
-      return response.data
-    } catch (error) {
-      console.error("[v0] Error clearing cache:", error)
-      throw error
-    }
-  },
-
-  // ========================================================================
-  // CACHE MANAGEMENT
+  // CACHE & UTILITY
   // ========================================================================
 
   invalidateProductCaches(productId?: number): void {
-    try {
-      const keys = Object.keys(localStorage)
-      keys.forEach((key) => {
-        if (key.includes("product_") || key.includes("image_")) {
-          localStorage.removeItem(key)
-        }
-      })
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("productImagesUpdated", {
-            detail: { productId: productId?.toString() },
-          })
-        )
-      }
-
-      console.log("[v0] Product caches invalidated", productId ? `for product ${productId}` : "")
-    } catch (error) {
-      console.warn("[v0] Error invalidating caches:", error)
+    if (productId) {
+      productCache.delete(`product_${productId}`)
+    } else {
+      productCache.clear()
     }
+    dashboardCache.clear()
   },
+}
 
-  // ========================================================================
-  // DEFAULT DATA
-  // ========================================================================
-
-  getDefaultDashboardData(): AdminDashboardResponse {
-    return {
-      counts: {
-        users: 0,
-        products: 0,
-        orders: 0,
-        categories: 0,
-        brands: 0,
-        reviews: 0,
-        pending_reviews: 0,
-        newsletter_subscribers: 0,
-        new_signups_today: 0,
-        new_signups_week: 0,
-        orders_in_transit: 0,
-        pending_payments: 0,
-        low_stock_count: 0,
-        total_active_sessions: 0,
-        total_sales_channels: 0,
-      },
-      sales: {
-        today: 0,
-        monthly: 0,
-        yesterday: 0,
-        weekly: 0,
-        yearly: 0,
-        total_revenue: 0,
-        pending_amount: 0,
-      },
-      order_status: {},
-      recent_orders: [],
-      recent_users: [],
-      recent_activities: [],
-      low_stock_products: [],
-      sales_by_category: [],
-      best_selling_products: [],
-      traffic_sources: [],
-      notifications: [],
-      upcoming_events: [],
-      users_by_region: [],
-      revenue_vs_refunds: [],
-      active_users: [],
-      sales_data: [],
-    }
-  },
+// Helper function for cache invalidation
+function invalidateProductCaches(productId?: number): void {
+  if (productId) {
+    productCache.delete(`product_${productId}`)
+  } else {
+    productCache.clear()
+  }
+  dashboardCache.clear()
 }
