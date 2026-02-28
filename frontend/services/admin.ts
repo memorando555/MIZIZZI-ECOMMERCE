@@ -193,6 +193,53 @@ export const adminService = {
     localStorage.removeItem("mizizzi_csrf_token")
     localStorage.removeItem("admin_token")
     localStorage.removeItem("admin_refresh_token")
+    localStorage.removeItem("admin_user")
+    localStorage.removeItem("user")
+  },
+
+  async refreshToken(): Promise<boolean> {
+    try {
+      const refreshToken = localStorage.getItem("mizizzi_refresh_token") || localStorage.getItem("admin_refresh_token")
+      if (!refreshToken) {
+        console.log("[v0] No refresh token available")
+        return false
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/refresh`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${refreshToken}`,
+        },
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        console.log("[v0] Token refresh failed with status:", response.status)
+        return false
+      }
+
+      const data = await response.json()
+
+      // Store new access token
+      if (data.access_token) {
+        localStorage.setItem("mizizzi_token", data.access_token)
+        localStorage.setItem("admin_token", data.access_token)
+      }
+
+      // Store new refresh token if provided
+      if (data.refresh_token) {
+        localStorage.setItem("mizizzi_refresh_token", data.refresh_token)
+        localStorage.setItem("admin_refresh_token", data.refresh_token)
+      }
+
+      return true
+    } catch (error) {
+      console.error("[v0] Token refresh error:", error)
+      return false
+    }
+  },
+    localStorage.removeItem("admin_refresh_token")
     localStorage.removeItem("user")
     localStorage.removeItem("admin_user")
   },

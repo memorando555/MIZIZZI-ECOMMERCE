@@ -189,12 +189,9 @@ export function EditProductClient({ productId }: { productId: string }) {
 
   const ensureValidToken = async (): Promise<boolean> => {
     try {
-      console.log("[v0] Checking token validity before submission")
-
-      // First, check if we have any token at all
+      // Check if we have any token at all
       const currentToken = getToken()
       if (!currentToken) {
-        console.log("[v0] No token found, redirecting to login")
         toast({
           title: "Authentication Required",
           description: "Please log in to continue.",
@@ -205,22 +202,9 @@ export function EditProductClient({ productId }: { productId: string }) {
         return false
       }
 
-      // Try to refresh the access token
-      const newToken = await refreshAccessToken()
-
-      if (!newToken) {
-        console.log("[v0] Token refresh failed, redirecting to login")
-        toast({
-          title: "Session Expired",
-          description: "Your session has expired. Please log in again.",
-          variant: "destructive",
-        })
-        logout()
-        router.push("/admin/login?reason=session_expired")
-        return false
-      }
-
-      console.log("[v0] Token refresh successful")
+      // If we have a current token, use it directly without forcing refresh
+      // This prevents unnecessary redirects during save operations
+      // Only attempt refresh if the API call itself fails with 401
       return true
     } catch (error: any) {
       console.error("[v0] Token validation error:", error)

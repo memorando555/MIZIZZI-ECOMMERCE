@@ -245,12 +245,15 @@ export function useProductForm({ productId, onSuccess, onError }: UseProductForm
         }
       } catch (updateError: any) {
         console.error("Error during product update:", updateError)
-        // Check if this is an authentication error
-        if (
-          updateError.response?.status === 401 ||
-          (updateError.message && updateError.message.includes("Authentication"))
-        ) {
-          throw new Error("Authentication failed. Please log in again.")
+        
+        // Don't trigger auth error for 401 - the API request will handle retry
+        // with refreshed token if needed. Keep user on the page so they don't lose work.
+        if (updateError.response?.status === 401) {
+          // Let the API error handler in adminService deal with token refresh
+          throw new Error("Session verification required. Please try saving again.")
+        }
+        if (updateError.message && updateError.message.includes("Authentication")) {
+          throw new Error("Session verification failed. Please check your connection and try again.")
         }
         throw updateError
       }
@@ -258,12 +261,6 @@ export function useProductForm({ productId, onSuccess, onError }: UseProductForm
       console.error("Failed to update product:", error)
       const errorMessage = error.message || "There was a problem updating the product. Please try again."
       onError(errorMessage)
-
-      // Check if this is an authentication error that should trigger a redirect
-      if (error.message && error.message.includes("Authentication failed")) {
-        // We'll handle the redirect in the component that uses this hook
-        onError("Authentication failed. Please log in again.")
-      }
     } finally {
       setIsSubmitting(false)
     }
