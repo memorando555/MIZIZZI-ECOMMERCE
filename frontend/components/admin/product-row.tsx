@@ -94,15 +94,12 @@ const ProductRow = memo(function ProductRow({
       })
       
       // After 1.5 seconds, close dialog and remove from list
-      const timeoutId = setTimeout(() => {
+      setTimeout(() => {
         setShowDeleteDialog(false)
         setIsDeleting(false)
         setDeleteSuccess(false)
         onDelete?.(String(product.id))
       }, 1500)
-      
-      // Cleanup timeout if component unmounts
-      return () => clearTimeout(timeoutId)
     } catch (error: any) {
       const errorMessage = error?.message || "Failed to delete product"
       toast({

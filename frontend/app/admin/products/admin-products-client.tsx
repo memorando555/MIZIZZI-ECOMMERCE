@@ -985,25 +985,25 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   }, [])
 
   // Handle product deletion from ProductRow
-    const handleDeleteProductFromList = useCallback((productId: string | number) => {
-      const id = String(productId)
-      
-      // Remove product from all products list
-      setAllProducts((prev) => prev.filter((p) => String(p.id) !== id))
-      
-      // Remove from selected products if it was selected
-      setSelectedProducts((prev) => prev.filter((pId) => pId !== id))
-      
-      // Reset pagination if the current page would be empty after deletion
-      setCurrentPage((prevPage) => {
-        // Since we can't access allProducts here, we'll check if we need to go back
-        // The ProductList will re-render with the filtered products anyway
-        if (prevPage > 1) {
-          return Math.max(1, prevPage - 1)
-        }
-        return prevPage
-      })
-    }, [filterState.pageSize])
+  const handleDeleteProductFromList = useCallback((productId: string | number) => {
+    const id = String(productId)
+    
+    // Remove product from all products list
+    setAllProducts((prev) => prev.filter((p) => String(p.id) !== id))
+    
+    // Remove from selected products if it was selected
+    setSelectedProducts((prev) => prev.filter((pId) => pId !== id))
+    
+    // Reset pagination if the current page would be empty after deletion
+    setCurrentPage((prevPage) => {
+      // Since we can't access allProducts here, we'll check if we need to go back
+      // The ProductList will re-render with the filtered products anyway
+      if (prevPage > 1) {
+        return Math.max(1, prevPage - 1)
+      }
+      return prevPage
+    })
+  }, [filterState.pageSize])
 
   // Bulk delete selected products
   const handleBulkDelete = useCallback(async () => {
