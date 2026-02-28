@@ -17,6 +17,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card"
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import type { Product } from "@/types"
+import { formatPrice } from "@/lib/utils"
 
 interface ProductCardProps {
   product: Product
@@ -114,7 +115,7 @@ const ProductCard = memo(function ProductCard({
           <div className="flex justify-between items-center py-2 border-t border-b border-gray-100">
             <div>
               <p className="text-xs text-gray-500">Price</p>
-              <p className="font-semibold text-gray-900">${parseFloat(String(product.price || 0)).toFixed(2)}</p>
+              <p className="font-semibold text-gray-900">{formatPrice(product.price)}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500">Stock</p>

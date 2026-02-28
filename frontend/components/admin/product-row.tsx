@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { adminService } from "@/services/admin"
 import type { Product } from "@/types"
+import { formatPrice } from "@/lib/utils"
 
 interface ProductRowProps {
   product: Product
@@ -203,7 +204,7 @@ const ProductRow = memo(function ProductRow({
         <div className="font-medium text-gray-900 line-clamp-2">{product.name}</div>
         <div className="text-xs text-gray-500 mt-0.5">{product.sku || "No SKU"}</div>
       </TableCell>
-      <TableCell className="text-right font-semibold text-gray-900">KSh {parseFloat(String(product.price || 0)).toFixed(2)}</TableCell>
+      <TableCell className="text-right font-semibold text-gray-900">{formatPrice(product.price)}</TableCell>
       <TableCell className="text-right text-gray-700">{product.stock || 0} units</TableCell>
       <TableCell>
         {stockStatus ? (
