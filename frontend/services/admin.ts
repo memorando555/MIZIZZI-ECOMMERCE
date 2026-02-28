@@ -1027,6 +1027,98 @@ export const adminService = {
     }
   },
 
+  // Partial update for specific product fields (optimized for real-time sync)
+  async partialUpdateProduct(id: string, data: Record<string, any>): Promise<{ success: boolean; updated_at: string; updated_fields: Record<string, any> }> {
+    try {
+      console.log("[v0] Partial updating product with fields:", Object.keys(data))
+
+      // Get the token
+      const token = localStorage.getItem("mizizzi_token") || localStorage.getItem("admin_token")
+      if (!token) {
+        throw new Error("Authentication token not found. Please log in again.")
+      }
+
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      }
+
+      // Use PATCH for partial updates instead of PUT
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout for quick updates
+
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || ""
+        const endpoint = `${apiUrl}/api/admin/products/${id}/partial`
+
+        const response = await fetch(endpoint, {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify(data),
+          signal: controller.signal,
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+
+          if (response.status === 401) {
+            try {
+              await this.refreshToken()
+              const newToken = localStorage.getItem("mizizzi_token") || localStorage.getItem("admin_token")
+              if (newToken) {
+                headers.Authorization = `Bearer ${newToken}`
+                const retryResponse = await fetch(endpoint, {
+                  method: "PATCH",
+                  headers,
+                  body: JSON.stringify(data),
+                })
+                if (retryResponse.ok) {
+                  const result = await retryResponse.json()
+                  console.log("[v0] Partial update successful:", result)
+                  return result
+                }
+              }
+            } catch (refreshError) {
+              console.error("[v0] Token refresh failed:", refreshError)
+            }
+            throw new Error("Authentication failed")
+          }
+
+          throw new Error(errorData.message || `Partial update failed: ${response.status}`)
+        }
+
+        const result = await response.json()
+        console.log("[v0] Partial update successful:", result)
+
+        // Notify and dispatch events
+        try {
+          websocketService.send("product_updated", { id, timestamp: Date.now(), partial: true })
+          if (typeof window !== "undefined") {
+            const event = new CustomEvent("product-updated", { detail: { id, partial: true, fields: data } })
+            window.dispatchEvent(event)
+          }
+        } catch (notifyError) {
+          console.warn("[v0] Failed to notify about partial update:", notifyError)
+        }
+
+        return result
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+
+        if (fetchError.name === "AbortError") {
+          throw new Error("Request timed out")
+        }
+
+        throw fetchError
+      }
+    } catch (error: any) {
+      console.error("[v0] Error in partial update:", error)
+      throw error
+    }
+  },
+
   // Create a product
   async createProduct(data: ProductCreatePayload): Promise<Product> {
     try {

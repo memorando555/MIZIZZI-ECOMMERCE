@@ -260,7 +260,8 @@ const specialImagesFetcher = async (url: string): Promise<ProductImage[]> => {
 // Default SWR configuration
 const defaultSWRConfig: SWRConfiguration = {
   revalidateOnFocus: false,
-  dedupingInterval: 60000, // 1 minute
+  dedupingInterval: 30000, // Reduced from 60s to 30s for faster updates
+  revalidateInterval: 120000, // 2 minutes for edit page optimization
   errorRetryCount: 2, // Limit retries to avoid flooding
   shouldRetryOnError: (err) => {
     // Don't retry on 404 errors

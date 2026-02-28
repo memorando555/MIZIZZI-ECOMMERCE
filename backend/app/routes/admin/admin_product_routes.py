@@ -461,6 +461,120 @@ def update_product(product_id):
             'details': str(e)
         }), 500
 
+@admin_product_routes.route('/api/admin/products/<int:product_id>/partial', methods=['PATCH', 'OPTIONS'])
+@cross_origin()
+@jwt_required()
+def partial_update_product(product_id):
+    """Partial update of a product (optimized for real-time sync)"""
+    if request.method == 'OPTIONS':
+        return handle_options('PATCH, OPTIONS')
+    # Check admin permissions
+    auth_check = admin_required()
+    if auth_check:
+        return auth_check
+
+    try:
+        product = Product.query.get_or_404(product_id)
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        # Track which fields were updated
+        updated_fields = {}
+
+        # Update only provided fields (true partial update)
+        field_mapping = {
+            'name': 'name',
+            'slug': 'slug',
+            'description': 'description',
+            'price': lambda v: float(v),
+            'sale_price': lambda v: float(v) if v else None,
+            'stock': lambda v: int(v),
+            'sku': 'sku',
+            'weight': lambda v: float(v) if v else None,
+            'is_featured': lambda v: bool(v),
+            'is_new': lambda v: bool(v),
+            'is_sale': lambda v: bool(v),
+            'is_flash_sale': lambda v: bool(v),
+            'is_luxury_deal': lambda v: bool(v),
+            'is_daily_find': lambda v: bool(v),
+            'is_top_pick': lambda v: bool(v),
+            'is_trending': lambda v: bool(v),
+            'is_new_arrival': lambda v: bool(v),
+            'meta_title': 'meta_title',
+            'meta_description': 'meta_description',
+            'material': 'material',
+            'thumbnail_url': 'thumbnail_url',
+        }
+
+        for field, value in data.items():
+            if field not in field_mapping:
+                continue
+
+            try:
+                if field == 'category_id' and value:
+                    category = Category.query.get(value)
+                    if not category:
+                        return jsonify({'error': f'Invalid category: {value}'}), 400
+                    product.category_id = int(value)
+                    updated_fields['category_id'] = int(value)
+                elif field == 'brand_id':
+                    if value:
+                        brand = Brand.query.get(value)
+                        if not brand:
+                            return jsonify({'error': f'Invalid brand: {value}'}), 400
+                        product.brand_id = int(value)
+                    else:
+                        product.brand_id = None
+                    updated_fields['brand_id'] = product.brand_id
+                elif field == 'image_urls':
+                    if isinstance(value, list):
+                        product.image_urls = json.dumps(value)
+                    else:
+                        product.image_urls = value
+                    updated_fields['image_urls'] = value
+                elif field == 'tags':
+                    if isinstance(value, list):
+                        product.tags = json.dumps(value)
+                    else:
+                        product.tags = value
+                    updated_fields['tags'] = value
+                elif callable(field_mapping[field]):
+                    converter = field_mapping[field]
+                    setattr(product, field, converter(value))
+                    updated_fields[field] = getattr(product, field)
+                else:
+                    setattr(product, field, value)
+                    updated_fields[field] = value
+            except (ValueError, TypeError) as e:
+                return jsonify({'error': f'Invalid value for {field}: {str(e)}'}), 400
+
+        # Update timestamp
+        product.updated_at = datetime.utcnow()
+        updated_fields['updated_at'] = product.updated_at.isoformat()
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'updated_at': product.updated_at.isoformat(),
+            'updated_fields': updated_fields
+        }), 200
+
+    except IntegrityError as e:
+        db.session.rollback()
+        return jsonify({'error': 'Conflict: Product with this name or SKU already exists'}), 409
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': f'Invalid data format: {str(e)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'error': 'Failed to update product',
+            'details': str(e)
+        }), 500
+
 @admin_product_routes.route('/api/admin/products/<int:product_id>', methods=['DELETE', 'OPTIONS'])
 @cross_origin()
 @jwt_required()

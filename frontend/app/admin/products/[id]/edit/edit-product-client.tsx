@@ -32,6 +32,9 @@ import { websocketService } from "@/services/websocket"
 import { FormProvider } from "react-hook-form"
 import { NetworkDetector } from "@/components/network-detector"
 import { productService } from "@/services/product"
+import { useRealtimeAutoSave } from "@/hooks/use-realtime-autosave"
+import { useOptimisticUpdates } from "@/hooks/use-optimistic-updates"
+import { adminService } from "@/services/admin"
 
 // Client component that receives the product ID and fetches data client-side
 interface EditProductClientProps {
@@ -121,6 +124,29 @@ export function EditProductClient({ productId }: EditProductClientProps) {
       })
     },
   })
+
+  // Set up real-time auto-save with field-level debouncing
+  const { trackFieldChange, isSaving: isAutoSaving, saveQueue } = useRealtimeAutoSave({
+    debounceMs: 400, // Reduced from 2 minutes to 400ms debounce
+    onSave: async (changes: Record<string, any>) => {
+      try {
+        console.log("[v0] Auto-saving field changes:", Object.keys(changes))
+        // Use partial update for better performance
+        await adminService.partialUpdateProduct(productId, changes)
+      } catch (error) {
+        console.error("[v0] Partial update failed, falling back to full update:", error)
+        // Fallback to full update if partial fails
+        const fullData = form.getValues()
+        await handleSubmit(fullData)
+      }
+    },
+    onError: (error: Error) => {
+      console.error("[v0] Auto-save error:", error.message)
+    },
+  })
+
+  // Set up optimistic updates for better UX
+  const { applyOptimisticUpdate, rollbackUpdate, confirmUpdate } = useOptimisticUpdates<Product>()
 
   // Update the handleAutoSave function to check network status
   const handleAutoSave = async () => {
