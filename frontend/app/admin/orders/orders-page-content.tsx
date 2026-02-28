@@ -116,11 +116,13 @@ export default function OrdersPageContent({ initialData }: { initialData?: Order
   const fetchOrders = async () => {
     try {
       setIsLoading(true)
+      // Note: Filtering is done client-side because the backend has issues with status parameter
       const response = await adminService.getOrders({
         page: currentPage,
         per_page: 20,
-        status: statusFilter !== "all" ? statusFilter : undefined,
         search: searchQuery || undefined,
+        // DO NOT send status filter - it causes 500 error on backend
+        // Filtering will be done client-side via useMemo
       })
 
       setOrders(response.items || [])
