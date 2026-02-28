@@ -2,12 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  BarChart3,
   Users,
   ShoppingCart,
   Package,
@@ -19,12 +17,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   DollarSign,
-  Truck,
   MessageSquare,
   ArrowRight,
   Clock,
   AlertCircle,
-  Zap,
   Mail,
   Star,
   Eye,
@@ -32,6 +28,15 @@ import {
   CreditCard,
   Percent,
   HardDrive,
+  Zap,
+  CheckCircle,
+  XCircle,
+  BarChart3,
+  TrendingDown,
+  Truck,
+  MapPin,
+  Calendar,
+  User,
 } from "lucide-react"
 import { useAdminAuth } from "@/contexts/admin/auth-context"
 import { Loader } from "@/components/ui/loader"
@@ -61,16 +66,71 @@ interface AdminDashboardResponse {
 
 interface AdditionalStats {
   productStats?: any
-  salesStats?: any
   customerMetrics?: any
   reviewStats?: any
   inventoryStats?: any
   marketingStats?: any
   couponStats?: any
   shippingStats?: any
-  refundStats?: any
-  paymentMethods?: any
-  trafficSources?: any
+}
+
+// Stat Card Component - Reusable colored card
+function StatCard({ 
+  title, 
+  value, 
+  icon: Icon, 
+  bgColor, 
+  textColor, 
+  trend, 
+  subtitle,
+  onClick 
+}: any) {
+  return (
+    <div 
+      onClick={onClick}
+      className={`${bgColor} rounded-2xl p-6 md:p-8 cursor-pointer transition-all hover:shadow-lg hover:scale-105 duration-300 transform`}
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <p className={`text-sm md:text-base font-semibold ${textColor} opacity-80 uppercase tracking-wide`}>
+            {title}
+          </p>
+          <h3 className={`text-3xl md:text-4xl font-bold ${textColor} mt-3`}>
+            {value}
+          </h3>
+          {subtitle && (
+            <p className={`text-xs md:text-sm ${textColor} opacity-70 mt-2`}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+        <div className={`rounded-xl p-3 md:p-4 ${textColor === "text-white" ? "bg-white bg-opacity-20" : "bg-opacity-20"}`}>
+          <Icon className="w-6 h-6 md:w-8 md:h-8" />
+        </div>
+      </div>
+      {trend && (
+        <div className={`flex items-center gap-1 text-xs md:text-sm font-semibold ${trend > 0 ? "text-green-600" : "text-red-600"}`}>
+          {trend > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+          <span>{Math.abs(trend)}% from last period</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Data Row Component
+function DataRow({ label, value, icon: Icon, color = "text-gray-900" }: any) {
+  return (
+    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-3">
+        <div className={`p-3 rounded-lg ${color === "text-blue-600" ? "bg-blue-100" : color === "text-green-600" ? "bg-green-100" : color === "text-orange-600" ? "bg-orange-100" : "bg-purple-100"}`}>
+          <Icon className={`w-5 h-5 ${color}`} />
+        </div>
+        <span className="font-medium text-gray-700">{label}</span>
+      </div>
+      <span className={`text-lg font-bold ${color}`}>{value}</span>
+    </div>
+  )
 }
 
 export default function AdminDashboardPage() {
@@ -81,15 +141,41 @@ export default function AdminDashboardPage() {
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("overview")
 
   // Main dashboard data fetch
   const fetchDashboardData = async () => {
     try {
       setIsRefreshing(true)
       setError(null)
+      
       const data = await adminService.getDashboardData()
       setDashboardData(data)
+
+      // Fetch additional stats in parallel
+      const [
+        customerMetrics,
+        inventoryStats,
+        marketingStats,
+        reviewStats,
+        couponStats,
+        shippingStats,
+      ] = await Promise.allSettled([
+        adminService.getCustomerMetrics().catch(() => ({})),
+        adminService.getInventoryStats().catch(() => ({})),
+        adminService.getMarketingStats().catch(() => ({})),
+        adminService.getReviewStats().catch(() => ({})),
+        adminService.getCouponStats().catch(() => ({})),
+        adminService.getShippingStats().catch(() => ({})),
+      ])
+
+      setAdditionalStats({
+        customerMetrics: customerMetrics.status === "fulfilled" ? customerMetrics.value : {},
+        inventoryStats: inventoryStats.status === "fulfilled" ? inventoryStats.value : {},
+        marketingStats: marketingStats.status === "fulfilled" ? marketingStats.value : {},
+        reviewStats: reviewStats.status === "fulfilled" ? reviewStats.value : {},
+        couponStats: couponStats.status === "fulfilled" ? couponStats.value : {},
+        shippingStats: shippingStats.status === "fulfilled" ? shippingStats.value : {},
+      })
     } catch (err: any) {
       const errorMsg = err.message || "Failed to load dashboard data"
       setError(errorMsg)
@@ -100,71 +186,23 @@ export default function AdminDashboardPage() {
         variant: "destructive",
       })
     } finally {
+      setIsLoadingData(false)
       setIsRefreshing(false)
     }
   }
 
-  // Fetch additional stats in parallel
-  const fetchAdditionalStats = async () => {
-    try {
-      const [
-        productStats,
-        customerMetrics,
-        reviewStats,
-        inventoryStats,
-        marketingStats,
-        couponStats,
-        shippingStats,
-        refundStats,
-        paymentMethods,
-        trafficSources,
-      ] = await Promise.allSettled([
-        adminService.getProductStats(),
-        adminService.getCustomerMetrics(),
-        adminService.getReviewStats(),
-        adminService.getInventoryStats(),
-        adminService.getMarketingStats(),
-        adminService.getCouponStats(),
-        adminService.getShippingStats(),
-        adminService.getRefundStats(),
-        adminService.getPaymentMethods(),
-        adminService.getTrafficSources(),
-      ])
-
-      setAdditionalStats({
-        productStats: productStats.status === "fulfilled" ? productStats.value : null,
-        customerMetrics: customerMetrics.status === "fulfilled" ? customerMetrics.value : null,
-        reviewStats: reviewStats.status === "fulfilled" ? reviewStats.value : null,
-        inventoryStats: inventoryStats.status === "fulfilled" ? inventoryStats.value : null,
-        marketingStats: marketingStats.status === "fulfilled" ? marketingStats.value : null,
-        couponStats: couponStats.status === "fulfilled" ? couponStats.value : null,
-        shippingStats: shippingStats.status === "fulfilled" ? shippingStats.value : null,
-        refundStats: refundStats.status === "fulfilled" ? refundStats.value : null,
-        paymentMethods: paymentMethods.status === "fulfilled" ? paymentMethods.value : null,
-        trafficSources: trafficSources.status === "fulfilled" ? trafficSources.value : null,
-      })
-    } catch (err) {
-      console.warn("[v0] Error fetching additional stats:", err)
-    }
-  }
-
-  // Load all data when authenticated
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      setIsLoadingData(true)
-      Promise.all([fetchDashboardData(), fetchAdditionalStats()]).finally(() => {
-        setIsLoadingData(false)
-      })
+      fetchDashboardData()
     }
   }, [isAuthenticated, isLoading])
 
-  // Redirect if not authenticated
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white">
         <div className="text-center">
           <Loader />
-          <p className="mt-2 text-sm text-gray-600">Loading admin panel...</p>
+          <p className="mt-3 text-sm text-gray-600 font-medium">Loading admin panel...</p>
         </div>
       </div>
     )
@@ -172,7 +210,7 @@ export default function AdminDashboardPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
+      <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white">
         <div className="text-center">
           <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
           <p className="mt-2 text-sm text-gray-600">Redirecting to login...</p>
@@ -182,82 +220,56 @@ export default function AdminDashboardPage() {
   }
 
   const data = dashboardData || adminService.getDefaultDashboardData()
-
-  // Calculate growth
-  const salesGrowth = data.sales.yesterday > 0 
-    ? Math.round(((data.sales.today - data.sales.yesterday) / data.sales.yesterday) * 100)
+  const salesGrowth = data.sales?.yesterday > 0 
+    ? Math.round(((data.sales?.today - data.sales?.yesterday) / data.sales?.yesterday) * 100)
     : 0
 
-  // Get order status counts
-  const orderStatusEntries = Object.entries(data.order_status || {}).map(([status, count]) => ({
-    status,
-    count: count as number,
-  }))
-
-  // Safe number formatting
-  const formatCurrency = (value: number) => {
-    if (!value || isNaN(value)) return "$0.00"
-    return `$${(value / 1000000).toFixed(1)}M`
-  }
-
-  const formatNumber = (value: number) => {
-    if (!value || isNaN(value)) return "0"
-    return value.toLocaleString()
-  }
-
   return (
-    <div className="min-h-screen bg-white w-full">
-      <div className="w-full p-2 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 md:space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white w-full">
+      <div className="w-full p-4 sm:p-6 md:p-8 lg:p-10 space-y-6 md:space-y-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-            <p className="text-base text-gray-600 mt-2 font-medium">
-              Welcome back, {user?.name || "Admin"}. Here's your complete store overview.
-            </p>
-            <div className="flex items-center gap-4 text-xs sm:text-sm text-gray-500 mt-3">
+            <p className="text-gray-600 mt-2 text-base font-medium">Welcome back, {user?.name || "Admin"}. Here's your complete store overview.</p>
+            <div className="flex items-center gap-4 text-sm text-gray-600 mt-3">
               <div className="flex items-center gap-1.5">
                 <div className={`w-2 h-2 rounded-full ${error ? "bg-red-500" : "bg-green-500"}`}></div>
                 <span className="font-medium">System {error ? "error" : "healthy"}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                <Clock className="h-4 w-4" />
+                <span>{new Date().toLocaleTimeString()}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setIsLoadingData(true)
-                Promise.all([fetchDashboardData(), fetchAdditionalStats()]).finally(() => {
-                  setIsLoadingData(false)
-                })
-              }}
+              onClick={fetchDashboardData}
               disabled={isRefreshing}
-              className="rounded-lg text-xs h-8 sm:h-9 border-gray-300 hover:bg-gray-50"
+              className="rounded-lg border-gray-300 hover:bg-gray-100"
             >
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-              <span className="ml-1 hidden sm:inline font-medium">Refresh</span>
+              <span className="ml-2">Refresh</span>
             </Button>
             <Button
               size="sm"
               onClick={() => router.push("/admin/reports")}
-              className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-xs h-8 sm:h-9 font-medium"
+              className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
             >
               <Download className="h-4 w-4" />
-              <span className="ml-1 hidden sm:inline">Export</span>
+              <span className="ml-2">Export</span>
             </Button>
           </div>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <Alert className="border-red-200 bg-red-50 rounded-lg">
+          <Alert className="border-red-200 bg-red-50 rounded-xl">
             <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800 text-sm ml-3">
+            <AlertDescription className="text-red-800 text-sm">
               <strong>Error:</strong> {error}
             </AlertDescription>
           </Alert>
@@ -272,620 +284,493 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-3 md:grid-cols-5 bg-white border border-gray-200 rounded-lg p-1 h-auto gap-0">
-              <TabsTrigger value="overview" className="rounded text-xs md:text-sm">Overview</TabsTrigger>
-              <TabsTrigger value="sales" className="rounded text-xs md:text-sm">Sales</TabsTrigger>
-              <TabsTrigger value="customers" className="rounded text-xs md:text-sm">Customers</TabsTrigger>
-              <TabsTrigger value="inventory" className="rounded text-xs md:text-sm">Inventory</TabsTrigger>
-              <TabsTrigger value="marketing" className="rounded text-xs md:text-sm">Marketing</TabsTrigger>
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-5 bg-gray-100 rounded-xl p-1 mb-8">
+              <TabsTrigger value="overview" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="sales" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow">
+                Sales
+              </TabsTrigger>
+              <TabsTrigger value="customers" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow">
+                Customers
+              </TabsTrigger>
+              <TabsTrigger value="inventory" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow">
+                Inventory
+              </TabsTrigger>
+              <TabsTrigger value="marketing" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow">
+                Marketing
+              </TabsTrigger>
             </TabsList>
 
             {/* OVERVIEW TAB */}
-            <TabsContent value="overview" className="space-y-4 sm:space-y-6 md:space-y-8">
-              {/* Primary KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                {/* Total Revenue */}
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-gray-600 text-xs md:text-sm font-bold uppercase tracking-wider">
-                          Total Revenue
-                        </CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">
-                          {formatCurrency(data.sales.total_revenue)}
-                        </CardTitle>
-                      </div>
-                      <div className="bg-blue-50 p-3 rounded-lg flex-shrink-0">
-                        <DollarSign className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
-                      </div>
-                    </div>
-                    {data.sales.pending_amount > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-gray-600">Pending: ${(data.sales.pending_amount / 1000).toFixed(1)}K</p>
-                      </div>
-                    )}
-                  </CardHeader>
-                </Card>
-
-                {/* Today's Sales */}
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-gray-600 text-xs md:text-sm font-bold uppercase tracking-wider">
-                          Today's Sales
-                        </CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">
-                          ${(data.sales.today / 1000).toFixed(1)}K
-                        </CardTitle>
-                      </div>
-                      <div className="bg-green-50 p-3 rounded-lg flex-shrink-0">
-                        <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
-                      </div>
-                    </div>
-                    {salesGrowth !== 0 && (
-                      <div className={`flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-200 text-xs font-semibold ${salesGrowth >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {salesGrowth >= 0 ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
-                        <span>{Math.abs(salesGrowth)}% vs yesterday</span>
-                      </div>
-                    )}
-                  </CardHeader>
-                </Card>
-
-                {/* Total Orders */}
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-gray-600 text-xs md:text-sm font-bold uppercase tracking-wider">
-                          Total Orders
-                        </CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">
-                          {formatNumber(data.counts.orders)}
-                        </CardTitle>
-                      </div>
-                      <div className="bg-orange-50 p-3 rounded-lg flex-shrink-0">
-                        <ShoppingCart className="h-5 w-5 md:h-6 md:w-6 text-orange-600" />
-                      </div>
-                    </div>
-                    {data.counts.orders_in_transit > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-orange-600 font-medium">{data.counts.orders_in_transit} in transit</p>
-                      </div>
-                    )}
-                  </CardHeader>
-                </Card>
-
-                {/* Total Customers */}
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-gray-600 text-xs md:text-sm font-bold uppercase tracking-wider">
-                          Total Customers
-                        </CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">
-                          {formatNumber(data.counts.users)}
-                        </CardTitle>
-                      </div>
-                      <div className="bg-purple-50 p-3 rounded-lg flex-shrink-0">
-                        <Users className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
-                      </div>
-                    </div>
-                    {data.counts.new_signups_today > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-purple-600 font-medium">+{data.counts.new_signups_today} new today</p>
-                      </div>
-                    )}
-                  </CardHeader>
-                </Card>
+            <TabsContent value="overview" className="space-y-8">
+              {/* Primary KPIs - 4 Column Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <StatCard
+                  title="Total Revenue"
+                  value={`$${(data.sales?.total_revenue || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
+                  icon={DollarSign}
+                  bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
+                  textColor="text-white"
+                  trend={salesGrowth}
+                />
+                <StatCard
+                  title="Today's Sales"
+                  value={`$${((data.sales?.today || 0) / 1000).toFixed(1)}K`}
+                  icon={TrendingUp}
+                  bgColor="bg-gradient-to-br from-green-500 to-green-600"
+                  textColor="text-white"
+                  subtitle={`+${salesGrowth}% vs yesterday`}
+                />
+                <StatCard
+                  title="Total Orders"
+                  value={data.counts?.orders || 0}
+                  icon={ShoppingCart}
+                  bgColor="bg-gradient-to-br from-orange-500 to-orange-600"
+                  textColor="text-white"
+                  subtitle={`${data.counts?.orders_in_transit || 0} in transit`}
+                />
+                <StatCard
+                  title="Total Customers"
+                  value={data.counts?.users || 0}
+                  icon={Users}
+                  bgColor="bg-gradient-to-br from-purple-500 to-purple-600"
+                  textColor="text-white"
+                  subtitle={`+${data.counts?.new_signups_today || 0} today`}
+                />
               </div>
 
               {/* Secondary Metrics */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-xs md:text-sm font-bold uppercase text-gray-600">Products</CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold mt-2">{formatNumber(data.counts.products)}</CardTitle>
-                      </div>
-                      <div className="bg-cyan-50 p-3 rounded-lg flex-shrink-0">
-                        <Package className="h-5 w-5 text-cyan-600" />
-                      </div>
-                    </div>
-                    {data.counts.low_stock_count > 0 && (
-                      <Badge variant="destructive" className="text-xs mt-3">
-                        {data.counts.low_stock_count} low stock
-                      </Badge>
-                    )}
-                  </CardHeader>
-                </Card>
-
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-xs md:text-sm font-bold uppercase text-gray-600">Categories</CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold mt-2">{data.counts.categories}</CardTitle>
-                      </div>
-                      <div className="bg-emerald-50 p-3 rounded-lg flex-shrink-0">
-                        <BarChart3 className="h-5 w-5 text-emerald-600" />
-                      </div>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-xs text-emerald-600 font-medium">{data.counts.brands} brands</p>
-                    </div>
-                  </CardHeader>
-                </Card>
-
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-xs md:text-sm font-bold uppercase text-gray-600">Pending Orders</CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold mt-2">{data.counts.pending_payments}</CardTitle>
-                      </div>
-                      <div className="bg-red-50 p-3 rounded-lg flex-shrink-0">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                      </div>
-                    </div>
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-xs text-red-600 font-medium">Needs attention</p>
-                    </div>
-                  </CardHeader>
-                </Card>
-
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardDescription className="text-xs md:text-sm font-bold uppercase text-gray-600">Reviews</CardDescription>
-                        <CardTitle className="text-2xl md:text-3xl font-bold mt-2">{formatNumber(data.counts.reviews)}</CardTitle>
-                      </div>
-                      <div className="bg-yellow-50 p-3 rounded-lg flex-shrink-0">
-                        <Star className="h-5 w-5 text-yellow-600" />
-                      </div>
-                    </div>
-                    {data.counts.pending_reviews > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <p className="text-xs text-yellow-600 font-medium">{data.counts.pending_reviews} pending</p>
-                      </div>
-                    )}
-                  </CardHeader>
-                </Card>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <StatCard
+                  title="Products"
+                  value={data.counts?.products || 0}
+                  icon={Package}
+                  bgColor="bg-gradient-to-br from-cyan-100 to-cyan-50"
+                  textColor="text-cyan-900"
+                  subtitle={`${data.counts?.low_stock_count || 0} low stock`}
+                />
+                <StatCard
+                  title="Categories"
+                  value={data.counts?.categories || 0}
+                  icon={BarChart3}
+                  bgColor="bg-gradient-to-br from-emerald-100 to-emerald-50"
+                  textColor="text-emerald-900"
+                  subtitle={`${data.counts?.brands || 0} brands`}
+                />
+                <StatCard
+                  title="Pending Orders"
+                  value={data.counts?.pending_payments || 0}
+                  icon={AlertTriangle}
+                  bgColor="bg-gradient-to-br from-red-100 to-red-50"
+                  textColor="text-red-900"
+                  subtitle="Needs attention"
+                />
+                <StatCard
+                  title="Reviews"
+                  value={data.counts?.reviews || 0}
+                  icon={Star}
+                  bgColor="bg-gradient-to-br from-yellow-100 to-yellow-50"
+                  textColor="text-yellow-900"
+                  subtitle={`${data.counts?.pending_reviews || 0} pending`}
+                />
               </div>
 
-              {/* Recent Orders */}
+              {/* Recent Orders Section */}
               {data.recent_orders && data.recent_orders.length > 0 && (
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg md:text-xl font-bold">Recent Orders</CardTitle>
-                        <CardDescription className="text-xs md:text-sm mt-1">Latest customer transactions</CardDescription>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push("/admin/orders")}
-                        className="text-xs h-8"
-                      >
-                        View All <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    <div className="space-y-2">
-                      {data.recent_orders.slice(0, 5).map((order) => (
-                        <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-sm text-gray-900 truncate">{order.order_number || order.id}</p>
-                            <p className="text-xs text-gray-600 truncate mt-0.5">{order.user_email || "Customer"}</p>
-                          </div>
-                          <div className="flex items-center gap-3 ml-3">
-                            <span className="font-bold text-sm">${parseFloat(order.total_amount || 0).toFixed(2)}</span>
-                            <Badge variant="outline" className="text-xs">{order.status}</Badge>
-                          </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl md:text-2xl font-bold text-gray-900">Recent Orders</h3>
+                    <Button variant="ghost" onClick={() => router.push("/admin/orders")} className="text-blue-600 hover:bg-blue-50">
+                      View All <ArrowRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="space-y-3">
+                    {data.recent_orders.slice(0, 5).map((order) => (
+                      <div key={order.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{order.order_number || order.id}</p>
+                          <p className="text-sm text-gray-600 mt-1">{order.user_email || "Customer"}</p>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                        <div className="flex items-center gap-4">
+                          <span className="font-bold text-gray-900">${(order.total_amount || 0).toFixed(2)}</span>
+                          <Badge className="bg-blue-100 text-blue-900">{order.status}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
-              {/* Recent Customers */}
-              {data.recent_users && data.recent_users.length > 0 && (
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg md:text-xl font-bold">Recent Customers</CardTitle>
-                        <CardDescription className="text-xs md:text-sm mt-1">New registrations</CardDescription>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push("/admin/customers")}
-                        className="text-xs h-8"
-                      >
-                        View All <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    <div className="space-y-2">
-                      {data.recent_users.slice(0, 5).map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-sm text-gray-900 truncate">{user.name}</p>
-                            <p className="text-xs text-gray-600 truncate mt-0.5">{user.email}</p>
-                          </div>
-                          <Badge variant="outline" className="text-xs ml-3">Customer</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Low Stock Products */}
+              {/* Low Stock Alert */}
               {data.low_stock_products && data.low_stock_products.length > 0 && (
-                <Card className="bg-white border border-orange-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-orange-200 bg-orange-50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <AlertTriangle className="h-5 w-5 text-orange-600" />
-                        <div>
-                          <CardTitle className="text-lg md:text-xl font-bold text-gray-900">Low Stock Alert</CardTitle>
-                          <CardDescription className="text-xs md:text-sm mt-1">{data.counts.low_stock_count} products need restocking</CardDescription>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => router.push("/admin/inventory")} className="text-xs h-8">
-                        Manage
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    <div className="space-y-2">
-                      {data.low_stock_products.slice(0, 5).map((product) => (
-                        <div key={product.id} className="flex items-center justify-between p-3 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-sm text-gray-900">{product.name}</p>
-                            <p className="text-xs text-gray-600 mt-0.5">SKU: {product.sku}</p>
-                          </div>
-                          <div className="flex items-center gap-3 ml-3">
-                            <div className="text-right">
-                              <p className="font-bold text-sm text-orange-600">{product.stock}</p>
-                              <p className="text-xs text-gray-600">in stock</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Recent Activity */}
-              {data.recent_activities && data.recent_activities.length > 0 && (
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl shadow-sm border border-orange-200 p-6 md:p-8">
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                      <Activity className="h-5 w-5 text-blue-600" />
+                      <AlertTriangle className="w-6 h-6 md:w-8 md:h-8 text-orange-600" />
                       <div>
-                        <CardTitle className="text-lg md:text-xl font-bold">Recent Activity</CardTitle>
-                        <CardDescription className="text-xs md:text-sm mt-1">Live feed of store events</CardDescription>
+                        <h3 className="text-xl md:text-2xl font-bold text-orange-900">Low Stock Alert</h3>
+                        <p className="text-orange-700 text-sm mt-1">{data.counts?.low_stock_count || 0} products need restocking</p>
                       </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    <div className="space-y-3">
-                      {data.recent_activities.slice(0, 8).map((activity, idx) => (
-                        <div key={activity.id || idx} className={`flex items-start gap-3 pb-3 ${idx < data.recent_activities.length - 1 ? "border-b border-gray-200" : ""}`}>
-                          <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
-                            <Activity className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                            <p className="text-xs text-gray-600 mt-1">
-                              {activity.timestamp ? new Date(activity.timestamp).toLocaleString() : activity.time || "Just now"}
-                            </p>
-                          </div>
+                  </div>
+                  <div className="space-y-3">
+                    {data.low_stock_products.slice(0, 5).map((product) => (
+                      <div key={product.id} className="flex items-center justify-between p-4 bg-white bg-opacity-60 rounded-xl">
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">{product.name}</p>
+                          <p className="text-sm text-gray-600 mt-1">SKU: {product.sku}</p>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Order Status Distribution */}
-              {orderStatusEntries.length > 0 && (
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                    <CardTitle className="text-lg md:text-xl font-bold">Order Status Distribution</CardTitle>
-                    <CardDescription className="text-xs md:text-sm mt-1">Current order breakdown by status</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    <div className="space-y-4">
-                      {orderStatusEntries.map(({ status, count }) => (
-                        <div key={status}>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-semibold text-gray-700 capitalize">{status.replace(/_/g, " ")}</span>
-                            <span className="text-sm font-bold text-gray-900">{count}</span>
-                          </div>
-                          <Progress value={Math.min((count / data.counts.orders) * 100, 100)} className="h-2" />
+                        <div className="text-right">
+                          <p className="font-bold text-orange-600 text-lg">{product.stock}</p>
+                          <p className="text-xs text-gray-600">in stock</p>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Best Selling Products */}
-              {data.best_selling_products && data.best_selling_products.length > 0 && (
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                    <CardTitle className="text-lg md:text-xl font-bold">Top Selling Products</CardTitle>
-                    <CardDescription className="text-xs md:text-sm mt-1">Your best performers this period</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    <div className="space-y-2">
-                      {data.best_selling_products.slice(0, 5).map((product, idx) => (
-                        <div key={product.id || idx} className="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-sm text-gray-900">{product.name}</p>
-                            <p className="text-xs text-gray-600 mt-0.5">{product.sales_count || 0} sales</p>
-                          </div>
-                          <div className="text-right ml-3">
-                            <p className="font-bold text-sm">${parseFloat(product.revenue || 0).toFixed(0)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-
-            {/* SALES TAB */}
-            <TabsContent value="sales" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                    <CardTitle className="text-lg md:text-xl font-bold">Sales by Category</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    {data.sales_by_category && data.sales_by_category.length > 0 ? (
-                      <div className="space-y-3">
-                        {data.sales_by_category.slice(0, 6).map((cat, idx) => (
-                          <div key={idx} className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-900">{cat.category}</span>
-                            <div className="text-right">
-                              <p className="text-sm font-bold">${parseFloat(cat.revenue || 0).toFixed(0)}</p>
-                              <p className="text-xs text-gray-600">{cat.items_sold || 0} items</p>
-                            </div>
-                          </div>
-                        ))}
                       </div>
-                    ) : (
-                      <p className="text-sm text-gray-600">No sales data available</p>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                  <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                    <CardTitle className="text-lg md:text-xl font-bold">Payment Methods</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-5 md:p-6">
-                    {additionalStats.paymentMethods?.methods ? (
-                      <div className="space-y-3">
-                        {additionalStats.paymentMethods.methods.slice(0, 5).map((method: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <CreditCard className="h-4 w-4 text-gray-600" />
-                              <span className="text-sm font-medium text-gray-900">{method.name}</span>
-                            </div>
-                            <span className="text-sm font-bold">{method.count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-600">No payment data available</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                  <CardTitle className="text-lg md:text-xl font-bold">Refund Statistics</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-5 md:p-6">
-                  {additionalStats.refundStats ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-xs text-gray-600 font-medium uppercase">Total Refunds</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">${parseFloat(additionalStats.refundStats.total_refunds || 0).toFixed(0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600 font-medium uppercase">Refund Rate</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">{additionalStats.refundStats.refund_rate || 0}%</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600 font-medium uppercase">Pending</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">{additionalStats.refundStats.pending_refunds || 0}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-600">No refund data available</p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* CUSTOMERS TAB */}
-            <TabsContent value="customers" className="space-y-6">
-              {additionalStats.customerMetrics && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <CardDescription className="text-xs font-bold uppercase text-gray-600">Total Customers</CardDescription>
-                      <CardTitle className="text-2xl font-bold mt-2">{formatNumber(additionalStats.customerMetrics.total_customers)}</CardTitle>
-                      {additionalStats.customerMetrics.new_today > 0 && (
-                        <p className="text-xs text-green-600 mt-2">+{additionalStats.customerMetrics.new_today} new today</p>
-                      )}
-                    </CardHeader>
-                  </Card>
-
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <CardDescription className="text-xs font-bold uppercase text-gray-600">Repeat Rate</CardDescription>
-                      <CardTitle className="text-2xl font-bold mt-2">{additionalStats.customerMetrics.repeat_rate || 0}%</CardTitle>
-                      <p className="text-xs text-gray-600 mt-2">Repeat Customers</p>
-                    </CardHeader>
-                  </Card>
-
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <CardDescription className="text-xs font-bold uppercase text-gray-600">Avg Customer Lifetime Value</CardDescription>
-                      <CardTitle className="text-2xl font-bold mt-2">${parseFloat(additionalStats.customerMetrics.lifetime_value || 0).toFixed(2)}</CardTitle>
-                    </CardHeader>
-                  </Card>
-
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <CardDescription className="text-xs font-bold uppercase text-gray-600">Churn Rate</CardDescription>
-                      <CardTitle className="text-2xl font-bold mt-2">{additionalStats.customerMetrics.churn_rate || 0}%</CardTitle>
-                    </CardHeader>
-                  </Card>
-
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <CardDescription className="text-xs font-bold uppercase text-gray-600">Satisfaction Score</CardDescription>
-                      <CardTitle className="text-2xl font-bold mt-2">{additionalStats.customerMetrics.satisfaction_score || 0}/5</CardTitle>
-                    </CardHeader>
-                  </Card>
+                    ))}
+                  </div>
                 </div>
               )}
             </TabsContent>
 
+            {/* SALES TAB */}
+            <TabsContent value="sales" className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                <StatCard
+                  title="Weekly Sales"
+                  value={`$${((data.sales?.weekly || 0) / 1000).toFixed(1)}K`}
+                  icon={TrendingUp}
+                  bgColor="bg-gradient-to-br from-indigo-500 to-indigo-600"
+                  textColor="text-white"
+                />
+                <StatCard
+                  title="Monthly Sales"
+                  value={`$${((data.sales?.monthly || 0) / 1000).toFixed(0)}K`}
+                  icon={BarChart3}
+                  bgColor="bg-gradient-to-br from-pink-500 to-pink-600"
+                  textColor="text-white"
+                />
+                <StatCard
+                  title="Yearly Sales"
+                  value={`$${((data.sales?.yearly || 0) / 1000000).toFixed(1)}M`}
+                  icon={Zap}
+                  bgColor="bg-gradient-to-br from-amber-500 to-amber-600"
+                  textColor="text-white"
+                />
+              </div>
+
+              {/* Sales by Category */}
+              {data.sales_by_category && data.sales_by_category.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Sales by Category</h3>
+                  <div className="space-y-4">
+                    {data.sales_by_category.map((cat: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                        <span className="font-medium text-gray-700">{cat.category}</span>
+                        <div className="flex items-center gap-4 flex-1 ml-4">
+                          <Progress value={(cat.revenue / (data.sales?.total_revenue || 1)) * 100} className="flex-1" />
+                          <span className="font-bold text-gray-900 min-w-20 text-right">${(cat.revenue || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Best Selling Products */}
+              {data.best_selling_products && data.best_selling_products.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Top Selling Products</h3>
+                  <div className="space-y-3">
+                    {data.best_selling_products.slice(0, 8).map((product: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold text-blue-600">#{idx + 1}</span>
+                          <div>
+                            <p className="font-semibold text-gray-900">{product.name}</p>
+                            <p className="text-sm text-gray-600">{product.sales_count || 0} sold</p>
+                          </div>
+                        </div>
+                        <span className="font-bold text-gray-900">${(product.revenue || 0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* CUSTOMERS TAB */}
+            <TabsContent value="customers" className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                <StatCard
+                  title="Total Customers"
+                  value={additionalStats.customerMetrics?.total_customers || 0}
+                  icon={Users}
+                  bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
+                  textColor="text-white"
+                  subtitle="Active accounts"
+                />
+                <StatCard
+                  title="New This Week"
+                  value={data.counts?.new_signups_week || 0}
+                  icon={UserCheck}
+                  bgColor="bg-gradient-to-br from-green-500 to-green-600"
+                  textColor="text-white"
+                  subtitle="Fresh signups"
+                />
+                <StatCard
+                  title="Repeat Rate"
+                  value={`${Math.round((additionalStats.customerMetrics?.repeat_customers || 0) * 100)}%`}
+                  icon={TrendingUp}
+                  bgColor="bg-gradient-to-br from-purple-500 to-purple-600"
+                  textColor="text-white"
+                  subtitle="Returning customers"
+                />
+              </div>
+
+              {/* Customer Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">Customer Lifetime Value</h3>
+                  <DataRow 
+                    label="Average LTV" 
+                    value={`$${(additionalStats.customerMetrics?.average_customer_lifetime_value || 0).toFixed(2)}`}
+                    icon={DollarSign}
+                    color="text-blue-600"
+                  />
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">Churn Rate</h3>
+                  <DataRow 
+                    label="Churn Rate" 
+                    value={`${(additionalStats.customerMetrics?.churn_rate || 0).toFixed(2)}%`}
+                    icon={TrendingDown}
+                    color="text-red-600"
+                  />
+                </div>
+              </div>
+
+              {/* Recent Customers */}
+              {data.recent_users && data.recent_users.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Recent Customers</h3>
+                  <div className="space-y-3">
+                    {data.recent_users.slice(0, 8).map((customer: any) => (
+                      <div key={customer.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white font-bold text-sm">
+                            {customer.name?.charAt(0) || "C"}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">{customer.name}</p>
+                            <p className="text-sm text-gray-600">{customer.email}</p>
+                          </div>
+                        </div>
+                        <Badge className="bg-blue-100 text-blue-900">Customer</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Satisfaction Score */}
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl shadow-sm border border-yellow-200 p-6 md:p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm font-semibold uppercase tracking-wide">Customer Satisfaction</p>
+                    <p className="text-4xl font-bold text-yellow-900 mt-3">{(additionalStats.customerMetrics?.satisfaction_score || 0).toFixed(1)}/5</p>
+                  </div>
+                  <Star className="w-16 h-16 text-yellow-600" />
+                </div>
+              </div>
+            </TabsContent>
+
             {/* INVENTORY TAB */}
-            <TabsContent value="inventory" className="space-y-6">
-              {additionalStats.inventoryStats && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardDescription className="text-xs font-bold uppercase text-gray-600">Total Products</CardDescription>
-                          <CardTitle className="text-2xl font-bold mt-2">{formatNumber(additionalStats.inventoryStats.total_products)}</CardTitle>
-                        </div>
-                        <Package className="h-5 w-5 text-cyan-600 flex-shrink-0" />
-                      </div>
-                    </CardHeader>
-                  </Card>
+            <TabsContent value="inventory" className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <StatCard
+                  title="Total Products"
+                  value={additionalStats.inventoryStats?.total_products || data.counts?.products || 0}
+                  icon={Package}
+                  bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
+                  textColor="text-white"
+                  subtitle="In inventory"
+                />
+                <StatCard
+                  title="Low Stock"
+                  value={additionalStats.inventoryStats?.low_stock || data.counts?.low_stock_count || 0}
+                  icon={AlertTriangle}
+                  bgColor="bg-gradient-to-br from-orange-500 to-orange-600"
+                  textColor="text-white"
+                  subtitle="Needs restocking"
+                />
+                <StatCard
+                  title="Out of Stock"
+                  value={additionalStats.inventoryStats?.out_of_stock || 0}
+                  icon={XCircle}
+                  bgColor="bg-gradient-to-br from-red-500 to-red-600"
+                  textColor="text-white"
+                  subtitle="0 available"
+                />
+                <StatCard
+                  title="Inventory Value"
+                  value={`$${((additionalStats.inventoryStats?.total_value || 0) / 1000).toFixed(0)}K`}
+                  icon={HardDrive}
+                  bgColor="bg-gradient-to-br from-green-500 to-green-600"
+                  textColor="text-white"
+                  subtitle="Total value"
+                />
+              </div>
 
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardDescription className="text-xs font-bold uppercase text-gray-600">Low Stock</CardDescription>
-                          <CardTitle className="text-2xl font-bold mt-2 text-orange-600">{additionalStats.inventoryStats.low_stock}</CardTitle>
-                        </div>
-                        <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0" />
-                      </div>
-                    </CardHeader>
-                  </Card>
+              {/* Inventory Metrics */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Inventory Overview</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-700">In Stock Items</span>
+                      <span className="font-bold text-gray-900">{(additionalStats.inventoryStats?.total_products || 0) - (additionalStats.inventoryStats?.low_stock || 0) - (additionalStats.inventoryStats?.out_of_stock || 0)}</span>
+                    </div>
+                    <Progress value={((((additionalStats.inventoryStats?.total_products || 0) - (additionalStats.inventoryStats?.low_stock || 0) - (additionalStats.inventoryStats?.out_of_stock || 0)) / (additionalStats.inventoryStats?.total_products || 1)) * 100)} className="h-3" />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-700">Low Stock Items</span>
+                      <span className="font-bold text-orange-600">{additionalStats.inventoryStats?.low_stock || 0}</span>
+                    </div>
+                    <Progress value={(((additionalStats.inventoryStats?.low_stock || 0) / (additionalStats.inventoryStats?.total_products || 1)) * 100)} className="h-3" />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-gray-700">Out of Stock Items</span>
+                      <span className="font-bold text-red-600">{additionalStats.inventoryStats?.out_of_stock || 0}</span>
+                    </div>
+                    <Progress value={(((additionalStats.inventoryStats?.out_of_stock || 0) / (additionalStats.inventoryStats?.total_products || 1)) * 100)} className="h-3" />
+                  </div>
+                </div>
+              </div>
 
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <div className="flex items-start justify-between">
+              {/* Low Stock Products */}
+              {data.low_stock_products && data.low_stock_products.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Products Needing Restocking</h3>
+                  <div className="space-y-3">
+                    {data.low_stock_products.slice(0, 10).map((product: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-orange-50 rounded-xl border border-orange-200 hover:bg-orange-100 transition-colors">
                         <div className="flex-1">
-                          <CardDescription className="text-xs font-bold uppercase text-gray-600">Out of Stock</CardDescription>
-                          <CardTitle className="text-2xl font-bold mt-2 text-red-600">{additionalStats.inventoryStats.out_of_stock}</CardTitle>
+                          <p className="font-semibold text-gray-900">{product.name}</p>
+                          <p className="text-sm text-gray-600 mt-1">SKU: {product.sku}</p>
                         </div>
-                        <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                      </div>
-                    </CardHeader>
-                  </Card>
-
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardDescription className="text-xs font-bold uppercase text-gray-600">Total Value</CardDescription>
-                          <CardTitle className="text-2xl font-bold mt-2">${parseFloat(additionalStats.inventoryStats.total_value || 0).toFixed(0)}</CardTitle>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-orange-600">{product.stock}</p>
+                          <p className="text-xs text-gray-600">available</p>
                         </div>
-                        <HardDrive className="h-5 w-5 text-purple-600 flex-shrink-0" />
                       </div>
-                    </CardHeader>
-                  </Card>
+                    ))}
+                  </div>
                 </div>
               )}
             </TabsContent>
 
             {/* MARKETING TAB */}
-            <TabsContent value="marketing" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {additionalStats.marketingStats && (
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                      <CardTitle className="text-lg md:text-xl font-bold">Marketing Metrics</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-5 md:p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Newsletter Subscribers</span>
-                        <span className="text-lg font-bold">{formatNumber(additionalStats.marketingStats.newsletter_subscribers)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Email Campaigns</span>
-                        <span className="text-lg font-bold">{additionalStats.marketingStats.email_campaigns}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Open Rate</span>
-                        <span className="text-lg font-bold text-blue-600">{additionalStats.marketingStats.campaign_open_rate}%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Click Rate</span>
-                        <span className="text-lg font-bold text-green-600">{additionalStats.marketingStats.campaign_click_rate}%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Social Followers</span>
-                        <span className="text-lg font-bold">{formatNumber(additionalStats.marketingStats.social_followers)}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+            <TabsContent value="marketing" className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <StatCard
+                  title="Newsletter Subscribers"
+                  value={(additionalStats.marketingStats?.newsletter_subscribers || data.counts?.newsletter_subscribers || 0).toLocaleString()}
+                  icon={Mail}
+                  bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
+                  textColor="text-white"
+                  subtitle="Active subscribers"
+                />
+                <StatCard
+                  title="Active Coupons"
+                  value={additionalStats.couponStats?.active_coupons || 0}
+                  icon={Gift}
+                  bgColor="bg-gradient-to-br from-green-500 to-green-600"
+                  textColor="text-white"
+                  subtitle="Running campaigns"
+                />
+                <StatCard
+                  title="Total Discounts"
+                  value={`$${((additionalStats.couponStats?.total_discounts || 0) / 1000).toFixed(1)}K`}
+                  icon={Percent}
+                  bgColor="bg-gradient-to-br from-purple-500 to-purple-600"
+                  textColor="text-white"
+                  subtitle="Given out"
+                />
+                <StatCard
+                  title="Campaign Lift"
+                  value={`${(additionalStats.couponStats?.conversion_lift || 0).toFixed(1)}%`}
+                  icon={TrendingUp}
+                  bgColor="bg-gradient-to-br from-pink-500 to-pink-600"
+                  textColor="text-white"
+                  subtitle="Conversion boost"
+                />
+              </div>
 
-                {additionalStats.couponStats && (
-                  <Card className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <CardHeader className="p-4 sm:p-5 md:p-6 border-b border-gray-200">
-                      <CardTitle className="text-lg md:text-xl font-bold">Coupon Performance</CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 sm:p-5 md:p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Active Coupons</span>
-                        <span className="text-lg font-bold">{additionalStats.couponStats.active_coupons}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Total Used</span>
-                        <span className="text-lg font-bold">{additionalStats.couponStats.total_used}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Total Discounts</span>
-                        <span className="text-lg font-bold text-red-600">${parseFloat(additionalStats.couponStats.total_discounts || 0).toFixed(0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Conversion Lift</span>
-                        <span className="text-lg font-bold text-green-600">+{additionalStats.couponStats.conversion_lift}%</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+              {/* Email Campaign Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">Email Campaigns</h3>
+                  <div className="space-y-4">
+                    <DataRow 
+                      label="Total Campaigns" 
+                      value={additionalStats.marketingStats?.email_campaigns || 0}
+                      icon={Mail}
+                      color="text-blue-600"
+                    />
+                    <DataRow 
+                      label="Open Rate" 
+                      value={`${(additionalStats.marketingStats?.campaign_open_rate || 0).toFixed(1)}%`}
+                      icon={Eye}
+                      color="text-green-600"
+                    />
+                    <DataRow 
+                      label="Click Rate" 
+                      value={`${(additionalStats.marketingStats?.campaign_click_rate || 0).toFixed(1)}%`}
+                      icon={MousePointer}
+                      color="text-purple-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">Social Media</h3>
+                  <div className="space-y-4">
+                    <DataRow 
+                      label="Total Followers" 
+                      value={(additionalStats.marketingStats?.social_followers || 0).toLocaleString()}
+                      icon={Users}
+                      color="text-blue-600"
+                    />
+                    <DataRow 
+                      label="Subscribers" 
+                      value={(additionalStats.marketingStats?.newsletter_subscribers || 0).toLocaleString()}
+                      icon={Mail}
+                      color="text-green-600"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Coupon Performance */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 md:p-8">
+                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-6">Coupon Performance</h3>
+                <div className="space-y-4">
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl">
+                    <p className="text-sm font-semibold text-blue-900 uppercase tracking-wide">Active Coupons</p>
+                    <p className="text-3xl font-bold text-blue-600 mt-2">{additionalStats.couponStats?.active_coupons || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl">
+                    <p className="text-sm font-semibold text-green-900 uppercase tracking-wide">Total Used</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">{additionalStats.couponStats?.total_used || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl">
+                    <p className="text-sm font-semibold text-orange-900 uppercase tracking-wide">Total Discounts</p>
+                    <p className="text-3xl font-bold text-orange-600 mt-2">${((additionalStats.couponStats?.total_discounts || 0) / 1000).toFixed(1)}K</p>
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -893,4 +778,11 @@ export default function AdminDashboardPage() {
       </div>
     </div>
   )
+}
+
+// Missing icon import
+import { MousePointer } from "lucide-react"
+// Missing component reference
+function UserCheck(props: any) {
+  return <Users {...props} />
 }
