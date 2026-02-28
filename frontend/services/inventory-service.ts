@@ -241,6 +241,55 @@ class InventoryService {
     return summary
   }
 
+  async getStatistics(): Promise<{
+    total_items: number
+    in_stock: number
+    low_stock: number
+    out_of_stock: number
+    total_value: number
+    reserved_quantity: number
+    needs_reorder: number
+  }> {
+    try {
+      const response = await api.get(`${ADMIN_INVENTORY_BASE}/reports/summary`)
+      const data = response.data
+
+      if (data.success && data.report && data.report.summary) {
+        const summary = data.report.summary
+        return {
+          total_items: summary.total_items || 0,
+          in_stock: (summary.total_items || 0) - (summary.out_of_stock_items || 0),
+          low_stock: summary.low_stock_items || 0,
+          out_of_stock: summary.out_of_stock_items || 0,
+          total_value: summary.total_stock_value || 0,
+          reserved_quantity: (summary.reserved_stock_value || 0) / Math.max(1, summary.total_items || 1), // Rough estimate
+          needs_reorder: summary.items_needing_reorder || 0,
+        }
+      }
+
+      return {
+        total_items: 0,
+        in_stock: 0,
+        low_stock: 0,
+        out_of_stock: 0,
+        total_value: 0,
+        reserved_quantity: 0,
+        needs_reorder: 0,
+      }
+    } catch (error: any) {
+      console.error("Error getting inventory statistics:", error)
+      return {
+        total_items: 0,
+        in_stock: 0,
+        low_stock: 0,
+        out_of_stock: 0,
+        total_value: 0,
+        reserved_quantity: 0,
+        needs_reorder: 0,
+      }
+    }
+  }
+
   async getAllInventory(page = 1, perPage = 20, filters: Record<string, any> = {}): Promise<InventoryResponse> {
     try {
       const params = new URLSearchParams()

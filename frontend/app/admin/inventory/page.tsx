@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,7 @@ import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import { motion } from "framer-motion" // Import motion for animations
+import { useDebounce } from "@/hooks/use-debounce"
 
 // Icons
 import {
@@ -93,7 +94,10 @@ export default function InventoryPage() {
   // State
   const [inventory, setInventory] = useState<EnhancedInventoryItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchInput, setSearchInput] = useState("")
+  const debouncedSearch = useDebounce(searchInput, 300)
   const [pagination, setPagination] = useState({
     page: 1,
     per_page: 20,
@@ -178,11 +182,8 @@ export default function InventoryPage() {
       })
 
       if ("statistics" in response && (response as any).statistics) {
-        console.log("[v0] Using real API statistics:", (response as any).statistics)
         setStats((response as any).statistics)
       } else {
-        console.log("[v0] No statistics in API response, calculating from items")
-        // Calculate stats from actual inventory items if API doesn't provide them
         const calculatedStats = calculateStatsFromItems(uniqueItems)
         setStats(calculatedStats)
       }
@@ -204,6 +205,34 @@ export default function InventoryPage() {
       setRefreshing(false)
     }
   }
+
+  // Fetch stats independently for faster initial render
+  const fetchStats = async () => {
+    try {
+      setStatsLoading(true)
+      const statsData = await inventoryService.getStatistics()
+      setStats(statsData)
+    } catch (err) {
+      console.error("[v0] Failed to fetch stats:", err)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  // Initial load: fetch stats immediately, then fetch inventory
+  useEffect(() => {
+    fetchStats()
+    fetchInventory(1)
+  }, [])
+
+  // Debounced search effect
+  useEffect(() => {
+    if (debouncedSearch !== filters.search) {
+      const newFilters = { ...filters, search: debouncedSearch }
+      setFilters(newFilters)
+      fetchInventory(1, newFilters)
+    }
+  }, [debouncedSearch])
 
   const calculateStatsFromItems = (items: EnhancedInventoryItem[]) => {
     const stats = items.reduce(
@@ -278,24 +307,22 @@ export default function InventoryPage() {
       // Make API call
       await inventoryService.quickStockAdjustment(item.product_id, amount, item.variant_id || undefined)
 
-      // Refresh data silently in background
-      const response = await inventoryService.getAllInventory(pagination.page, pagination.per_page, {
-        ...filters,
-        status: filters.status === "all" ? "" : filters.status,
-        category: filters.category === "all" ? "" : filters.category,
-      })
-
-      const uniqueItems = response.items.filter(
-        (item, index, self) =>
-          index ===
-          self.findIndex((i) => i.product_id === item.product_id && (i.variant_id || null) === (i.variant_id || null)),
+      // Update stats based on optimistic update only - no background refresh needed
+      const updatedItem = inventory.find(
+        (inv) => inv.product_id === item.product_id && inv.variant_id === item.variant_id,
       )
-
-      setInventory(uniqueItems)
-      if ("statistics" in response && (response as any).statistics) {
-        setStats((response as any).statistics)
-      } else {
-        setStats(calculateStatsFromItems(uniqueItems))
+      if (updatedItem) {
+        const newStats = { ...stats }
+        const oldStock = item.stock_level
+        const newStock = updatedItem.stock_level
+        
+        // Quick stats update
+        if (oldStock <= 0 && newStock > 0) newStats.out_of_stock--
+        if (oldStock > 0 && newStock <= 0) newStats.out_of_stock++
+        if (oldStock > 0 && newStock <= 0) newStats.in_stock--
+        if (oldStock <= 0 && newStock > 0) newStats.in_stock++
+        
+        setStats(newStats)
       }
 
       toast({
@@ -378,26 +405,6 @@ export default function InventoryPage() {
       setSelectedItemForAdjustment(null)
       setNewStockValue(0)
 
-      // Silent background refresh
-      const response = await inventoryService.getAllInventory(pagination.page, pagination.per_page, {
-        ...filters,
-        status: filters.status === "all" ? "" : filters.status,
-        category: filters.category === "all" ? "" : filters.category,
-      })
-
-      const uniqueItems = response.items.filter(
-        (item, index, self) =>
-          index ===
-          self.findIndex((i) => i.product_id === item.product_id && (i.variant_id || null) === (i.variant_id || null)),
-      )
-
-      setInventory(uniqueItems)
-      if ("statistics" in response && (response as any).statistics) {
-        setStats((response as any).statistics)
-      } else {
-        setStats(calculateStatsFromItems(uniqueItems))
-      }
-
       toast({
         title: "Success",
         description: `Stock ${stockInputMode === "absolute" ? "updated to" : "adjusted by"} ${stockInputMode === "absolute" ? newStockValue : finalAdjustment} units`,
@@ -461,26 +468,6 @@ export default function InventoryPage() {
       setIsBulkDialogOpen(false)
       setSelectedItems([])
 
-      // Silent background refresh
-      const response = await inventoryService.getAllInventory(pagination.page, pagination.per_page, {
-        ...filters,
-        status: filters.status === "all" ? "" : filters.status,
-        category: filters.category === "all" ? "" : filters.category,
-      })
-
-      const uniqueItems = response.items.filter(
-        (item, index, self) =>
-          index ===
-          self.findIndex((i) => i.product_id === item.product_id && (i.variant_id || null) === (i.variant_id || null)),
-      )
-
-      setInventory(uniqueItems)
-      if ("statistics" in response && (response as any).statistics) {
-        setStats((response as any).statistics)
-      } else {
-        setStats(calculateStatsFromItems(uniqueItems))
-      }
-
       toast({
         title: "Bulk Adjustment Complete",
         description: `${result.successful} items adjusted successfully${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
@@ -515,26 +502,6 @@ export default function InventoryPage() {
     try {
       setOperationLoading({ type: "sync", message: "Syncing products with inventory..." })
       const result = await inventoryService.syncInventoryFromProducts()
-
-      // Silent background refresh
-      const response = await inventoryService.getAllInventory(pagination.page, pagination.per_page, {
-        ...filters,
-        status: filters.status === "all" ? "" : filters.status,
-        category: filters.category === "all" ? "" : filters.category,
-      })
-
-      const uniqueItems = response.items.filter(
-        (item, index, self) =>
-          index ===
-          self.findIndex((i) => i.product_id === item.product_id && (i.variant_id || null) === (i.variant_id || null)),
-      )
-
-      setInventory(uniqueItems)
-      if ("statistics" in response && (response as any).statistics) {
-        setStats((response as any).statistics)
-      } else {
-        setStats(calculateStatsFromItems(uniqueItems))
-      }
 
       toast({
         title: "Sync Complete",
@@ -1340,8 +1307,8 @@ export default function InventoryPage() {
                   <Input
                     id="search"
                     placeholder="Search by name, SKU..."
-                    value={filters.search}
-                    onChange={(e) => handleFilterChange("search", e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                     className="pl-10 h-11 border-2 focus:border-blue-500 transition-colors"
                   />
                 </div>
