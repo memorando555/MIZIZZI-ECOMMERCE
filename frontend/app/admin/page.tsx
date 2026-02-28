@@ -1698,24 +1698,6 @@ const ActivityItem = ({
     </div>
   )
 }
-
-export default function AdminDashboard() {
-  const { isAuthenticated, isLoading, user } = useAdminAuth()
-  const router = useRouter()
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
-  const [isLoadingData, setIsLoadingData] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-    to: new Date(),
-  })
-
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/admin/login?reason=not_authenticated")
-    }
   }, [isAuthenticated, isLoading, router])
 
   // Fetch dashboard data
