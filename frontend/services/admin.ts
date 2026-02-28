@@ -27,14 +27,14 @@ async function prefetchData(url: string, params: any): Promise<boolean> {
 const ADMIN_API_BASE = "/api/admin"
 
 // Define types for admin API responses
-interface AdminLoginResponse {
+export interface AdminLoginResponse {
   user: any
   access_token: string
   refresh_token?: string
   csrf_token?: string
 }
 
-interface AdminDashboardResponse {
+export interface AdminDashboardResponse {
   counts: {
     users: number
     products: number
