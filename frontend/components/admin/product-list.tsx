@@ -57,8 +57,8 @@ const ProductList = memo(function ProductList({
               <input type="checkbox" className="w-4 h-4 rounded cursor-pointer" />
             </TableHead>
             <TableHead className="font-semibold text-gray-900">Product</TableHead>
-            <TableHead className="font-semibold text-gray-900">Price</TableHead>
-            <TableHead className="font-semibold text-gray-900">Stock</TableHead>
+            <TableHead className="text-right font-semibold text-gray-900">Price</TableHead>
+            <TableHead className="text-right font-semibold text-gray-900">Stock</TableHead>
             <TableHead className="font-semibold text-gray-900">Status</TableHead>
             <TableHead className="text-right font-semibold text-gray-900">Actions</TableHead>
           </TableRow>

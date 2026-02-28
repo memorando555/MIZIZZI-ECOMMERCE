@@ -203,23 +203,8 @@ const ProductRow = memo(function ProductRow({
         <div className="font-medium text-gray-900 line-clamp-2">{product.name}</div>
         <div className="text-xs text-gray-500 mt-0.5">{product.sku || "No SKU"}</div>
       </TableCell>
-      <TableCell className="text-right font-semibold text-gray-900">${parseFloat(String(product.price || 0)).toFixed(2)}</TableCell>
+      <TableCell className="text-right font-semibold text-gray-900">KSh {parseFloat(String(product.price || 0)).toFixed(2)}</TableCell>
       <TableCell className="text-right text-gray-700">{product.stock || 0} units</TableCell>
-      <TableCell>
-        <div className="flex items-center gap-2">
-          {status ? (
-            <>
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
-              <span className="text-xs text-green-700 font-medium">Active</span>
-            </>
-          ) : (
-            <>
-              <XCircle className="w-4 h-4 text-gray-400" />
-              <span className="text-xs text-gray-500">Inactive</span>
-            </>
-          )}
-        </div>
-      </TableCell>
       <TableCell>
         {stockStatus ? (
           <Badge className="bg-green-50 text-green-700 border border-green-200 text-xs">In Stock</Badge>
