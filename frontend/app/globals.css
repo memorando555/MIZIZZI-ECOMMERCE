@@ -1418,41 +1418,1634 @@ body {
 }
 
 /* Admin Liquid Glass Effects - iOS 26 Inspired Dark Theme */
+
+/* === CSS Custom Properties for Glass System === */
+:root {
+  /* Glass Background Colors */
+  --glass-bg-primary: rgba(255, 255, 255, 0.08);
+  --glass-bg-secondary: rgba(255, 255, 255, 0.05);
+  --glass-bg-tertiary: rgba(255, 255, 255, 0.03);
+  --glass-bg-hover: rgba(255, 255, 255, 0.12);
+  
+  /* Glass Border Colors */
+  --glass-border-primary: rgba(255, 255, 255, 0.12);
+  --glass-border-secondary: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.18);
+  
+  /* Glass Blur Amounts */
+  --glass-blur-sm: 10px;
+  --glass-blur-md: 20px;
+  --glass-blur-lg: 30px;
+  
+  /* Text Hierarchy */
+  --text-primary: rgba(255, 255, 255, 1);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  
+  /* Rounded Corners */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+}
+
+/* Apple-inspired easing curves */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.320, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-subtle: cubic-bezier(0.33, 0.66, 0.66, 1);
+}
+
+/* === Primary Glass Card - Enhanced === */
 .admin-glass-card {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.320, 1);
+  background: var(--glass-bg-primary);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  border: 1px solid var(--glass-border-primary);
+  border-radius: var(--radius-lg);
+  transition: all 0.3s var(--ease-out);
+  transform: translateZ(0);
+  will-change: transform, background;
 }
 
 .admin-glass-card:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px) translateZ(0);
 }
 
+.admin-glass-card:focus-within {
+  box-shadow: 0 0 0 2px rgba(255, 138, 0, 0.3), 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* === Small Glass - Subtle & Refined === */
 .admin-glass-sm {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px) saturate(180%);
-  -webkit-backdrop-filter: blur(10px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--glass-bg-secondary);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid var(--glass-border-secondary);
+  border-radius: var(--radius-sm);
   transition: all 0.2s ease-out;
+  transform: translateZ(0);
 }
 
 .admin-glass-sm:hover {
+  background: var(--glass-bg-primary);
+  border-color: var(--glass-border-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px) translateZ(0);
+}
+
+/* === Large Glass - Maximum Impact === */
+.admin-glass-lg {
+  background: var(--glass-bg-primary);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(200%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(200%);
+  border: 1px solid var(--glass-border-primary);
+  border-radius: var(--radius-xl);
+  transition: all 0.3s var(--ease-out);
+  transform: translateZ(0);
+  box-shadow: 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.admin-glass-lg:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-3px) translateZ(0);
+}
+
+/* === Glass Input Fields === */
+.admin-glass-input {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  transition: all 0.2s ease-out;
+  caret-color: #FF8A00;
+}
+
+.admin-glass-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.admin-glass-input:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-glass-input:focus {
+  outline: none;
+  border-color: #FF8A00;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* === Glass Buttons === */
+.admin-glass-button {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  transform: translateZ(0);
+}
+
+.admin-glass-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px) translateZ(0);
+}
+
+.admin-glass-button:active {
+  transform: translateY(0) translateZ(0);
+}
+
+/* === Glass Stat Card - Data Display === */
+.admin-glass-stat {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: all 0.3s var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-glass-stat::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  pointer-events: none;
+}
+
+.admin-glass-stat:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-4px) translateZ(0);
+}
+
+/* === Glass Overlay / Modal === */
+.admin-glass-overlay {
+  background: rgba(10, 10, 10, 0.5);
+  backdrop-filter: blur(4px) saturate(100%);
+  -webkit-backdrop-filter: blur(4px) saturate(100%);
+}
+
+/* === Glass Divider === */
+.admin-glass-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  margin: 1rem 0;
+}
+
+/* === Table Cells with Glass === */
+.admin-glass-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 1rem;
+  transition: all 0.2s ease-out;
+}
+
+.admin-glass-cell:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-glass-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease-out;
+}
+
+.admin-glass-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* === Glass Animations === */
+@keyframes glass-float {
+  0%, 100% { transform: translateY(0) translateZ(0); }
+  50% { transform: translateY(-4px) translateZ(0); }
+}
+
+@keyframes glass-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 138, 0, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(255, 138, 0, 0); }
+}
+
+@keyframes glass-shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.glass-float {
+  animation: glass-float 3s ease-in-out infinite;
+}
+
+.glass-glow {
+  animation: glass-glow 2s ease-in-out infinite;
+}
+
+/* === Glass Responsive Tables === */
+@media (max-width: 768px) {
+  :root {
+    --glass-blur-sm: 8px;
+    --glass-blur-md: 16px;
+    --glass-blur-lg: 24px;
+  }
+  
+  .admin-glass-card {
+    border-radius: var(--radius-md);
+    padding: 1rem;
+  }
+  
+  .admin-glass-lg {
+    border-radius: var(--radius-lg);
+  }
+}
+
+/* === Input Enhancement for Dark Admin Theme === */
+input[type="search"],
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea {
+  &.admin-glass-input,
+  &:not(.no-glass) {
+    background: rgba(255, 255, 255, 0.06) !important;
+    backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: var(--text-primary) !important;
+    caret-color: #FF8A00 !important;
+  }
+}
+
+input::placeholder {
+  color: var(--text-tertiary) !important;
+}
+
+/* === Focus Ring Customization === */
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #FF8A00 !important;
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.1) !important;
+}
+
+/* === Glass Badge Enhancement === */
+.admin-glass-badge {
+  background: rgba(255, 138, 0, 0.15);
+  border: 1px solid rgba(255, 138, 0, 0.3);
+  color: #FF8A00;
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.2s ease-out;
+}
+
+.admin-glass-badge:hover {
+  background: rgba(255, 138, 0, 0.2);
+  border-color: rgba(255, 138, 0, 0.4);
+}
+
+/* === Glass Scroll Area Styling === */
+.admin-glass-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Scrollbar styling for glass scrolls */
+.admin-glass-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.admin-glass-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-glass-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.admin-glass-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* === Glass Dropdown Menu === */
+.admin-glass-dropdown {
+  background: rgba(10, 10, 10, 0.8);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* === Glass List Items === */
+.admin-glass-list-item {
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0.75rem 1rem;
+  transition: all 0.2s ease-out;
+  cursor: pointer;
+}
+
+.admin-glass-list-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-glass-list-item.active {
+  background: rgba(255, 138, 0, 0.1);
+  border-left: 3px solid #FF8A00;
+}
+
+/* === Glass Notification Badge === */
+.admin-glass-notification-badge {
+  background: rgba(255, 59, 48, 0.8);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  color: white;
+  border-radius: 9999px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(255, 59, 48, 0.3);
+}
+
+/* === Enhanced Search Results Glass === */
+.admin-glass-search-result {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease-out;
+  cursor: pointer;
+}
+
+.admin-glass-search-result:hover {
+  background: rgba(255, 138, 0, 0.1);
+  padding-left: 1.25rem;
+}
+
+/* === Glass Modal Backdrop === */
+.admin-glass-modal-backdrop {
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(6px) saturate(100%);
+  -webkit-backdrop-filter: blur(6px) saturate(100%);
+}
+
+/* === Sidebar Menu Item Glass Effects === */
+.admin-menu-item {
+  position: relative;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease-out;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.admin-menu-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  pointer-events: none;
+}
+
+.admin-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.admin-menu-item.active {
+  background: rgba(255, 138, 0, 0.15);
+  border-left: 3px solid #FF8A00;
+  color: #FF8A00;
+  padding-left: calc(1rem - 3px);
+}
+
+.admin-menu-item.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 70%;
+  background: linear-gradient(to bottom, transparent, #FF8A00, transparent);
+  border-radius: 0 2px 2px 0;
+  transform: translateY(-50%);
+}
+
+/* === Submenu Animation === */
+.admin-submenu {
+  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid rgba(255, 138, 0, 0.3);
+  margin-left: 0.5rem;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  overflow: hidden;
+}
+
+.admin-submenu-item {
+  padding: 0.5rem 1rem 0.5rem 1.5rem;
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  transition: all 0.2s ease-out;
+  cursor: pointer;
+  position: relative;
+}
+
+.admin-submenu-item::before {
+  content: '';
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translateY(-50%);
+  transition: all 0.2s ease-out;
+}
+
+.admin-submenu-item:hover {
+  background: rgba(255, 138, 0, 0.1);
+  color: var(--text-secondary);
+  padding-left: 1.75rem;
+}
+
+.admin-submenu-item:hover::before {
+  background: #FF8A00;
+  width: 6px;
+  height: 6px;
+  left: 0.65rem;
+}
+
+.admin-submenu-item.active {
+  background: rgba(255, 138, 0, 0.2);
+  color: #FF8A00;
+}
+
+/* === Button Glass Variants === */
+.admin-button-glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  transition: all 0.2s ease-out;
+}
+
+.admin-button-glass:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.admin-button-glass:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.admin-button-glass:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-button-orange-glass {
+  background: linear-gradient(135deg, rgba(255, 138, 0, 0.9), rgba(255, 157, 32, 0.8));
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(200%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(200%);
+  border: 1px solid rgba(255, 138, 0, 0.3);
+  color: white;
+  font-weight: 600;
+  transition: all 0.2s ease-out;
+  box-shadow: 0 4px 16px rgba(255, 138, 0, 0.3);
+}
+
+.admin-button-orange-glass:hover:not(:disabled) {
+  background: linear-gradient(135deg, #FF8A00, #ffb347);
+  border-color: rgba(255, 138, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(255, 138, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+/* === Alert/Toast Glass === */
+.admin-glass-alert {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  color: var(--text-primary);
+}
+
+.admin-glass-alert.success {
+  border-color: rgba(52, 199, 89, 0.3);
+  background: rgba(52, 199, 89, 0.08);
+}
+
+.admin-glass-alert.warning {
+  border-color: rgba(255, 149, 0, 0.3);
+  background: rgba(255, 149, 0, 0.08);
+}
+
+.admin-glass-alert.error {
+  border-color: rgba(255, 59, 48, 0.3);
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.admin-glass-alert.info {
+  border-color: rgba(10, 132, 255, 0.3);
+  background: rgba(10, 132, 255, 0.08);
+}
+
+/* === Tooltip Glass === */
+.admin-glass-tooltip {
+  background: rgba(30, 30, 30, 0.95);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.813rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* === Skeleton Glass Loading === */
+.admin-glass-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: glass-shimmer 2s infinite;
+}
+
+/* === Chart Container Glass === */
+.admin-glass-chart {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  transition: all 0.3s ease-out;
+}
+
+.admin-glass-chart:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-.admin-glass-lg {
-  background: rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(30px) saturate(200%);
-  -webkit-backdrop-filter: blur(30px) saturate(200%);
+/* === Accessibility: Focus Visible States === */
+.admin-glass-card:focus-visible,
+.admin-glass-button:focus-visible,
+.admin-button-glass:focus-visible {
+  outline: 2px solid #FF8A00;
+  outline-offset: 2px;
+}
+
+/* === Reduced Motion Support === */
+@media (prefers-reduced-motion: reduce) {
+  .glass-float,
+  .glass-glow,
+  .admin-menu-item,
+  .admin-button-glass,
+  .admin-glass-card,
+  .admin-glass-button,
+  .admin-submenu-item {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* === Admin Dashboard Card Theming === */
+.admin-dashboard-card {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  transition: all 0.3s var(--ease-out);
+}
+
+.admin-dashboard-card:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* === Table Glass Styling === */
+.admin-glass-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: transparent;
+}
+
+.admin-glass-table thead {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-glass-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-glass-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease-out;
+}
+
+.admin-glass-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-glass-table tbody tr.active {
+  background: rgba(255, 138, 0, 0.08);
+  border-color: rgba(255, 138, 0, 0.2);
+}
+
+.admin-glass-table td {
+  padding: 1rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+/* === Table Data Cell Highlights === */
+.admin-table-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.admin-table-status.pending {
+  background: rgba(255, 193, 7, 0.15);
+  color: #FFC107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.admin-table-status.processing {
+  background: rgba(33, 150, 243, 0.15);
+  color: #2196F3;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.admin-table-status.completed {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.admin-table-status.cancelled {
+  background: rgba(244, 67, 54, 0.15);
+  color: #F44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.admin-table-status.shipped {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4CAF50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.admin-table-status.delivered {
+  background: rgba(52, 199, 89, 0.15);
+  color: #34C759;
+  border: 1px solid rgba(52, 199, 89, 0.3);
+}
+
+/* === Chart Area Glass Enhancements === */
+.admin-chart-container {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  min-height: 400px;
+}
+
+/* Recharts tooltip styling for glass theme */
+.recharts-tooltip {
+  background: rgba(30, 30, 30, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%) !important;
+}
+
+.recharts-tooltip-label {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.recharts-tooltip-item {
+  color: inherit !important;
+}
+
+/* === Stat Card Container === */
+.admin-stat-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.admin-stat-item {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s var(--ease-out);
+}
+
+.admin-stat-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 138, 0, 0.3), transparent);
+  pointer-events: none;
+}
+
+.admin-stat-item:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translateY(-4px);
+}
+
+.admin-stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.admin-stat-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-stat-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  font-size: 0.813rem;
+  font-weight: 600;
+}
+
+.admin-stat-trend.up {
+  color: #34C759;
+}
+
+.admin-stat-trend.down {
+  color: #FF3B30;
+}
+
+/* === Admin Tab Styling for Glass Theme === */
+.admin-glass-tabs {
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  display: flex;
+  gap: 1px;
+}
+
+.admin-glass-tab {
+  padding: 0.875rem 1.5rem;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.2s ease-out;
+  position: relative;
+  white-space: nowrap;
+}
+
+.admin-glass-tab:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-glass-tab.active {
+  color: #FF8A00;
+  background: rgba(255, 138, 0, 0.1);
+}
+
+.admin-glass-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #FF8A00, transparent);
+}
+
+/* === Pagination Glass Style === */
+.admin-glass-pagination {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.admin-pagination-button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-pagination-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+.admin-pagination-button.active {
+  background: rgba(255, 138, 0, 0.15);
+  border-color: rgba(255, 138, 0, 0.3);
+  color: #FF8A00;
+}
+
+.admin-pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === Empty State Glass === */
+.admin-glass-empty {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  color: var(--text-tertiary);
+}
+
+.admin-glass-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.admin-glass-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.admin-glass-empty-description {
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+/* === Loading Skeleton Glass === */
+.admin-glass-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: glass-shimmer 2s infinite;
+}
+
+/* === Form Elements Glass Theme === */
+.admin-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.admin-form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-form-label.required::after {
+  content: ' *';
+  color: #FF3B30;
+}
+
+.admin-form-input,
+.admin-form-textarea,
+.admin-form-select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+  caret-color: #FF8A00;
+  transition: all 0.2s ease-out;
+}
+
+.admin-form-input::placeholder,
+.admin-form-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.admin-form-input:hover,
+.admin-form-textarea:hover,
+.admin-form-select:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-form-input:focus,
+.admin-form-textarea:focus,
+.admin-form-select:focus {
+  outline: none;
+  border-color: #FF8A00;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.admin-form-textarea {
+  resize: vertical;
+  min-height: 120px;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+/* === Form Checkbox & Radio Glass === */
+.admin-checkbox,
+.admin-radio {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.admin-checkbox {
+  border-radius: 4px;
+}
+
+.admin-radio {
+  border-radius: 50%;
+}
+
+.admin-checkbox:hover,
+.admin-radio:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-checkbox:checked,
+.admin-radio:checked {
+  background: #FF8A00;
+  border-color: #FF8A00;
+  box-shadow: 0 0 8px rgba(255, 138, 0, 0.3);
+}
+
+.admin-checkbox:checked::after {
+  content: '✓';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+/* === Toggle Switch Glass === */
+.admin-toggle {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 24px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+}
+
+.admin-toggle::before {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: white;
+  border-radius: 12px;
+  top: 1px;
+  left: 1px;
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.admin-toggle:checked {
+  background: #FF8A00;
+  border-color: #FFB347;
+}
+
+.admin-toggle:checked::before {
+  left: 23px;
+}
+
+/* === Select Dropdown Glass === */
+.admin-form-select {
+  cursor: pointer;
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 14l-7 7m0 0l-7-7m7 7V3'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25rem;
+  padding-right: 2.75rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.admin-form-select option {
+  background: #0a0a0a;
+  color: white;
+}
+
+/* === Form Error State === */
+.admin-form-error {
+  border-color: #FF3B30 !important;
+  background: rgba(255, 59, 48, 0.05) !important;
+}
+
+.admin-form-error-message {
+  font-size: 0.75rem;
+  color: #FF3B30;
+  margin-top: 0.375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.admin-form-error-message::before {
+  content: '!';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #FF3B30;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.65rem;
+}
+
+/* === Form Success State === */
+.admin-form-success {
+  border-color: #34C759 !important;
+  background: rgba(52, 199, 89, 0.05) !important;
+}
+
+.admin-form-success-message {
+  font-size: 0.75rem;
+  color: #34C759;
+  margin-top: 0.375rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.admin-form-success-message::before {
+  content: '✓';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #34C759;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 0.65rem;
+}
+
+/* === Form Helper Text === */
+.admin-form-help {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 0.375rem;
+  display: block;
+}
+
+/* === Multi-select Glass === */
+.admin-multiselect-container {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  min-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-multiselect-tag {
+  background: rgba(255, 138, 0, 0.15);
+  border: 1px solid rgba(255, 138, 0, 0.3);
+  color: #FF8A00;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.825rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-multiselect-tag-remove {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease-out;
+}
+
+.admin-multiselect-tag-remove:hover {
+  opacity: 1;
+}
+
+/* === Button Group Glass === */
+.admin-button-group {
+  display: flex;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+}
+
+.admin-button-group-item {
+  padding: 0.625rem 1rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-sm) - 2px);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease-out;
+  flex: 1;
+  text-align: center;
+}
+
+.admin-button-group-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.admin-button-group-item.active {
+  background: rgba(255, 138, 0, 0.2);
+  border-color: #FF8A00;
+  color: #FF8A00;
+}
+
+/* === Slider/Range Input Glass === */
+.admin-range-input {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 138, 0, 0.3) 0%,
+    rgba(255, 138, 0, 0.1) 100%
+  );
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.admin-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FF8A00;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(255, 138, 0, 0.3);
+  transition: all 0.2s ease-out;
+}
+
+.admin-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 138, 0, 0.4);
+}
+
+.admin-range-input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #FF8A00;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 8px rgba(255, 138, 0, 0.3);
+  transition: all 0.2s ease-out;
+}
+
+.admin-range-input::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 138, 0, 0.4);
+}
+
+/* === Modal/Dialog Glass Enhancements === */
+.admin-modal {
+  background: rgba(15, 15, 15, 0.9);
+  backdrop-filter: blur(12px) saturate(200%);
+  -webkit-backdrop-filter: blur(12px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.admin-modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.5rem;
+}
+
+.admin-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-modal-content {
+  padding: 1.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.admin-modal-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+/* === Popover/Tooltip Glass === */
+.admin-popover {
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+}
+
+.admin-popover-arrow {
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* === Dropdown Glass === */
+.admin-dropdown-content {
+  background: rgba(15, 15, 15, 0.95);
+  backdrop-filter: blur(12px) saturate(200%);
+  -webkit-backdrop-filter: blur(12px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.admin-dropdown-item {
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.admin-dropdown-item:hover {
+  background: rgba(255, 138, 0, 0.1);
+  color: var(--text-primary);
+  padding-left: 1.5rem;
+}
+
+.admin-dropdown-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  margin: 0.5rem 0;
+}
+
+/* === Context Menu Glass === */
+.admin-context-menu {
+  background: rgba(15, 15, 15, 0.95);
+  backdrop-filter: blur(12px) saturate(200%);
+  -webkit-backdrop-filter: blur(12px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  min-width: 200px;
+  z-index: 1000;
+}
+
+/* === Search Input Advanced === */
+.admin-search-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1.25rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  caret-color: #FF8A00;
+  transition: all 0.3s ease-out;
+}
+
+.admin-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.admin-search-input:focus {
+  outline: none;
+  border-color: #FF8A00;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(255, 138, 0, 0.1), 0 4px 16px rgba(255, 138, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* === Datepicker Glass === */
+.admin-datepicker {
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.admin-datepicker-day {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.admin-datepicker-day:hover {
+  background: rgba(255, 138, 0, 0.15);
+  color: #FF8A00;
+}
+
+.admin-datepicker-day.active {
+  background: #FF8A00;
+  color: white;
+  font-weight: 600;
+}
+
+.admin-datepicker-day.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* === Accessibility Enhancements === */
+:focus-visible {
+  outline: 2px solid #FF8A00;
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  .admin-glass-card,
+  .admin-glass-sm,
+  .admin-glass-lg {
+    border-color: rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+  }
+  
+  .admin-menu-item {
+    border: 1px solid transparent;
+  }
+  
+  .admin-menu-item:hover {
+    border-color: rgba(255, 138, 0, 0.3);
+  }
+}
+
+/* Forced colors mode support */
+@media (forced-colors: active) {
+  .admin-glass-card,
+  .admin-glass-sm,
+  .admin-glass-lg {
+    border: 2px solid CanvasText;
+  }
+  
+  .admin-button-orange-glass {
+    background: Highlight;
+    color: HighlightText;
+  }
+}
+
+/* === Performance Optimization === */
+.admin-glass-card,
+.admin-glass-sm,
+.admin-glass-lg,
+.admin-button-glass,
+.admin-menu-item,
+.admin-form-input,
+.admin-form-textarea {
+  contain: layout style paint;
+}
+
+/* Use will-change sparingly for animations */
+.glass-float {
+  will-change: transform;
+}
+
+.glass-glow {
+  will-change: box-shadow;
+}
+
+/* GPU acceleration for backdrop filters */
+.admin-glass-overlay {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* === Responsive Design Tweaks === */
+@media (max-width: 1024px) {
+  .admin-stat-container {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .admin-glass-card {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-modal {
+    margin: 1rem;
+    max-height: 80vh;
+  }
+  
+  .admin-form-input,
+  .admin-form-textarea,
+  .admin-form-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  .admin-dropdown-content {
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  
+  .admin-stat-item {
+    padding: 1rem;
+  }
+  
+  .admin-stat-value {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-modal-content {
+    max-height: 50vh;
+  }
+  
+  .admin-form-group {
+    margin-bottom: 1rem;
+  }
+  
+  .admin-button-group-item {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* === Print Styles === */
+@media print {
+  .admin-glass-card,
+  .admin-glass-sm,
+  .admin-glass-lg {
+    background: white !important;
+    border: 1px solid #000 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  
+  .admin-button-glass,
+  .admin-button-orange-glass {
+    display: none;
+  }
+  
+  .admin-modal,
+  .admin-dropdown-content,
+  .admin-popover {
+    display: none !important;
+  }
 }
 
 /* Admin button with orange accent */

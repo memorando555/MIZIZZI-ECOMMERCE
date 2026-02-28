@@ -152,6 +152,8 @@ const config: Config = {
         "jumia-heart-beat": "jumia-heart-beat 0.4s ease-in-out",
         "jumia-float": "jumia-float 3s ease-in-out infinite",
         "jumia-count-pulse": "jumia-count-pulse 1.5s ease-in-out infinite",
+        "glass-float": "glass-float 3s ease-in-out infinite",
+        "glass-glow": "glass-glow 2s ease-in-out infinite",
         adminGlass: {
           light: "rgba(255, 255, 255, 0.08)",
           lighter: "rgba(255, 255, 255, 0.12)",
