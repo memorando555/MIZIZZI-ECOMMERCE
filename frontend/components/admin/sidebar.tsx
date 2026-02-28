@@ -175,12 +175,12 @@ const menuItems: MenuItem[] = [
   {
     title: "Cart & Wishlist",
     icon: <ShoppingCart size={20} />,
-    path: "/admin/cart",
+    path: "/admin/cart-wishlist",
     submenu: [
-      { title: "Cart Items", path: "/admin/cart-items" },
-      { title: "Abandoned Carts", path: "/admin/cart/abandoned", badge: 7 },
-      { title: "Wishlist Items", path: "/admin/wishlist-items" },
-      { title: "Cart Validation", path: "/admin/cart/validation" },
+      { title: "Cart Items", path: "/admin/cart-wishlist/cart-items" },
+      { title: "Abandoned Carts", path: "/admin/cart-wishlist/abandoned-carts", badge: 7 },
+      { title: "Wishlist Items", path: "/admin/cart-wishlist/wishlist-items" },
+      { title: "Dashboard", path: "/admin/cart-wishlist" },
     ],
   },
   {
