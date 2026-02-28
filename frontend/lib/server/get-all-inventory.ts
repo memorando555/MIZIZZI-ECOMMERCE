@@ -2,6 +2,7 @@ import type { EnhancedInventoryItem } from "@/services/inventory-service"
 import { calculateInventoryStats, type InventoryStats } from "./calculate-inventory-stats"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
+const ADMIN_INVENTORY_BASE = "/api/admin/inventory"
 
 export interface InventoryResponse {
   items: EnhancedInventoryItem[]
@@ -17,12 +18,19 @@ export interface InventoryResponse {
  */
 export async function getAllInventory(limit = 10000, page = 1): Promise<InventoryResponse> {
   try {
-    // Try the external API endpoint (backend API)
-    const externalEndpoint = `${API_BASE_URL}/api/inventory?per_page=${limit}&page=${page}`
+    // Build the full endpoint URL with query parameters
+    const params = new URLSearchParams()
+    params.append("page", page.toString())
+    params.append("per_page", limit.toString())
+    params.append("include_product_details", "true")
+    
+    const externalEndpoint = `${API_BASE_URL}${ADMIN_INVENTORY_BASE}/?${params.toString()}`
+    
+    console.log("[v0] getAllInventory: Fetching from", externalEndpoint)
     
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
 
       const response = await fetch(externalEndpoint, {
         signal: controller.signal,
@@ -40,17 +48,54 @@ export async function getAllInventory(limit = 10000, page = 1): Promise<Inventor
 
       if (response.ok) {
         const data = await response.json()
-        const items = (data?.data ?? data?.items ?? data) as EnhancedInventoryItem[]
         
-        if (Array.isArray(items) && items.length > 0) {
-          // Calculate stats server-side for instant display
-          const stats = calculateInventoryStats(items)
-          
-          return {
-            items,
-            stats,
-          }
+        console.log("[v0] getAllInventory: Raw API response structure:", {
+          hasSuccess: !!data?.success,
+          hasInventory: !!data?.inventory,
+          inventoryLength: Array.isArray(data?.inventory) ? data.inventory.length : "not-array",
+          hasPagination: !!data?.pagination,
+          hasStatistics: !!data?.statistics,
+        })
+        
+        // Parse the response according to the backend structure
+        let items: EnhancedInventoryItem[] = []
+        
+        if (data?.success && data?.inventory && Array.isArray(data.inventory)) {
+          items = data.inventory.map((item: any) => ({
+            ...item,
+            is_in_stock: item.available_quantity > 0,
+            is_low_stock: item.available_quantity > 0 && item.available_quantity <= (item.low_stock_threshold || 5),
+            available_quantity: Math.max(0, (item.stock_level || 0) - (item.reserved_quantity || 0)),
+            product: item.product
+              ? {
+                  id: item.product.id,
+                  name: item.product.name,
+                  slug: item.product.slug,
+                  price: item.product.price,
+                  sale_price: item.product.sale_price,
+                  thumbnail_url: item.product.thumbnail_url || (item.product.image_urls && item.product.image_urls[0]),
+                  image_urls: item.product.image_urls || [],
+                  category: item.product.category,
+                  brand: item.product.brand,
+                  sku: item.product.sku,
+                }
+              : undefined,
+          }))
         }
+        
+        // Calculate stats server-side for instant display
+        const stats = calculateInventoryStats(items)
+        
+        console.log("[v0] getAllInventory: Successfully fetched", items.length, "items with stats:", stats)
+        
+        return {
+          items,
+          stats,
+        }
+      } else {
+        console.warn("[v0] getAllInventory: API returned non-OK status:", response.status, response.statusText)
+        const errorText = await response.text().catch(() => "")
+        console.warn("[v0] getAllInventory: Response body:", errorText.substring(0, 200))
       }
     } catch (err) {
       console.error("[v0] getAllInventory: External API failed:", err)
