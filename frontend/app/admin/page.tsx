@@ -22,43 +22,612 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
-  Zap,
-  Clock,
-  AlertCircle,
   DollarSign,
   CreditCard,
   Truck,
-  MapPin,
-  Mail,
-  LineChart,
-  Target,
-  Globe,
-  Smartphone,
-  Monitor,
-  Tablet,
-  Chrome,
-  FileBox as Firefox,
-  Award as Safari,
   AlertTriangle,
   MessageSquare,
-  UserCheck,
-  UserX,
-  ExternalLink,
   Database,
-  PercentCircle,
   Crown,
   ArrowRight,
-  Loader2,
+  Zap,
 } from "lucide-react"
 import { useAdminAuth } from "@/contexts/admin/auth-context"
 import { Loader } from "@/components/ui/loader"
 import { adminService } from "@/services/admin"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import type { DateRange } from "@/components/admin/dashboard/date-range-picker"
 import { DateRangePicker } from "@/components/admin/dashboard/date-range-picker"
+import DashboardHeader from "@/components/admin/dashboard/dashboard-header"
+import DashboardCards from "@/components/admin/dashboard/dashboard-cards"
+import KPICards from "@/components/admin/dashboard/kpi-cards"
+import RecentOrders from "@/components/admin/dashboard/recent-orders"
+import RecentCustomers from "@/components/admin/dashboard/recent-customers"
+import LowStockProducts from "@/components/admin/dashboard/low-stock-products"
+import SalesOverviewChart from "@/components/admin/dashboard/sales-overview-chart"
+import OrderStatusChart from "@/components/admin/dashboard/order-status-chart"
+import SalesByCategory from "@/components/admin/dashboard/sales-by-category"
+import RecentActivity from "@/components/admin/dashboard/recent-activity"
+import QuickActions from "@/components/admin/dashboard/quick-actions"
+import NotificationsAlerts from "@/components/admin/dashboard/notifications-alerts"
+
+interface DashboardData {
+  counts: {
+    users: number; products: number; orders: number; pending_orders: number
+    low_stock_products: number; out_of_stock_products: number
+    verified_customers: number; premium_customers: number
+    support_tickets: number; open_tickets: number
+  }
+  sales: {
+    today: number; yesterday: number; weekly: number; monthly: number
+    total_revenue: number; net_profit: number
+    average_order_value: number; conversion_rate: number
+  }
+  recent_orders: any[]
+  recent_users: any[]
+  low_stock_products: any[]
+  recent_activities: any[]
+  notifications: any[]
+}
+
+const mockDashboardData: DashboardData = {
+  counts: {
+    users: 12847,
+    products: 2389,
+    orders: 8156,
+    pending_orders: 156,
+    low_stock_products: 23,
+    out_of_stock_products: 8,
+    verified_customers: 11234,
+    premium_customers: 456,
+    support_tickets: 89,
+    open_tickets: 23,
+  },
+  sales: {
+    today: 45678.9,
+    yesterday: 38234.56,
+    weekly: 234567.89,
+    monthly: 1234567.89,
+    total_revenue: 45678901.23,
+    net_profit: 2345678.9,
+    average_order_value: 156.78,
+    conversion_rate: 3.45,
+  },
+  recent_orders: [
+    {
+      id: "ORD-001",
+      order_number: "ORD-001",
+      user: { name: "John Doe", email: "john@example.com" },
+      total_amount: 299.99,
+      status: "processing",
+      payment_status: "paid",
+      created_at: "2024-01-15T10:30:00Z",
+      items: [{ quantity: 3 }],
+    },
+    {
+      id: "ORD-002",
+      order_number: "ORD-002",
+      user: { name: "Jane Smith", email: "jane@example.com" },
+      total_amount: 149.5,
+      status: "shipped",
+      payment_status: "paid",
+      created_at: "2024-01-15T09:15:00Z",
+      items: [{ quantity: 1 }],
+    },
+  ],
+  recent_users: [
+    {
+      id: 1,
+      name: "Sarah Connor",
+      email: "sarah@example.com",
+      role: "customer",
+      is_active: true,
+      created_at: "2024-01-15T08:30:00Z",
+      orders_count: 5,
+      total_spent: 1234.56,
+    },
+    {
+      id: 2,
+      name: "Mike Ross",
+      email: "mike@example.com",
+      role: "customer",
+      is_active: true,
+      created_at: "2024-01-14T12:15:00Z",
+      orders_count: 2,
+      total_spent: 456.78,
+    },
+  ],
+  low_stock_products: [
+    {
+      id: 1,
+      name: "Wireless Bluetooth Headphones",
+      stock: 3,
+      sku: "WBH-001",
+      price: 89.99,
+      category: "Electronics",
+      min_stock: 10,
+    },
+    {
+      id: 2,
+      name: "Smart Fitness Watch",
+      stock: 1,
+      sku: "SFW-002",
+      price: 199.99,
+      category: "Electronics",
+      min_stock: 5,
+    },
+  ],
+  recent_activities: [
+    {
+      id: 1,
+      type: "order",
+      message: "New order #ORD-001 placed ($299.99)",
+      time: "2 minutes ago",
+      icon: ShoppingCart,
+      color: "green",
+    },
+    {
+      id: 2,
+      type: "user",
+      message: "Sarah Connor registered",
+      time: "5 minutes ago",
+      icon: Users,
+      color: "blue",
+    },
+  ],
+  notifications: [
+    {
+      id: 1,
+      title: "Critical Stock Alert",
+      message: "23 products running low on stock",
+      type: "warning",
+      time: "5 minutes ago",
+      read: false,
+    },
+  ],
+}
+
+export default function AdminDashboardPage() {
+  const router = useRouter()
+  const { user } = useAdminAuth()
+  const [dashboardData, setDashboardData] = useState<DashboardData>(mockDashboardData)
+  const [isLoading, setIsLoading] = useState(true)
+  const [dateRange, setDateRange] = useState<DateRange>()
+  const [selectedTab, setSelectedTab] = useState("overview")
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [dateRange])
+
+  const fetchDashboardData = async () => {
+    try {
+      setIsLoading(true)
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      setDashboardData(mockDashboardData)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const getSalesChange = () => {
+    const change = dashboardData.sales.today - dashboardData.sales.yesterday
+    const percentage = ((change / dashboardData.sales.yesterday) * 100).toFixed(1)
+    return { change, percentage }
+  }
+
+  const salesChange = getSalesChange()
+
+  return (
+    <div className="min-h-screen bg-white w-full">
+      <div className="w-full p-2 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 md:space-y-8">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">Dashboard</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              Welcome back, {user?.name || "Admin"}. Here's your store overview.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <DateRangePicker />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchDashboardData}
+              className="rounded-lg text-xs h-8 sm:h-9"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="ml-1 hidden sm:inline">Refresh</span>
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => router.push("/admin/reports")}
+              className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-xs h-8 sm:h-9"
+            >
+              <Download className="h-4 w-4" />
+              <span className="ml-1 hidden sm:inline">Export</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Key Metrics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Total Revenue */}
+          <Card className="bg-white border border-gray-200 rounded-lg">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardDescription className="text-gray-600 text-xs sm:text-sm">
+                    Total Revenue
+                  </CardDescription>
+                  <CardTitle className="text-2xl sm:text-3xl font-bold mt-2">
+                    ${(dashboardData.sales.total_revenue / 1000000).toFixed(1)}M
+                  </CardTitle>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+              {salesChange.change >= 0 ? (
+                <div className="flex items-center gap-1 mt-4 text-green-600 text-xs sm:text-sm">
+                  <ArrowUpRight className="h-4 w-4" />
+                  <span>{salesChange.percentage}% from yesterday</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 mt-4 text-red-600 text-xs sm:text-sm">
+                  <ArrowDownRight className="h-4 w-4" />
+                  <span>{Math.abs(Number(salesChange.percentage))}% from yesterday</span>
+                </div>
+              )}
+            </CardHeader>
+          </Card>
+
+          {/* Today's Sales */}
+          <Card className="bg-white border border-gray-200 rounded-lg">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardDescription className="text-gray-600 text-xs sm:text-sm">
+                    Today's Sales
+                  </CardDescription>
+                  <CardTitle className="text-2xl sm:text-3xl font-bold mt-2">
+                    ${(dashboardData.sales.today / 1000).toFixed(1)}K
+                  </CardTitle>
+                </div>
+                <div className="bg-green-100 p-3 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+              <div className="mt-4 text-xs sm:text-sm text-gray-500">
+                Average Order: ${dashboardData.sales.average_order_value}
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Active Orders */}
+          <Card className="bg-white border border-gray-200 rounded-lg">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardDescription className="text-gray-600 text-xs sm:text-sm">
+                    Active Orders
+                  </CardDescription>
+                  <CardTitle className="text-2xl sm:text-3xl font-bold mt-2">
+                    {dashboardData.counts.pending_orders}
+                  </CardTitle>
+                </div>
+                <div className="bg-orange-100 p-3 rounded-lg">
+                  <ShoppingCart className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+              <div className="mt-4 text-xs sm:text-sm text-orange-600">
+                Need attention
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Total Customers */}
+          <Card className="bg-white border border-gray-200 rounded-lg">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardDescription className="text-gray-600 text-xs sm:text-sm">
+                    Total Customers
+                  </CardDescription>
+                  <CardTitle className="text-2xl sm:text-3xl font-bold mt-2">
+                    {(dashboardData.counts.users / 1000).toFixed(1)}K
+                  </CardTitle>
+                </div>
+                <div className="bg-purple-100 p-3 rounded-lg">
+                  <Users className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+              <div className="mt-4 text-xs sm:text-sm text-gray-500">
+                {dashboardData.counts.premium_customers} Premium
+              </div>
+            </CardHeader>
+          </Card>
+        </div>
+
+        {/* Main Content Tabs */}
+        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-10 bg-white border border-gray-200">
+            <TabsTrigger value="overview" className="rounded-lg text-xs sm:text-sm">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="rounded-lg text-xs sm:text-sm">
+              Orders
+            </TabsTrigger>
+            <TabsTrigger value="inventory" className="rounded-lg text-xs sm:text-sm">
+              Inventory
+            </TabsTrigger>
+            <TabsTrigger value="alerts" className="rounded-lg text-xs sm:text-sm">
+              Alerts
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-4 md:space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+              {/* Sales & Orders Chart */}
+              <Card className="lg:col-span-2 bg-white border border-gray-200 rounded-lg">
+                <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg sm:text-xl">Sales Overview</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Monthly revenue trend</CardDescription>
+                    </div>
+                    <BarChart3 className="h-5 w-5 text-gray-400" />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="h-64 flex items-center justify-center text-gray-400">
+                    <span className="text-sm">Chart visualization here</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Stats */}
+              <Card className="bg-white border border-gray-200 rounded-lg">
+                <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                  <CardTitle className="text-lg sm:text-xl">Quick Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Conversion Rate</span>
+                    <span className="font-semibold text-sm">{dashboardData.sales.conversion_rate}%</span>
+                  </div>
+                  <Progress value={dashboardData.sales.conversion_rate * 10} />
+                  
+                  <div className="flex items-center justify-between pt-4">
+                    <span className="text-sm text-gray-600">Products</span>
+                    <span className="font-semibold text-sm">{dashboardData.counts.products}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-4">
+                    <span className="text-sm text-gray-600">Low Stock Items</span>
+                    <Badge variant="destructive" className="text-xs">
+                      {dashboardData.counts.low_stock_products}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Orders & Customers */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+              <Card className="bg-white border border-gray-200 rounded-lg">
+                <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg sm:text-xl">Recent Orders</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Latest transactions</CardDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push("/admin/orders")}
+                      className="text-xs h-8"
+                    >
+                      View All
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="space-y-3">
+                    {dashboardData.recent_orders.map((order) => (
+                      <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{order.order_number}</p>
+                          <p className="text-xs text-gray-500 truncate">{order.user?.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-2">
+                          <span className="font-semibold text-sm">${order.total_amount}</span>
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {order.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white border border-gray-200 rounded-lg">
+                <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg sm:text-xl">Recent Customers</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">New registrations</CardDescription>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push("/admin/customers")}
+                      className="text-xs h-8"
+                    >
+                      View All
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6">
+                  <div className="space-y-3">
+                    {dashboardData.recent_users.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{user.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-2">
+                          <Badge variant="outline" className="text-xs">
+                            {user.orders_count} orders
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Activity */}
+            <Card className="bg-white border border-gray-200 rounded-lg">
+              <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg sm:text-xl">Recent Activity</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Live feed of store events</CardDescription>
+                  </div>
+                  <Activity className="h-5 w-5 text-gray-400" />
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-3">
+                  {dashboardData.recent_activities.map((activity) => {
+                    const IconComponent = activity.icon
+                    return (
+                      <div key={activity.id} className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0">
+                        <div className={`bg-${activity.color}-100 p-2 rounded-lg flex-shrink-0 mt-1`}>
+                          <IconComponent className={`h-4 w-4 text-${activity.color}-600`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-900">{activity.message}</p>
+                          <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="space-y-4">
+            <Card className="bg-white border border-gray-200 rounded-lg">
+              <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                <CardTitle className="text-lg sm:text-xl">Order Management</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <Button
+                  onClick={() => router.push("/admin/orders")}
+                  className="w-full sm:w-auto bg-gray-900 hover:bg-gray-800 text-white rounded-lg"
+                >
+                  View All Orders
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Inventory Tab */}
+          <TabsContent value="inventory" className="space-y-4">
+            <Card className="bg-white border border-gray-200 rounded-lg">
+              <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg sm:text-xl">Low Stock Alert</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      {dashboardData.counts.low_stock_products} products need restocking
+                    </CardDescription>
+                  </div>
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-3">
+                  {dashboardData.low_stock_products.map((product) => (
+                    <div key={product.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">{product.name}</p>
+                        <p className="text-xs text-gray-600">SKU: {product.sku}</p>
+                      </div>
+                      <div className="flex items-center gap-3 ml-2">
+                        <div className="text-right">
+                          <p className="font-semibold text-sm">{product.stock}</p>
+                          <p className="text-xs text-gray-500">in stock</p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/admin/inventory/${product.id}`)}
+                          className="text-xs h-8"
+                        >
+                          Restock
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Alerts Tab */}
+          <TabsContent value="alerts" className="space-y-4">
+            <Card className="bg-white border border-gray-200 rounded-lg">
+              <CardHeader className="p-4 sm:p-6 border-b border-gray-200">
+                <CardTitle className="text-lg sm:text-xl">Notifications & Alerts</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-3">
+                  {dashboardData.notifications.map((notification) => (
+                    <Alert
+                      key={notification.id}
+                      className={`rounded-lg ${
+                        notification.type === "warning"
+                          ? "border-orange-200 bg-orange-50"
+                          : "border-blue-200 bg-blue-50"
+                      }`}
+                    >
+                      <AlertTriangle className={`h-4 w-4 ${notification.type === "warning" ? "text-orange-600" : "text-blue-600"}`} />
+                      <AlertDescription className="ml-3">
+                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                        <p className="text-xs text-gray-500 mt-2">{notification.time}</p>
+                      </AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  )
+}
 
 // Enhanced interfaces for comprehensive data
 interface DashboardData {
