@@ -3,7 +3,6 @@
 import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { useTheme } from "next-themes"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
@@ -42,16 +41,13 @@ import {
   X,
   Search,
   Bell,
-  MessageSquare,
-  Sun,
-  Moon,
+  MessageCircle,
   User,
   Settings,
   LogOut,
   ChevronDown,
   ChevronRight,
   Calendar,
-  Clock,
   HelpCircle,
   Globe,
   Plus,
@@ -83,7 +79,6 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
   const isMobile = useMobile()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const { theme, setTheme } = useTheme()
   const [currentTime, setCurrentTime] = useState(new Date())
   const searchRef = useRef<HTMLDivElement>(null)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
@@ -771,56 +766,6 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
           </Tooltip>
         </TooltipProvider>
 
-        {/* Theme Toggle */}
-        {mounted && (
-          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "rounded-xl",
-                      "text-gray-500 hover:text-orange-600 dark:text-gray-400 dark:hover:text-orange-400",
-                      "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-                      "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
-                    )}
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  >
-                    <AnimatePresence mode="wait">
-                      {theme === "dark" ? (
-                        <motion.div
-                          key="sun"
-                          initial={{ opacity: 0, rotate: -90 }}
-                          animate={{ opacity: 1, rotate: 0 }}
-                          exit={{ opacity: 0, rotate: 90 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <Sun className="h-5 w-5" />
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="moon"
-                          initial={{ opacity: 0, rotate: 90 }}
-                          animate={{ opacity: 1, rotate: 0 }}
-                          exit={{ opacity: 0, rotate: -90 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <Moon className="h-5 w-5" />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{theme === "dark" ? "Light Mode" : "Dark Mode"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </motion.div>
-        )}
-
         {/* Help Button */}
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <TooltipProvider>
@@ -828,17 +773,16 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   className={cn(
-                    "rounded-xl",
-                    "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400",
-                    "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-                    "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
+                    "rounded-lg h-9 w-9",
+                    "text-gray-600 hover:text-blue-600",
+                    "hover:bg-blue-50",
+                    "transition-colors duration-200",
                   )}
                   onClick={() => router.push("/admin/help")}
                 >
-                  <HelpCircle className="h-5 w-5 sm:mr-1" />
-                  <span className="hidden md:inline">Help</span>
+                  <HelpCircle className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -859,18 +803,18 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "relative rounded-xl",
-                        "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400",
-                        "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-                        "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
+                        "relative rounded-lg h-9 w-9",
+                        "text-gray-600 hover:text-green-600",
+                        "hover:bg-green-50",
+                        "transition-colors duration-200",
                       )}
                       onClick={handleMessageClick}
                     >
-                      <MessageSquare className="h-5 w-5" />
+                      <MessageCircle className="h-5 w-5" />
                       <AnimatePresence>
                         {showMessageBadge && messages.some((msg) => !msg.read) && (
                           <motion.span
-                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-[10px] font-bold text-white shadow-lg shadow-blue-500/30"
+                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white shadow-md"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             exit={{ scale: 0 }}
@@ -892,21 +836,21 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
           <DropdownMenuContent
             align="end"
             className={cn(
-              "w-[280px] md:w-80 shadow-xl",
-              "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl",
-              "border border-gray-200/50 dark:border-gray-800/50",
+              "w-[280px] md:w-80 shadow-lg",
+              "bg-white",
+              "border border-gray-200",
             )}
           >
-            <DropdownMenuLabel className="text-gray-900 dark:text-gray-100 flex justify-between items-center">
+            <DropdownMenuLabel className="text-gray-900 flex justify-between items-center">
               <span>Messages</span>
               <Badge
                 variant="outline"
-                className="bg-blue-50/80 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 border-0"
+                className="bg-blue-50 text-blue-600 border-blue-200"
               >
                 {messages.filter((msg) => !msg.read).length} new
               </Badge>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-gray-100/50 dark:bg-gray-800/50" />
+            <DropdownMenuSeparator className="bg-gray-100" />
             <ScrollArea className="h-[300px]">
               <div className="p-2">
                 {messages.map((message, index) => (
@@ -916,7 +860,7 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, delay: index * 0.1 }}
                   >
-                    <DropdownMenuItem className="flex items-start gap-3 p-3 hover:bg-blue-50/80 dark:hover:bg-blue-900/20 cursor-pointer rounded-xl mx-1 backdrop-blur-sm">
+                    <DropdownMenuItem className="flex items-start gap-3 p-3 hover:bg-blue-50 cursor-pointer rounded-lg mx-1">
                       <Avatar className="h-9 w-9">
                         <AvatarImage src={message.avatar || "/placeholder.svg"} alt={message.sender} />
                         <AvatarFallback className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
@@ -969,10 +913,10 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                       variant="ghost"
                       size="icon"
                       className={cn(
-                        "relative rounded-xl",
-                        "text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400",
-                        "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-                        "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
+                        "relative rounded-lg h-9 w-9",
+                        "text-gray-600 hover:text-red-600",
+                        "hover:bg-red-50",
+                        "transition-colors duration-200",
                       )}
                       onClick={handleNotificationClick}
                     >
@@ -980,7 +924,7 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                       <AnimatePresence>
                         {showNotificationBadge && notifications.length > 0 && (
                           <motion.span
-                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-[10px] font-bold text-white shadow-lg shadow-red-500/30"
+                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             exit={{ scale: 0 }}
@@ -1002,24 +946,24 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
           <DropdownMenuContent
             align="end"
             className={cn(
-              "w-[280px] md:w-80 shadow-xl",
-              "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl",
-              "border border-gray-200/50 dark:border-gray-800/50",
+              "w-[280px] md:w-80 shadow-lg",
+              "bg-white",
+              "border border-gray-200",
             )}
           >
-            <DropdownMenuLabel className="text-gray-900 dark:text-gray-100 flex justify-between items-center">
+            <DropdownMenuLabel className="text-gray-900 flex justify-between items-center">
               <span>Notifications</span>
               <Badge
                 variant="outline"
-                className="bg-red-50/80 dark:bg-red-900/50 text-red-600 dark:text-red-300 border-0"
+                className="bg-red-50 text-red-600 border-red-200"
               >
                 {notifications.length} new
               </Badge>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-gray-100/50 dark:bg-gray-800/50" />
+            <DropdownMenuSeparator className="bg-gray-100" />
             <Tabs defaultValue="all" className="w-full">
               <div className="px-3 pt-2">
-                <TabsList className="w-full grid grid-cols-3 bg-gray-100/50 dark:bg-gray-800/50">
+                <TabsList className="w-full grid grid-cols-3 bg-gray-100">
                   <TabsTrigger value="all" className="text-xs rounded-lg">
                     All
                   </TabsTrigger>
@@ -1090,24 +1034,25 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                     <Button
                       variant="ghost"
                       className={cn(
-                        "flex items-center gap-1 px-1 sm:px-3 sm:gap-2 rounded-xl",
-                        "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400",
-                        "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-                        "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
+                        "flex items-center gap-2 px-2 sm:px-3 rounded-lg h-9",
+                        "text-gray-700 hover:text-gray-900",
+                        "hover:bg-gray-100",
+                        "transition-colors duration-200",
+                        "border border-gray-200 hover:border-gray-300",
                       )}
                     >
-                      <Avatar className="h-8 w-8 border-2 border-white/50 dark:border-gray-700/50 shadow-lg">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold">
-                          {(user?.name || "AU").substring(0, 2)}
+                      <Avatar className="h-7 w-7 border border-gray-300 shadow-sm">
+                        <AvatarFallback className="bg-blue-600 text-white text-xs font-semibold">
+                          {(user?.name || "AU").substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="hidden md:block text-left">
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <div className="text-sm font-medium text-gray-900">
                           {user?.name || "Admin User"}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-500">Store Admin</div>
+                        <div className="text-xs text-gray-500">Store Admin</div>
                       </div>
-                      <ChevronDown className="h-4 w-4 text-gray-400 hidden sm:block" />
+                      <ChevronDown className="h-4 w-4 text-gray-500 hidden sm:block ml-1" />
                     </Button>
                   </motion.div>
                 </DropdownMenuTrigger>
@@ -1120,80 +1065,80 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
           <DropdownMenuContent
             align="end"
             className={cn(
-              "shadow-xl w-56",
-              "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl",
-              "border border-gray-200/50 dark:border-gray-800/50",
+              "w-[280px] md:w-80 shadow-lg",
+              "bg-white",
+              "border border-gray-200",
             )}
           >
-            <div className="flex items-center justify-start p-3 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg mx-2 mb-2">
+            <div className="flex items-center justify-start p-3 bg-blue-50 rounded-lg mx-2 mb-2">
               <div className="flex flex-col space-y-1 leading-none">
-                <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{user?.name || "Admin User"}</p>
-                <p className="w-[200px] truncate text-xs text-gray-500 dark:text-gray-400">
+                <p className="font-semibold text-sm text-gray-900">{user?.name || "Admin User"}</p>
+                <p className="w-[200px] truncate text-xs text-gray-600">
                   {user?.email || "admin@example.com"}
                 </p>
               </div>
             </div>
-            <DropdownMenuSeparator className="bg-gray-100/50 dark:bg-gray-800/50" />
+            <DropdownMenuSeparator className="bg-gray-100" />
             <DropdownMenuGroup>
               <DropdownMenuItem
                 onClick={() => router.push("/admin/profile")}
-                className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1"
+                className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1"
               >
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => router.push("/admin/settings")}
-                className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1"
+                className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1"
               >
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1">
+                <DropdownMenuSubTrigger className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1">
                   <Sliders className="mr-2 h-4 w-4" />
                   <span>Preferences</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuPortal>
                   <DropdownMenuSubContent
                     className={cn(
-                      "shadow-xl",
-                      "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl",
-                      "border border-gray-200/50 dark:border-gray-800/50",
+                      "shadow-lg",
+                      "bg-white",
+                      "border border-gray-200",
                     )}
                   >
-                    <DropdownMenuItem className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1">
+                    <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1">
                       <span>Notifications</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1">
+                    <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1">
                       <span>Display</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1">
+                    <DropdownMenuItem className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1">
                       <span>Accessibility</span>
                     </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator className="bg-gray-100/50 dark:bg-gray-800/50" />
+            <DropdownMenuSeparator className="bg-gray-100" />
             <DropdownMenuItem
               onClick={() => router.push("/admin/activity")}
-              className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1"
+              className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1"
             >
-              <Clock className="mr-2 h-4 w-4" />
+              <CheckCircle className="mr-2 h-4 w-4" />
               <span>Activity Log</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => router.push("/admin/help")}
-              className="hover:bg-blue-50/80 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 cursor-pointer rounded-lg mx-1"
+              className="hover:bg-blue-50 hover:text-blue-700 cursor-pointer rounded-lg mx-1"
             >
               <HelpCircle className="mr-2 h-4 w-4" />
               <span>Help & Support</span>
             </DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-gray-100/50 dark:bg-gray-800/50" />
+            <DropdownMenuSeparator className="bg-gray-100" />
             <DropdownMenuItem
               onClick={handleLogout}
-              className="hover:bg-red-50/80 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 cursor-pointer rounded-lg mx-1"
+              className="hover:bg-red-50 hover:text-red-700 cursor-pointer rounded-lg mx-1"
             >
               <LogOut className="mr-2 h-4 w-4" />
               <span>Logout</span>
