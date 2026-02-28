@@ -26,9 +26,11 @@ export async function getAllInventory(limit = 10000, page = 1): Promise<Inventor
     
     const externalEndpoint = `${API_BASE_URL}${ADMIN_INVENTORY_BASE}/?${params.toString()}`
     
+    console.log("[v0] getAllInventory: Fetching from", externalEndpoint)
+    
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
 
       const response = await fetch(externalEndpoint, {
         signal: controller.signal,
@@ -46,6 +48,12 @@ export async function getAllInventory(limit = 10000, page = 1): Promise<Inventor
 
       if (response.ok) {
         const data = await response.json()
+        
+        console.log("[v0] getAllInventory: Response structure -", {
+          hasSuccess: !!data?.success,
+          hasInventory: !!data?.inventory,
+          inventoryLength: Array.isArray(data?.inventory) ? data.inventory.length : 0,
+        })
         
         // Parse the response according to the backend structure
         let items: EnhancedInventoryItem[] = []
@@ -69,6 +77,63 @@ export async function getAllInventory(limit = 10000, page = 1): Promise<Inventor
                   brand: item.product.brand,
                   sku: item.product.sku,
                 }
+              : undefined,
+          }))
+        }
+        
+        // Calculate stats server-side for instant display
+        const stats = calculateInventoryStats(items)
+        
+        console.log("[v0] getAllInventory: Successfully fetched", items.length, "items")
+        
+        return {
+          items,
+          stats,
+        }
+      } else {
+        console.warn("[v0] getAllInventory: API returned", response.status, response.statusText)
+        const body = await response.text().catch(() => "")
+        console.warn("[v0] getAllInventory: Response body:", body.substring(0, 200))
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        console.warn("[v0] getAllInventory: Request timeout after 5 seconds")
+      } else {
+        console.error("[v0] getAllInventory: API request failed:", err?.message || String(err))
+      }
+    }
+
+    // Fallback to empty response with zero stats
+    return {
+      items: [],
+      stats: {
+        total_items: 0,
+        in_stock: 0,
+        low_stock: 0,
+        out_of_stock: 0,
+        total_value: 0,
+        reserved_quantity: 0,
+        needs_reorder: 0,
+      },
+      error: "Failed to fetch inventory data",
+    }
+  } catch (error) {
+    console.error("[v0] getAllInventory: Critical error:", error)
+    return {
+      items: [],
+      stats: {
+        total_items: 0,
+        in_stock: 0,
+        low_stock: 0,
+        out_of_stock: 0,
+        total_value: 0,
+        reserved_quantity: 0,
+        needs_reorder: 0,
+      },
+      error: "Critical error fetching inventory",
+    }
+  }
+}
               : undefined,
           }))
         }
