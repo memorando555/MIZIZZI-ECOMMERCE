@@ -1639,9 +1639,9 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
               />
             )}
 
-            {/* Enhanced responsive pagination */}
+            {/* Enhanced responsive pagination - compact on mobile */}
             {filteredProducts.length > 0 && totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mt-3 sm:mt-8 pt-2 sm:pt-6 pb-2 sm:pb-0 border-t border-gray-100">
                 {/* Info text - hidden on mobile, visible on sm+ */}
                 <div className="hidden sm:block text-sm text-gray-600">
                   Showing <span className="font-semibold">{(currentPage - 1) * filterState.pageSize + 1}</span> to{" "}
@@ -1650,20 +1650,20 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                 </div>
 
                 {/* Mobile info - visible on mobile only */}
-                <div className="sm:hidden text-xs text-gray-600 text-center">
+                <div className="sm:hidden text-xs text-gray-600 text-center w-full">
                   Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
                 </div>
 
                 {/* Pagination controls */}
-                <div className="flex items-center justify-center sm:justify-end gap-2">
+                <div className="flex items-center justify-center sm:justify-end gap-1 sm:gap-2 w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => goToPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="rounded-full h-8 w-8 sm:h-10 sm:w-10 p-0"
+                    className="rounded-lg h-7 w-7 sm:h-10 sm:w-10 sm:rounded-full p-0 text-xs sm:text-sm flex-shrink-0"
                   >
-                    <ChevronLeft className="h-4 w-4" />
+                    <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
 
                   {/* Page numbers - hidden on mobile, visible on sm+ */}
@@ -1691,7 +1691,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                   </div>
 
                   {/* Current page indicator - visible on mobile only */}
-                  <div className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white text-xs font-semibold">
+                  <div className="sm:hidden flex items-center justify-center h-7 min-w-7 rounded-lg bg-primary text-white text-xs font-semibold flex-shrink-0">
                     {currentPage}
                   </div>
 
@@ -1700,8 +1700,13 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
                     size="sm"
                     onClick={() => goToPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="rounded-full h-8 w-8 sm:h-10 sm:w-10 p-0"
+                    className="rounded-lg h-7 w-7 sm:h-10 sm:w-10 sm:rounded-full p-0 text-xs sm:text-sm flex-shrink-0"
                   >
+                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
