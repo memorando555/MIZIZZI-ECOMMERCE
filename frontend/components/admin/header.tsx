@@ -370,9 +370,8 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
   return (
     <motion.header
       className={cn(
-        "sticky top-0 z-30 flex h-16 items-center gap-2 px-4 md:px-6 shadow-lg",
-        "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl",
-        "border-b border-gray-200/50 dark:border-gray-800/50",
+        "sticky top-0 z-30 flex h-14 md:h-16 items-center gap-1 sm:gap-2 px-2 sm:px-4 md:px-6 shadow-lg",
+        "bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800",
         "shadow-gray-900/5 dark:shadow-black/20",
       )}
       initial={{ y: -20, opacity: 0 }}
@@ -385,10 +384,9 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
             variant="ghost"
             size="icon"
             className={cn(
-              "md:hidden rounded-xl",
-              "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400",
-              "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-              "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
+              "md:hidden rounded-lg h-8 w-8 sm:h-9 sm:w-9",
+              "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100",
+              "hover:bg-gray-100 dark:hover:bg-gray-800",
             )}
             onClick={toggleSidebar}
           >
@@ -401,10 +399,9 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
             variant="ghost"
             size="icon"
             className={cn(
-              "hidden md:flex rounded-xl",
-              "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400",
-              "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-              "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
+              "hidden md:flex rounded-lg h-8 w-8 sm:h-9 sm:w-9",
+              "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100",
+              "hover:bg-gray-100 dark:hover:bg-gray-800",
             )}
             onClick={toggleSidebar}
           >
@@ -422,7 +419,7 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
       )}
 
       {/* Breadcrumbs - Hidden on mobile */}
-      <div className="hidden md:flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400 ml-2">
+      <div className="hidden lg:flex items-center space-x-1 text-xs md:text-sm text-gray-500 dark:text-gray-400 ml-2">
         {breadcrumbs.map((crumb, i) => (
           <motion.div
             key={i}
@@ -436,9 +433,9 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
               href={crumb.href}
               className={cn(
                 "hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-200 px-2 py-1 rounded-lg",
-                "hover:bg-white/40 dark:hover:bg-gray-800/40 backdrop-blur-sm",
+                "hover:bg-gray-100 dark:hover:bg-gray-800",
                 i === breadcrumbs.length - 1
-                  ? "font-medium text-gray-700 dark:text-gray-300 bg-white/30 dark:bg-gray-800/30"
+                  ? "font-medium text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50"
                   : "text-gray-500 dark:text-gray-400",
               )}
             >
@@ -457,10 +454,9 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    "md:hidden rounded-xl",
-                    "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400",
-                    "hover:bg-white/60 dark:hover:bg-gray-800/60 backdrop-blur-sm",
-                    "border border-transparent hover:border-white/20 dark:hover:border-gray-700/50",
+                    "md:hidden rounded-lg h-8 w-8 sm:h-9 sm:w-9",
+                    "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100",
+                    "hover:bg-gray-100 dark:hover:bg-gray-800",
                   )}
                 >
                   <Search className="h-5 w-5" />
@@ -471,8 +467,8 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
               side="top"
               className={cn(
                 "pt-12",
-                "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl",
-                "border-b border-gray-200/50 dark:border-gray-800/50",
+                "bg-white dark:bg-gray-900",
+                "border-b border-gray-200 dark:border-gray-800",
               )}
             >
               <form onSubmit={handleSearch} className="w-full">
@@ -482,10 +478,10 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                     type="search"
                     placeholder="Search products, orders, customers..."
                     className={cn(
-                      "w-full pl-10 rounded-xl",
-                      "bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm",
-                      "border-gray-200/50 dark:border-gray-700/50",
-                      "focus-visible:ring-blue-500/20 focus-visible:border-blue-500/50",
+                      "w-full pl-10 rounded-lg",
+                      "bg-white dark:bg-gray-800",
+                      "border border-gray-200 dark:border-gray-700",
+                      "focus-visible:ring-blue-500 focus-visible:border-blue-500",
                     )}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -500,7 +496,7 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
           ref={searchRef}
           className={cn(
             "hidden flex-1 sm:flex sm:max-w-md relative transition-all duration-300",
-            isSearchFocused ? "sm:max-w-xl" : "sm:max-w-md",
+            isSearchFocused ? "sm:max-w-lg" : "sm:max-w-md",
           )}
         >
           <form onSubmit={handleSearch} className="w-full">
@@ -510,11 +506,11 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
                 type="search"
                 placeholder="Search products, orders, customers..."
                 className={cn(
-                  "w-full pl-10 rounded-xl transition-all duration-300",
-                  "bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm",
-                  "border-gray-200/50 dark:border-gray-700/50",
-                  "focus-visible:ring-blue-500/20 focus-visible:border-blue-500/50",
-                  "focus-visible:bg-white/80 dark:focus-visible:bg-gray-800/80",
+                  "w-full pl-10 rounded-lg transition-all duration-300 text-sm",
+                  "bg-white dark:bg-gray-800",
+                  "border border-gray-200 dark:border-gray-700",
+                  "focus-visible:ring-blue-500 focus-visible:border-blue-500",
+                  "focus-visible:bg-white dark:focus-visible:bg-gray-800",
                 )}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -524,9 +520,9 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
               {isSearchResultsOpen && searchQuery.trim() && (
                 <motion.div
                   className={cn(
-                    "absolute top-full left-0 right-0 mt-2 rounded-xl shadow-xl z-50",
-                    "bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl",
-                    "border border-gray-200/50 dark:border-gray-800/50",
+                    "absolute top-full left-0 right-0 mt-2 rounded-lg shadow-lg z-50",
+                    "bg-white dark:bg-gray-900",
+                    "border border-gray-200 dark:border-gray-800",
                   )}
                   initial={{ opacity: 0, y: -10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -543,16 +539,17 @@ export function AdminHeader({ toggleSidebar, isSidebarCollapsed }: AdminHeaderPr
 
       {/* Date and Time - Hidden on mobile */}
       <motion.div
-        className="hidden md:flex items-center gap-2 text-gray-500 dark:text-gray-400 px-3 py-2 rounded-xl bg-white/30 dark:bg-gray-800/30 backdrop-blur-sm"
+        className="hidden lg:flex items-center gap-1 sm:gap-2 text-gray-600 dark:text-gray-400 px-2 sm:px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-xs sm:text-sm"
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.2, duration: 0.3 }}
       >
         <Calendar className="h-4 w-4" />
-        <span className="text-sm font-medium">{format(currentTime, "EEEE, MMMM d, yyyy")}</span>
+        <span className="font-medium hidden sm:inline">{format(currentTime, "EEEE, MMMM d, yyyy")}</span>
+        <span className="font-medium sm:hidden">{format(currentTime, "MMM d")}</span>
       </motion.div>
 
-      <div className="ml-auto flex items-center gap-1 sm:gap-2">
+      <div className="ml-auto flex items-center gap-0.5 sm:gap-1 md:gap-2">
         {/* System Status Indicator */}
         <TooltipProvider>
           <Tooltip>

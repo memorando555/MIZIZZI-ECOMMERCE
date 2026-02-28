@@ -1089,24 +1089,24 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   }, [filteredProducts, currentPage, filterState.pageSize])
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 md:p-6 space-y-6">
+    <div className="min-h-screen bg-white p-2 sm:p-3 md:p-6 space-y-3 sm:space-y-4 md:space-y-6 w-full overflow-x-hidden">
       {/* Header */}
-      <div className="bg-white rounded-lg md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white rounded-lg p-3 sm:p-4 md:p-6 shadow-sm border border-gray-100">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl md:text-4xl font-bold text-gray-900">Products</h1>
-            <p className="text-gray-600 text-sm md:text-lg mt-1">Manage your product catalog</p>
+            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold text-gray-900">Products</h1>
+            <p className="text-gray-600 text-xs sm:text-sm md:text-base mt-1">Manage your product catalog</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
             {!isMobile && (
               <>
-                <Button variant="outline" size="sm" className="rounded-lg text-xs md:text-sm">
-                  <Download className="mr-1 h-4 w-4" />
-                  <span className="hidden sm:inline">Export</span>
+                <Button variant="outline" size="sm" className="rounded-lg text-xs h-8 sm:h-9">
+                  <Download className="mr-1 h-3 md:h-4 w-3 md:w-4" />
+                  <span className="hidden sm:inline text-xs md:text-sm">Export</span>
                 </Button>
-                <Button variant="outline" size="sm" className="rounded-lg text-xs md:text-sm">
-                  <Upload className="mr-1 h-4 w-4" />
-                  <span className="hidden sm:inline">Import</span>
+                <Button variant="outline" size="sm" className="rounded-lg text-xs h-8 sm:h-9">
+                  <Upload className="mr-1 h-3 md:h-4 w-3 md:w-4" />
+                  <span className="hidden sm:inline text-xs md:text-sm">Import</span>
                 </Button>
               </>
             )}
@@ -1115,15 +1115,15 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
               size="sm"
               onClick={handleRefresh}
               disabled={uiState.isLoading}
-              className="rounded-lg text-xs md:text-sm"
+              className="rounded-lg text-xs h-8 sm:h-9"
             >
-              {uiState.isLoading ? <MiniSpinner /> : <RefreshCw className="h-4 w-4" />}
-              <span className="ml-1 hidden sm:inline">Refresh</span>
+              {uiState.isLoading ? <MiniSpinner /> : <RefreshCw className="h-3 md:h-4 w-3 md:w-4" />}
+              <span className="ml-1 hidden sm:inline text-xs md:text-sm">Refresh</span>
             </Button>
             <Button
               onClick={() => router.push("/admin/products/new")}
               size="sm"
-              className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-xs md:text-sm"
+              className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white text-xs h-8 sm:h-9"
             >
               <Plus className="h-4 w-4" />
               <span className="ml-1 hidden sm:inline">Add Product</span>

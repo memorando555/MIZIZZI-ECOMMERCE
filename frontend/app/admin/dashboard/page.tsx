@@ -521,7 +521,7 @@ export default function AdminDashboard() {
   console.log("[v0] isLoadingData:", isLoadingData, "isRefreshing:", isRefreshing)
 
   return (
-    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
+    <div className="flex-1 space-y-3 sm:space-y-4 md:space-y-6 p-2 sm:p-4 md:p-8 w-full overflow-x-hidden">
       <DashboardHeader
         onRefresh={fetchDashboardData}
         isRefreshing={isRefreshing}
