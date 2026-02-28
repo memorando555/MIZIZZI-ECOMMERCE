@@ -60,6 +60,7 @@ import {
 
 // Services
 import { inventoryService, type EnhancedInventoryItem } from "@/services/inventory-service"
+import type { InventoryStats } from "@/lib/server/calculate-inventory-stats"
 
 // Types
 interface InventoryFilters {
@@ -79,21 +80,12 @@ interface StockAdjustment {
   reason: string
 }
 
-interface InventoryStats {
-  total_items: number
-  in_stock: number
-  low_stock: number
-  out_of_stock: number
-  total_value: number
-  reserved_quantity: number
-  needs_reorder: number
-}
-
 interface AdminInventoryClientProps {
   initialInventory: EnhancedInventoryItem[]
+  initialStats: InventoryStats
 }
 
-export default function AdminInventoryClient({ initialInventory }: AdminInventoryClientProps) {
+export default function AdminInventoryClient({ initialInventory, initialStats }: AdminInventoryClientProps) {
   // State
   const [inventory, setInventory] = useState<EnhancedInventoryItem[]>(initialInventory)
   const [loading, setLoading] = useState(false)
@@ -113,15 +105,7 @@ export default function AdminInventoryClient({ initialInventory }: AdminInventor
     sort_by: "product_name",
     sort_dir: "asc",
   })
-  const [stats, setStats] = useState<InventoryStats>({
-    total_items: 0,
-    in_stock: 0,
-    low_stock: 0,
-    out_of_stock: 0,
-    total_value: 0,
-    reserved_quantity: 0,
-    needs_reorder: 0,
-  })
+  const [stats, setStats] = useState<InventoryStats>(initialStats)
   const [selectedItems, setSelectedItems] = useState<number[]>([])
   const [activeTab, setActiveTab] = useState("all")
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false)
@@ -140,12 +124,6 @@ export default function AdminInventoryClient({ initialInventory }: AdminInventor
     message: string
   }>({ type: null, message: "" })
   const [refreshing, setRefreshing] = useState(false)
-
-  // Initialize stats from initial inventory on mount
-  useEffect(() => {
-    const calculatedStats = calculateStatsFromItems(initialInventory)
-    setStats(calculatedStats)
-  }, [])
 
   // Fetch inventory data
   const fetchInventory = async (page = 1, newFilters = filters) => {
