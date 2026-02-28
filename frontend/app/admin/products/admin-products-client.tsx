@@ -247,16 +247,16 @@ const StatsCard = ({
   icon: any
   colorClass?: string
 }) => (
-  <div className={`${colorClass} rounded-2xl p-5 sm:p-6 lg:p-7 shadow-lg hover:shadow-xl transition-all duration-200 text-white`}>
-    <div className="flex items-start justify-between mb-4">
-      <div className="p-2.5 bg-white/20 rounded-xl">
-        <Icon className="h-5 w-5 text-white" strokeWidth={1.5} />
+  <div className={`${colorClass} rounded-lg p-4 shadow-md hover:shadow-lg transition-all duration-200 text-white`}>
+    <div className="flex items-start justify-between mb-3">
+      <div className="p-2 bg-white/20 rounded-lg">
+        <Icon className="h-4 w-4 text-white" strokeWidth={1.5} />
       </div>
     </div>
-    <div className="space-y-2">
-      <p className="text-xs sm:text-sm font-medium text-white/80 uppercase tracking-wider">{title}</p>
-      <p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white tracking-tight">{value}</p>
-      <p className="text-xs sm:text-sm text-white/70 mt-1">{subtitle}</p>
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-white/85 uppercase tracking-wide">{title}</p>
+      <p className="text-lg sm:text-xl font-bold text-white tracking-tight">{value}</p>
+      <p className="text-xs text-white/70">{subtitle}</p>
     </div>
   </div>
 )
@@ -1117,7 +1117,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       </div>
 
       {/* Stats Grid - Responsive with vibrant colors */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <StatsCard
           title="Total Products"
           value={productStats?.totalProducts || 0}
@@ -1148,7 +1148,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         <StatsCard
           title="New Products"
           value={productStats?.newProducts || 0}
