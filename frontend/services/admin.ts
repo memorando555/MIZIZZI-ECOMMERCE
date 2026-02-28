@@ -977,6 +977,395 @@ export const adminService = {
   },
 
   // ========================================================================
+  // ADDITIONAL STATISTICS & REPORTS METHODS
+  // ========================================================================
+
+  async getRevenueTrends(period: string = "monthly"): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/revenue-trends", { params: { period } })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching revenue trends:", error)
+      return { trends: [], total: 0, average: 0 }
+    }
+  },
+
+  async getPaymentMethods(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/payment-methods")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching payment methods:", error)
+      return { methods: [], total_transactions: 0 }
+    }
+  },
+
+  async getTrafficSources(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/traffic-sources")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching traffic sources:", error)
+      return { sources: [], total_visits: 0 }
+    }
+  },
+
+  async getConversionMetrics(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/conversion")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching conversion metrics:", error)
+      return { conversion_rate: 0, abandonment_rate: 0, average_session_duration: 0 }
+    }
+  },
+
+  async getRefundStats(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/refunds")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching refund stats:", error)
+      return { total_refunds: 0, refund_rate: 0, pending_refunds: 0 }
+    }
+  },
+
+  async getShippingStats(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/shipping")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching shipping stats:", error)
+      return { total_shipments: 0, in_transit: 0, delivered: 0, delayed: 0 }
+    }
+  },
+
+  async getTopProducts(limit: number = 10): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/top-products", { params: { limit } })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching top products:", error)
+      return { products: [] }
+    }
+  },
+
+  async getProductPerformance(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/product-performance")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching product performance:", error)
+      return { categories: [], performance: [] }
+    }
+  },
+
+  async getCustomerMetrics(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/customers")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching customer metrics:", error)
+      return { 
+        total_customers: 0, 
+        new_today: 0, 
+        repeat_rate: 0, 
+        churn_rate: 0,
+        lifetime_value: 0,
+        satisfaction_score: 0
+      }
+    }
+  },
+
+  async getReviewStats(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/reviews")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching review stats:", error)
+      return { total_reviews: 0, average_rating: 0, pending_reviews: 0, recent_reviews: [] }
+    }
+  },
+
+  async getInventoryStats(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/inventory")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching inventory stats:", error)
+      return { total_products: 0, low_stock: 0, out_of_stock: 0, total_value: 0 }
+    }
+  },
+
+  async getMarketingStats(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/marketing")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching marketing stats:", error)
+      return { 
+        newsletter_subscribers: 0,
+        email_campaigns: 0,
+        campaign_open_rate: 0,
+        campaign_click_rate: 0,
+        social_followers: 0
+      }
+    }
+  },
+
+  async getCouponStats(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/stats/coupons")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching coupon stats:", error)
+      return { active_coupons: 0, total_used: 0, total_discounts: 0, conversion_lift: 0 }
+    }
+  },
+
+  // ========================================================================
+  // ADVANCED ANALYTICS & REPORTS
+  // ========================================================================
+
+  async getDetailedAnalytics(params?: {
+    period?: string
+    metric_type?: string
+    group_by?: string
+  }): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/analytics/detailed", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching detailed analytics:", error)
+      return {}
+    }
+  },
+
+  async getSalesForecasting(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/analytics/forecasting")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching sales forecasting:", error)
+      return { forecast: [], confidence: 0 }
+    }
+  },
+
+  async getCompetitiveAnalysis(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/analytics/competitive")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching competitive analysis:", error)
+      return { competitors: [], market_share: 0 }
+    }
+  },
+
+  // ========================================================================
+  // SUPPORT & TICKETING
+  // ========================================================================
+
+  async getTickets(params = {}): Promise<AdminPaginatedResponse<any>> {
+    try {
+      const response = await api.get("/api/admin/support/tickets", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching tickets:", error)
+      throw error
+    }
+  },
+
+  async getTicket(id: string): Promise<any> {
+    try {
+      const response = await api.get(`/api/admin/support/tickets/${id}`)
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching ticket:", error)
+      throw error
+    }
+  },
+
+  async updateTicketStatus(id: string, status: string, note?: string): Promise<any> {
+    try {
+      const response = await api.put(`/api/admin/support/tickets/${id}/status`, { status, note })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error updating ticket status:", error)
+      throw error
+    }
+  },
+
+  // ========================================================================
+  // PROMOTIONS & DISCOUNTS
+  // ========================================================================
+
+  async getCoupons(params = {}): Promise<AdminPaginatedResponse<any>> {
+    try {
+      const response = await api.get("/api/admin/coupons", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching coupons:", error)
+      throw error
+    }
+  },
+
+  async createCoupon(data: any): Promise<any> {
+    try {
+      const response = await api.post("/api/admin/coupons", data)
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error creating coupon:", error)
+      throw error
+    }
+  },
+
+  async updateCoupon(id: string, data: any): Promise<any> {
+    try {
+      const response = await api.put(`/api/admin/coupons/${id}`, data)
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error updating coupon:", error)
+      throw error
+    }
+  },
+
+  async deleteCoupon(id: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.delete(`/api/admin/coupons/${id}`)
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error deleting coupon:", error)
+      throw error
+    }
+  },
+
+  async getPromotions(params = {}): Promise<AdminPaginatedResponse<any>> {
+    try {
+      const response = await api.get("/api/admin/promotions", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching promotions:", error)
+      throw error
+    }
+  },
+
+  async createPromotion(data: any): Promise<any> {
+    try {
+      const response = await api.post("/api/admin/promotions", data)
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error creating promotion:", error)
+      throw error
+    }
+  },
+
+  // ========================================================================
+  // SHIPPING & LOGISTICS
+  // ========================================================================
+
+  async getShippingProviders(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/shipping/providers")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching shipping providers:", error)
+      return { providers: [] }
+    }
+  },
+
+  async getShipments(params = {}): Promise<AdminPaginatedResponse<any>> {
+    try {
+      const response = await api.get("/api/admin/shipping/shipments", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching shipments:", error)
+      throw error
+    }
+  },
+
+  // ========================================================================
+  // EMAIL & COMMUNICATION
+  // ========================================================================
+
+  async getEmailTemplates(params = {}): Promise<AdminPaginatedResponse<any>> {
+    try {
+      const response = await api.get("/api/admin/email-templates", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching email templates:", error)
+      throw error
+    }
+  },
+
+  async createEmailTemplate(data: any): Promise<any> {
+    try {
+      const response = await api.post("/api/admin/email-templates", data)
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error creating email template:", error)
+      throw error
+    }
+  },
+
+  async sendEmail(data: { to: string[]; subject: string; template?: string; body?: string }): Promise<any> {
+    try {
+      const response = await api.post("/api/admin/email/send", data)
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error sending email:", error)
+      throw error
+    }
+  },
+
+  // ========================================================================
+  // AUDIT LOG & ACTIVITY
+  // ========================================================================
+
+  async getAuditLog(params = {}): Promise<AdminPaginatedResponse<any>> {
+    try {
+      const response = await api.get("/api/admin/audit-log", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching audit log:", error)
+      throw error
+    }
+  },
+
+  // ========================================================================
+  // SYSTEM & MAINTENANCE
+  // ========================================================================
+
+  async runDatabaseMaintenance(): Promise<any> {
+    try {
+      const response = await api.post("/api/admin/system/maintenance", {})
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error running maintenance:", error)
+      throw error
+    }
+  },
+
+  async getCacheStats(): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/system/cache-stats")
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching cache stats:", error)
+      return { cache_size: 0, hit_rate: 0 }
+    }
+  },
+
+  async clearCache(): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.post("/api/admin/system/clear-cache", {})
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error clearing cache:", error)
+      throw error
+    }
+  },
+
+  // ========================================================================
   // CACHE MANAGEMENT
   // ========================================================================
 
