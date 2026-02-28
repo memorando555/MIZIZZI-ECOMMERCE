@@ -2332,7 +2332,33 @@ export const adminService = {
       active_users: [],
       sales_data: [],
     }
-  },
+  }
+
+  getDefaultPerformanceMetrics() {
+    return {
+      cpu_usage: 45,
+      memory_usage: 62,
+      disk_usage: 38,
+      network_traffic: 125,
+      api_response_time: 245,
+      error_rate: 0.5,
+      uptime: 99.9,
+      request_count: 50000,
+    }
+  }
+
+  getDefaultSystemStatus() {
+    return {
+      status: "healthy",
+      last_backup: new Date(Date.now() - 3600000).toISOString(),
+      database_status: "operational",
+      cache_status: "operational",
+      api_status: "operational",
+      services_up: 12,
+      services_total: 12,
+      alerts: 0,
+    }
+  }
 
   async getUsers(params = {}): Promise<AdminPaginatedResponse<any>> {
     try {
