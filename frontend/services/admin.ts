@@ -807,10 +807,10 @@ export const adminService = {
       brand:
         typeof apiProduct.brand === "string"
           ? {
-              id: 0, // Or some default ID
-              name: apiProduct.brand,
-              slug: "", // Or generate a slug
-            }
+            id: 0, // Or some default ID
+            name: apiProduct.brand,
+            slug: "", // Or generate a slug
+          }
           : apiProduct.brand || null,
     }
     return product
@@ -862,7 +862,7 @@ export const adminService = {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           console.error("[v0] API error response:", errorData)
-          
+
           // Handle 401 specifically
           if (response.status === 401) {
             // Try to refresh token
@@ -889,7 +889,7 @@ export const adminService = {
             }
             throw new Error("Authentication failed. Your session has expired. Please log in again.")
           }
-          
+
           throw new Error(errorData.message || `Failed to update product. Status: ${response.status}`)
         }
 
@@ -973,7 +973,7 @@ export const adminService = {
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
           console.error("[v0] API error response:", errorData)
-          
+
           // Handle 401 specifically
           if (response.status === 401) {
             console.log("[v0] Got 401, attempting to refresh token")
@@ -999,7 +999,7 @@ export const adminService = {
             }
             throw new Error("Authentication failed. Your session has expired. Please log in again.")
           }
-          
+
           throw new Error(errorData.message || `Failed to delete product. Status: ${response.status}`)
         }
 
@@ -1569,7 +1569,7 @@ export const adminService = {
   },
 
   // Helper function to handle 401 responses with automatic token refresh
-  private async handleAuthError(error: any, retryFn: () => Promise<any>, retryCount = 1): Promise<any> {
+  async handleAuthError(error: any, retryFn: () => Promise<any>, retryCount = 1): Promise<any> {
     if (retryCount > 2) {
       throw error // Don't retry more than twice
     }
