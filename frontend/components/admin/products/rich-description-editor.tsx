@@ -81,7 +81,7 @@ export function RichDescriptionEditor({ value, onChange, productName = "Product"
 
   // Convert blocks to HTML
   const blocksToHTML = (blocks: DescriptionBlock[]): string => {
-    return blocks
+    const html = blocks
       .map((block) => {
         if (block.type === "text") {
           return `<p>${block.content.replace(/\n/g, "<br>")}</p>`
@@ -91,6 +91,12 @@ export function RichDescriptionEditor({ value, onChange, productName = "Product"
         }
       })
       .join("\n")
+    
+    console.log("[v0] Generated HTML for product description:", html)
+    console.log("[v0] HTML length:", html.length)
+    console.log("[v0] Number of blocks:", blocks.length)
+    console.log("[v0] Blocks:", blocks)
+    return html
   }
 
   // Update parent component whenever blocks change

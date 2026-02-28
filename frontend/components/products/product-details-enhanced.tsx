@@ -1540,17 +1540,20 @@ export default function ProductDetailsEnhanced({
           `}</style>
                     <div className="prose prose-lg max-w-none w-full overflow-hidden">
                       {product?.description ? (
-                        <div
-                          className="product-description-content text-gray-700 space-y-6 w-full
-                            [&>p]:leading-relaxed [&>p]:text-[15px] [&>p]:text-gray-600 [&>p]:mb-4
-                            [&>h2]:text-xl [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-8 [&>h2]:mb-4
-                            [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:text-gray-800 [&>h3]:mt-6 [&>h3]:mb-3
-                            [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&>ul>li]:text-gray-600
-                            [&>ol]:list-decimal [&>ol]:pl-6 [&>ol]:space-y-2 [&>ol>li]:text-gray-600"
-                          dangerouslySetInnerHTML={{
-                            __html: product.description,
-                          }}
-                        />
+                        <>
+                          {console.log("[v0] Product description:", product.description)}
+                          <div
+                            className="product-description-content text-gray-700 space-y-6 w-full
+                              [&>p]:leading-relaxed [&>p]:text-[15px] [&>p]:text-gray-600 [&>p]:mb-4
+                              [&>h2]:text-xl [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-8 [&>h2]:mb-4
+                              [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:text-gray-800 [&>h3]:mt-6 [&>h3]:mb-3
+                              [&>ul]:list-disc [&>ul]:pl-6 [&>ul]:space-y-2 [&>ul>li]:text-gray-600
+                              [&>ol]:list-decimal [&>ol]:pl-6 [&>ol]:space-y-2 [&>ol>li]:text-gray-600"
+                            dangerouslySetInnerHTML={{
+                              __html: product.description,
+                            }}
+                          />
+                        </>
                       ) : (
                         <div className="text-center py-12">
                           <Info className="h-12 w-12 text-gray-300 mx-auto mb-3" />
