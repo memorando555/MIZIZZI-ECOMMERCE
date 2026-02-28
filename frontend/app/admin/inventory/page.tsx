@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import { OptimizedImage } from "@/components/ui/optimized-image"
+import { motion } from "framer-motion" // Import motion for animations
 
 // Icons
 import {
@@ -691,8 +692,8 @@ export default function InventoryPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <div className="container mx-auto p-6 space-y-8">
         {/* Enhanced Header */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-2">
@@ -1037,103 +1038,193 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-          {/* Total Items Card */}
-          <div className="glass-stat-card p-6 text-gray-900">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Total Items</p>
-                <p className="text-3xl font-bold mt-2 text-gray-900">{stats?.total_items ?? 0}</p>
-                <p className="text-gray-500 text-xs mt-1">Items tracked</p>
+                <p className="text-blue-100 text-sm font-medium">Total Items</p>
+                <motion.p
+                  className="text-3xl font-bold mt-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  {stats?.total_items ?? 0}
+                </motion.p>
+                <p className="text-blue-200 text-xs mt-1">Items tracked</p>
               </div>
-              <div className="bg-blue-100/50 p-3 rounded-lg backdrop-blur">
-                <Package className="h-6 w-6 text-blue-600" />
+              <div className="bg-blue-400/30 p-3 rounded-lg">
+                <Package className="h-6 w-6" />
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* In Stock Card */}
-          <div className="glass-stat-card p-6 text-gray-900">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">In Stock</p>
-                <p className="text-3xl font-bold mt-2 text-gray-900">{stats?.in_stock ?? 0}</p>
-                <p className="text-gray-500 text-xs mt-1">Items available</p>
+                <p className="text-green-100 text-sm font-medium">In Stock</p>
+                <motion.p
+                  className="text-3xl font-bold mt-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  {stats?.in_stock ?? 0}
+                </motion.p>
+                <p className="text-green-200 text-xs mt-1">Items available</p>
               </div>
-              <div className="bg-green-100/50 p-3 rounded-lg backdrop-blur">
-                <CheckCircle className="h-6 w-6 text-green-600" />
+              <div className="bg-green-400/30 p-3 rounded-lg">
+                <CheckCircle className="h-6 w-6" />
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Low Stock Card */}
-          <div className="glass-stat-card p-6 text-gray-900">
-            <div className="flex items-center justify-between">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Low Stock</p>
-                <p className="text-3xl font-bold mt-2 text-gray-900">{stats?.low_stock ?? 0}</p>
-                <p className="text-gray-500 text-xs mt-1">Need restocking</p>
+                <p className="text-orange-100 text-sm font-medium">Low Stock</p>
+                <motion.p
+                  className="text-3xl font-bold mt-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                >
+                  {stats?.low_stock ?? 0}
+                </motion.p>
+                <p className="text-orange-200 text-xs mt-1">Need restocking</p>
               </div>
-              <div className="bg-orange-100/50 p-3 rounded-lg backdrop-blur">
-                <AlertTriangle className="h-6 w-6 text-orange-600" />
+              <div className="bg-orange-400/30 p-3 rounded-lg">
+                <motion.div
+                  animate={{
+                    rotate: [0, -10, 10, -10, 0],
+                    scale: [1, 1.1, 1],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Number.POSITIVE_INFINITY,
+                    repeatDelay: 3,
+                  }}
+                >
+                  <AlertTriangle className="h-6 w-6" />
+                </motion.div>
               </div>
             </div>
-          </div>
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-red-400/20"
+              animate={{
+                opacity: [0.3, 0.6, 0.3],
+                scale: [1, 1.02, 1],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
+              }}
+            />
+          </motion.div>
 
-          {/* Out of Stock Card */}
-          <div className="glass-stat-card p-6 text-gray-900">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Out of Stock</p>
-                <p className="text-3xl font-bold mt-2 text-gray-900">{stats?.out_of_stock ?? 0}</p>
-                <p className="text-gray-500 text-xs mt-1">Unavailable</p>
+                <p className="text-red-100 text-sm font-medium">Out of Stock</p>
+                <motion.p
+                  className="text-3xl font-bold mt-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                >
+                  {stats?.out_of_stock ?? 0}
+                </motion.p>
+                <p className="text-red-200 text-xs mt-1">Unavailable</p>
               </div>
-              <div className="bg-red-100/50 p-3 rounded-lg backdrop-blur">
-                <XCircle className="h-6 w-6 text-red-600" />
+              <div className="bg-red-400/30 p-3 rounded-lg">
+                <XCircle className="h-6 w-6" />
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Reserved Card */}
-          <div className="glass-stat-card p-6 text-gray-900">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Reserved</p>
-                <p className="text-3xl font-bold mt-2 text-gray-900">{stats?.reserved_quantity ?? 0}</p>
-                <p className="text-gray-500 text-xs mt-1">Items reserved</p>
+                <p className="text-indigo-100 text-sm font-medium">Reserved</p>
+                <motion.p
+                  className="text-3xl font-bold mt-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.7 }}
+                >
+                  {stats?.reserved_quantity ?? 0}
+                </motion.p>
+                <p className="text-indigo-200 text-xs mt-1">Items reserved</p>
               </div>
-              <div className="bg-indigo-100/50 p-3 rounded-lg backdrop-blur">
-                <Clock className="h-6 w-6 text-indigo-600" />
+              <div className="bg-indigo-400/30 p-3 rounded-lg">
+                <Clock className="h-6 w-6" />
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Total Value Card */}
-          <div className="glass-stat-card p-6 text-gray-900">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+          >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm font-medium">Total Value</p>
-                <p className="text-2xl font-bold mt-2 text-gray-900">KSh {(stats?.total_value ?? 0).toLocaleString()}</p>
-                <p className="text-gray-500 text-xs mt-1">Inventory value</p>
+                <p className="text-purple-100 text-sm font-medium">Total Value</p>
+                <motion.p
+                  className="text-2xl font-bold mt-1"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5, delay: 0.8 }}
+                >
+                  KSh {(stats?.total_value ?? 0).toLocaleString()}
+                </motion.p>
+                <p className="text-purple-200 text-xs mt-1">Inventory value</p>
               </div>
-              <div className="bg-purple-100/50 p-3 rounded-lg backdrop-blur">
-                <DollarSign className="h-6 w-6 text-purple-600" />
+              <div className="bg-purple-400/30 p-3 rounded-lg">
+                <DollarSign className="h-6 w-6" />
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* Enhanced Filters and Controls */}
-        <div className="glass-filter-section p-0 mb-8 rounded-2xl overflow-hidden">
-          <div className="bg-gradient-to-r from-white/40 to-white/30 backdrop-blur p-4 md:p-6 border-b border-white/20">
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 rounded-t-lg">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100/60 rounded-lg backdrop-blur">
-                  <Filter className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <Filter className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Filters & Controls</h3>
-                  <p className="text-sm text-gray-600">Search, filter, and manage your inventory</p>
+                  <CardTitle className="text-xl">Filters & Controls</CardTitle>
+                  <CardDescription>Search, filter, and manage your inventory</CardDescription>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
@@ -1329,51 +1420,50 @@ export default function InventoryPage() {
                 </Select>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Enhanced Inventory Tabs */}
-        <div className="glass-filter-section p-4 md:p-6 rounded-2xl mb-8 overflow-hidden">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => handleTabChange("all")}
-              className={`glass-tab-pill px-4 py-2 ${activeTab === "all" ? "active" : ""}`}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 h-12 bg-white dark:bg-slate-800 border-2">
+            <TabsTrigger
+              value="all"
+              className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white"
             >
-              <Package className="h-4 w-4 inline mr-1" />
+              <Package className="h-4 w-4" />
               All Items ({stats?.total_items ?? 0})
-            </button>
-            <button
-              onClick={() => handleTabChange("in_stock")}
-              className={`glass-tab-pill px-4 py-2 ${activeTab === "in_stock" ? "active" : ""}`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="in_stock"
+              className="flex items-center gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white"
             >
-              <CheckCircle className="h-4 w-4 inline mr-1" />
+              <CheckCircle className="h-4 w-4" />
               In Stock ({stats?.in_stock ?? 0})
-            </button>
-            <button
-              onClick={() => handleTabChange("low_stock")}
-              className={`glass-tab-pill px-4 py-2 ${activeTab === "low_stock" ? "active" : ""}`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="low_stock"
+              className="flex items-center gap-2 data-[state=active]:bg-yellow-500 data-[state=active]:text-white"
             >
-              <AlertTriangle className="h-4 w-4 inline mr-1" />
+              <AlertTriangle className="h-4 w-4" />
               Low Stock ({stats?.low_stock ?? 0})
-            </button>
-            <button
-              onClick={() => handleTabChange("out_of_stock")}
-              className={`glass-tab-pill px-4 py-2 ${activeTab === "out_of_stock" ? "active" : ""}`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="out_of_stock"
+              className="flex items-center gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white"
             >
-              <XCircle className="h-4 w-4 inline mr-1" />
+              <XCircle className="h-4 w-4" />
               Out of Stock ({stats?.out_of_stock ?? 0})
-            </button>
-            <button
-              onClick={() => handleTabChange("needs_reorder")}
-              className={`glass-tab-pill px-4 py-2 ${activeTab === "needs_reorder" ? "active" : ""}`}
+            </TabsTrigger>
+            <TabsTrigger
+              value="needs_reorder"
+              className="flex items-center gap-2 data-[state=active]:bg-purple-500 data-[state=active]:text-white"
             >
-              <AlertCircle className="h-4 w-4 inline mr-1" />
+              <AlertCircle className="h-4 w-4" />
               Needs Reorder ({stats?.needs_reorder ?? 0})
-            </button>
-          </div>
-        </div>
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="space-y-6">
+          <TabsContent value={activeTab} className="space-y-6">
             {/* Error State */}
             {error && (
               <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-950">
@@ -1402,16 +1492,16 @@ export default function InventoryPage() {
               </Card>
             ) : (
               /* Enhanced Inventory Content */
-              <div className="glass-table-container overflow-hidden rounded-2xl">
-                <div className="bg-gradient-to-r from-white/40 to-white/30 backdrop-blur p-4 md:p-6 border-b border-white/20">
+              <Card className="border-0 shadow-lg overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 border-b">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100/60 rounded-lg backdrop-blur">
-                        <BarChart3 className="h-5 w-5 text-blue-600" />
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                        <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       </div>
                       <div>
-                        <h3 className="text-xl font-semibold text-gray-900">Inventory Items</h3>
-                        <p className="text-sm text-gray-600">{inventory.length} items found</p>
+                        <CardTitle className="text-xl">Inventory Items</CardTitle>
+                        <CardDescription>{inventory.length} items found</CardDescription>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1423,14 +1513,14 @@ export default function InventoryPage() {
                       <Label className="text-sm font-medium">Select All</Label>
                     </div>
                   </div>
-                </div>
-                <div className="p-0">
+                </CardHeader>
+                <CardContent className="p-0">
                   {viewMode === "table" ? (
                     /* Enhanced Table View */
                     <div className="overflow-x-auto">
                       <div className="min-w-full">
-                        {/* Table Header - Hidden on mobile */}
-                        <div className="hidden md:grid grid-cols-12 gap-4 p-4 md:p-6 bg-white/20 backdrop-blur border-b border-white/20 font-medium text-sm text-gray-700">
+                        {/* Table Header */}
+                        <div className="grid grid-cols-12 gap-4 p-6 bg-slate-50 dark:bg-slate-800 border-b font-medium text-sm text-slate-600 dark:text-slate-300">
                           <div className="col-span-1">Select</div>
                           <div className="col-span-3">Product</div>
                           <div className="col-span-1">Stock</div>
@@ -1442,24 +1532,23 @@ export default function InventoryPage() {
                         </div>
 
                         {/* Table Body */}
-                        <div className="divide-y divide-white/20">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-700">
                           {inventory.map((item, index) => (
                             <div
                               key={item.id}
                               className={cn(
-                                "grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-4 p-4 md:p-6 hover:bg-white/10 backdrop-blur transition-colors",
-                                "bg-white/20 hover:bg-white/30 border-b border-white/10",
+                                "grid grid-cols-12 gap-4 p-6 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors",
+                                index % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-25 dark:bg-slate-850",
                               )}
                             >
-                              {/* Mobile: Stack layout, Desktop: Original grid */}
-                              <div className="md:col-span-1 flex items-center gap-3">
+                              <div className="col-span-1 flex items-center">
                                 <Checkbox
                                   checked={selectedItems.includes(item.id)}
                                   onCheckedChange={(checked) => handleItemSelection(item.id, checked as boolean)}
                                   className="border-2"
                                 />
                               </div>
-                              <div className="md:col-span-3 flex items-center space-x-3 md:space-x-4">
+                              <div className="col-span-3 flex items-center space-x-4">
                                 <div className="relative">
                                   {item.product?.thumbnail_url ? (
                                     <OptimizedImage
@@ -1780,8 +1869,8 @@ export default function InventoryPage() {
 
                   {/* Pagination */}
                   {pagination.total_pages > 1 && (
-                    <div className="flex flex-col md:flex-row items-center justify-between px-4 md:px-6 py-4 border-t border-white/20 bg-white/10 backdrop-blur gap-4">
-                      <div className="text-sm text-gray-700">
+                    <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50 dark:bg-slate-800">
+                      <div className="text-sm text-slate-600 dark:text-slate-400">
                         Showing {(pagination.page - 1) * pagination.per_page + 1} to{" "}
                         {Math.min(pagination.page * pagination.per_page, pagination.total_items)} of{" "}
                         {pagination.total_items} items
@@ -1826,10 +1915,12 @@ export default function InventoryPage() {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
-          
+          </TabsContent>
+        </Tabs>
+
         {/* History Dialog */}
         <Dialog open={isHistoryDialogOpen} onOpenChange={setIsHistoryDialogOpen}>
           <DialogContent className="max-w-2xl">
