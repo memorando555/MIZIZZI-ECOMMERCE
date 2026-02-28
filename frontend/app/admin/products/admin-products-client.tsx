@@ -701,8 +701,6 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
   useEffect(() => {
     if (!isAuthenticated) return
 
-    console.log("[v0] Setting up WebSocket listener for product updates...")
-
     const handleWebSocketProductUpdate = async (data: any) => {
       const productId = data.product_id || data.productId
       const eventType = data.type || data.event_type || data.action
@@ -749,7 +747,6 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     const unsubscribe = websocketService.on("product_update", handleWebSocketProductUpdate)
 
     return () => {
-      console.log("[v0] Cleaning up WebSocket listener")
       unsubscribe()
     }
   }, [isAuthenticated])
@@ -759,13 +756,11 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     const handleProductImagesUpdated = async (event: Event) => {
       const customEvent = event as CustomEvent<any>
       const { productId } = customEvent.detail || {}
-      console.log("[v0] Product images updated via custom event for product:", productId)
 
       if (productId) {
         setProductImages((prev) => {
           const updated = { ...prev }
           delete updated[productId]
-          console.log("[v0] Cleared cached image for product:", productId)
           return updated
         })
 
@@ -774,17 +769,16 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
         if (typeof localStorage !== "undefined") {
           try {
             localStorage.removeItem(`product_images_${productId}`)
-            console.log("[v0] Cleared localStorage cache for product:", productId)
           } catch (error) {
-            console.error("[v0] Error clearing localStorage:", error)
+            // Ignore localStorage errors
           }
         }
       }
 
-      console.log("[v0] Waiting 500ms for backend to process image update...")
+      // Wait a moment for backend to process image update
       await new Promise((resolve) => setTimeout(resolve, 500))
 
-      console.log("[v0] Refetching all products with fresh data...")
+      // Refetch all products to get updated data
       await fetchProducts()
     }
     window.addEventListener("productImagesUpdated", handleProductImagesUpdated)
@@ -792,7 +786,7 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
     return () => {
       window.removeEventListener("productImagesUpdated", handleProductImagesUpdated)
     }
-  }, [fetchProducts]) // Add fetchProducts to dependency array
+  }, [])
 
   // Calculate total pages
   const totalPages = Math.ceil(filteredProducts.length / filterState.pageSize)
