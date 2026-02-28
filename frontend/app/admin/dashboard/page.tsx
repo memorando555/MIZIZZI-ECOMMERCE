@@ -1,31 +1,43 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAdminAuth } from "@/contexts/admin/auth-context"
 import { useRouter } from "next/navigation"
 import { Loader } from "@/components/ui/loader"
 import { adminService } from "@/services/admin"
 import { toast } from "@/components/ui/use-toast"
-import { ProductUpdateNotification } from "@/components/admin/product-update-notification"
+import {
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  Package,
+  ShoppingCart,
+  Users,
+  Eye,
+  DollarSign,
+  ArrowUpRight,
+  ArrowDownRight,
+  RefreshCw,
+  Download,
+  Calendar,
+  Bell,
+  Zap,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
+import { DashboardHeader } from "@/components/admin/dashboard/dashboard-header"
 import { SalesOverviewChart } from "@/components/admin/dashboard/sales-overview-chart"
 import { RecentOrders } from "@/components/admin/dashboard/recent-orders"
 import { RecentActivity } from "@/components/admin/dashboard/recent-activity"
 import { BestSellingProducts } from "@/components/admin/dashboard/best-selling-products"
 import { LowStockProducts } from "@/components/admin/dashboard/low-stock-products"
-import { OrderStatusDistribution } from "@/components/admin/dashboard/order-status-distribution"
 import { RecentCustomers } from "@/components/admin/dashboard/recent-customers"
 import { OrderStatusChart } from "@/components/admin/dashboard/order-status-chart"
 import { SalesByCategoryChart } from "@/components/admin/dashboard/sales-by-category"
-import { RevenueVsRefundsChart } from "@/components/admin/dashboard/revenue-vs-refunds-chart"
-import { ActiveUsersChart } from "@/components/admin/dashboard/active-users-chart"
-import { DashboardHeader } from "@/components/admin/dashboard/dashboard-header"
-import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { AlertCircle, TrendingUp, AlertTriangle, Package, ShoppingCart, Users, Eye } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 export default function AdminDashboard() {
   const { isAuthenticated, isLoading, user } = useAdminAuth()
@@ -44,11 +56,341 @@ export default function AdminDashboard() {
     }
   }, [isAuthenticated, isLoading, router])
 
-  // Update the fetchDashboardData function to handle authentication errors
   const fetchDashboardData = async () => {
     try {
       setIsLoadingData(true)
       setIsRefreshing(true)
+
+      const fromDate = dateRange.from.toISOString().split("T")[0]
+      const toDate = dateRange.to.toISOString().split("T")[0]
+
+      try {
+        const data = await adminService.getDashboardData({
+          from_date: fromDate,
+          to_date: toDate,
+        })
+
+        setDashboardData(data)
+      } catch (dashboardError) {
+        console.error("Failed to fetch dashboard data:", dashboardError)
+        if (
+          (typeof dashboardError === "object" &&
+            dashboardError !== null &&
+            "message" in dashboardError &&
+            typeof (dashboardError as any).message === "string" &&
+            ((dashboardError as any).message.includes("Authentication failed") ||
+              (dashboardError as any).message.includes("No refresh token")))
+        ) {
+          toast({
+            title: "Session Expired",
+            description: "Your session has expired. Please log in again.",
+            variant: "destructive",
+          })
+          router.push("/admin/login")
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoadingData(false)
+      setIsRefreshing(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      fetchDashboardData()
+    }
+  }, [isAuthenticated, isLoading])
+
+  if (isLoading || isLoadingData) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <Loader />
+      </div>
+    )
+  }
+
+  const stats = dashboardData?.counts || {}
+  const sales = dashboardData?.sales || {}
+  const recentOrders = dashboardData?.recent_orders || []
+  const recentUsers = dashboardData?.recent_users || []
+  const lowStockProducts = dashboardData?.low_stock_products || []
+  const topProducts = dashboardData?.top_products || []
+  const orderStatus = dashboardData?.order_status || {}
+  const salesByCategory = dashboardData?.sales_by_category || []
+  const recentActivities = dashboardData?.recent_activities || []
+
+  // Stat card component
+  const StatCard = ({ 
+    title, 
+    value, 
+    icon: Icon, 
+    trend, 
+    comparison, 
+    color 
+  }: {
+    title: string
+    value: string | number
+    icon: any
+    trend?: "up" | "down" | "neutral"
+    comparison?: string
+    color: string
+  }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card className="border-0 bg-white shadow-sm hover:shadow-md transition-shadow duration-300">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <p className="text-xs sm:text-sm font-medium text-gray-600">{title}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">{value}</p>
+              {comparison && (
+                <p className={cn(
+                  "text-xs sm:text-sm font-medium",
+                  trend === "up" ? "text-green-600" : trend === "down" ? "text-red-600" : "text-gray-500"
+                )}>
+                  {trend === "up" && <TrendingUp className="inline h-3 w-3 mr-1" />}
+                  {trend === "down" && <TrendingDown className="inline h-3 w-3 mr-1" />}
+                  {comparison}
+                </p>
+              )}
+            </div>
+            <div className={cn("p-3 rounded-lg", {
+              "bg-blue-100": color === "blue",
+              "bg-green-100": color === "green",
+              "bg-amber-100": color === "amber",
+              "bg-purple-100": color === "purple",
+              "bg-red-100": color === "red",
+            })}>
+              <Icon className={cn("h-6 w-6", {
+                "text-blue-600": color === "blue",
+                "text-green-600": color === "green",
+                "text-amber-600": color === "amber",
+                "text-purple-600": color === "purple",
+                "text-red-600": color === "red",
+              })} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+
+  return (
+    <div className="min-h-screen w-full bg-gray-50 p-2 sm:p-4 md:p-8 overflow-x-hidden">
+      <div className="space-y-6 md:space-y-8">
+        {/* Header */}
+        <DashboardHeader
+          onRefresh={fetchDashboardData}
+          isRefreshing={isRefreshing}
+          dateRange={dateRange}
+          setDateRange={setDateRange}
+          userName={user?.name || "Admin"}
+        />
+
+        {/* Key Metrics - Responsive Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          <StatCard
+            title="Total Revenue"
+            value={`$${(sales.total_revenue || 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`}
+            icon={DollarSign}
+            trend="up"
+            comparison={`+${((sales.monthly || 0) / 100000).toFixed(1)}% from last month`}
+            color="green"
+          />
+          <StatCard
+            title="Total Orders"
+            value={stats.orders || 0}
+            icon={ShoppingCart}
+            trend="up"
+            comparison={`${stats.pending_orders || 0} pending`}
+            color="blue"
+          />
+          <StatCard
+            title="Total Customers"
+            value={stats.users || 0}
+            icon={Users}
+            trend="up"
+            comparison={`${stats.premium_customers || 0} premium`}
+            color="purple"
+          />
+          <StatCard
+            title="Products"
+            value={stats.products || 0}
+            icon={Package}
+            trend={stats.low_stock_products > 0 ? "down" : "neutral"}
+            comparison={`${stats.low_stock_products || 0} low stock`}
+            color="amber"
+          />
+        </div>
+
+        {/* Order & Sales Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3 md:pb-4">
+                <CardTitle className="text-lg md:text-xl">Order Status Breakdown</CardTitle>
+                <CardDescription>Real-time order distribution</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {Object.entries(orderStatus).map(([status, count]: [string, any]) => (
+                    <div key={status} className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 capitalize">{status}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 sm:w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full"
+                            style={{ width: `${((count / (stats.orders || 1)) * 100).toFixed(0)}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900 w-12 text-right">{count}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+          >
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3 md:pb-4">
+                <CardTitle className="text-lg md:text-xl">Key Performance Indicators</CardTitle>
+                <CardDescription>Current period metrics</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-700">Avg Order Value</span>
+                  <span className="font-semibold text-gray-900">${(sales.average_order_value || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-700">Conversion Rate</span>
+                  <span className="font-semibold text-gray-900">{(sales.conversion_rate || 0).toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-700">Cart Abandonment</span>
+                  <span className="font-semibold text-red-600">{(sales.cart_abandonment_rate || 0).toFixed(1)}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-700">Return Rate</span>
+                  <span className="font-semibold text-gray-900">{(sales.return_rate || 0).toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-700">Customer LTV</span>
+                  <span className="font-semibold text-green-600">${(sales.customer_lifetime_value || 0).toFixed(2)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.3 }}
+          >
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3 md:pb-4">
+                <CardTitle className="text-lg md:text-xl">Sales Overview</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SalesOverviewChart data={dashboardData} />
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.4 }}
+          >
+            <Card className="border-0 shadow-sm">
+              <CardHeader className="pb-3 md:pb-4">
+                <CardTitle className="text-lg md:text-xl">Sales by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SalesByCategoryChart data={dashboardData} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Data Tables */}
+        <Tabs defaultValue="orders" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4 sm:grid-cols-4 h-auto bg-white border rounded-lg p-1">
+            <TabsTrigger value="orders" className="text-xs sm:text-sm py-2">Recent Orders</TabsTrigger>
+            <TabsTrigger value="customers" className="text-xs sm:text-sm py-2">Customers</TabsTrigger>
+            <TabsTrigger value="products" className="text-xs sm:text-sm py-2">Top Products</TabsTrigger>
+            <TabsTrigger value="alerts" className="text-xs sm:text-sm py-2">Alerts</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orders" className="space-y-4">
+            <RecentOrders orders={recentOrders} />
+          </TabsContent>
+
+          <TabsContent value="customers" className="space-y-4">
+            <RecentCustomers customers={recentUsers} />
+          </TabsContent>
+
+          <TabsContent value="products" className="space-y-4">
+            <BestSellingProducts products={topProducts} />
+          </TabsContent>
+
+          <TabsContent value="alerts" className="space-y-4">
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg md:text-xl flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  Stock Alerts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LowStockProducts products={lowStockProducts} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Activity Feed */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.5 }}
+        >
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg md:text-xl">Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RecentActivity activities={recentActivities} />
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+    </div>
+  )
+}
+
 
       // Format dates for API
       const fromDate = dateRange.from.toISOString().split("T")[0]
