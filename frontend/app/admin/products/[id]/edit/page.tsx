@@ -1,14 +1,34 @@
 import { EditProductClient } from "./edit-product-client"
+import { getProductEditData } from "@/lib/server/get-product-data"
+import { redirect } from "next/navigation"
 
-export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
-  console.log("[v0] EditProductPage: Awaiting params...")
+export const revalidate = 30 // ISR: revalidate every 30 seconds for fresh product data
 
-  // In Next.js 15, params is a Promise that needs to be awaited
+interface PageProps {
+  params: Promise<{ id: string }>
+}
+
+export default async function EditProductPage({ params }: PageProps) {
+  // Await params in Next.js 16
   const resolvedParams = await params
-  const id = resolvedParams.id
+  const productId = resolvedParams.id
 
-  console.log("[v0] EditProductPage: Product ID resolved:", id)
+  // Fetch all product data server-side before rendering
+  const { product, categories, brands, images, error } = await getProductEditData(productId)
 
-  // Pass the unwrapped id to the client component
-  return <EditProductClient productId={id} />
+  // Redirect if product not found
+  if (error || !product) {
+    redirect("/admin/products")
+  }
+
+  // Render client component with server-fetched data
+  return (
+    <EditProductClient
+      productId={productId}
+      initialProduct={product}
+      initialCategories={categories}
+      initialBrands={brands}
+      initialImages={images}
+    />
+  )
 }
