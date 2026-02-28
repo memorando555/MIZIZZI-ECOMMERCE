@@ -994,16 +994,22 @@ export default function AdminProductsClient({ initialProducts }: AdminProductsCl
       // Remove from selected products if it was selected
       setSelectedProducts((prev) => prev.filter((pId) => pId !== id))
       
-      // Compute current page item count using filteredProducts to avoid referencing paginatedProducts before its declaration
-      const startIndex = (currentPage - 1) * filterState.pageSize
-      const endIndex = startIndex + filterState.pageSize
-      const currentPageItemsCount = filteredProducts.slice(startIndex, endIndex).length
-  
-      // Reset pagination if needed (go back one page when current page becomes empty)
-      if (currentPage > 1 && currentPageItemsCount <= 1) {
-        setCurrentPage(Math.max(1, currentPage - 1))
-      }
-    }, [currentPage, filterState.pageSize, filteredProducts])
+      // Reset pagination if the current page would be empty after deletion
+      setCurrentPage((prevPage) => {
+        const startIndex = (prevPage - 1) * filterState.pageSize
+        const endIndex = startIndex + filterState.pageSize
+        
+        // Check how many items would be on the current page after deletion
+        const itemsAfterDelete = allProducts
+          .filter((p) => String(p.id) !== id)
+          .slice(startIndex, endIndex).length
+      
+        if (prevPage > 1 && itemsAfterDelete === 0) {
+          return Math.max(1, prevPage - 1)
+        }
+        return prevPage
+      })
+    }, [filterState.pageSize, allProducts])
 
   // Bulk delete selected products
   const handleBulkDelete = useCallback(async () => {

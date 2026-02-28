@@ -84,7 +84,6 @@ const ProductRow = memo(function ProductRow({
       
       // Show success state in dialog (API returns successfully if no error thrown)
       setDeleteSuccess(true)
-      setIsDeleting(false)
       
       // Show toast notification
       toast({
@@ -98,6 +97,7 @@ const ProductRow = memo(function ProductRow({
       setTimeout(() => {
         setShowDeleteDialog(false)
         setDeleteSuccess(false)
+        setIsDeleting(false)
         onDelete?.(String(product.id))
       }, 1500)
     } catch (error: any) {
