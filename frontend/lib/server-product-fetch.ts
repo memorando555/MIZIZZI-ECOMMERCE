@@ -67,3 +67,63 @@ function extractProducts(payload: any): Product[] {
   if (Array.isArray(data?.data)) return data.data
   return []
 }
+
+/**
+ * Server-side fetcher for admin product edit page (hybrid SSR + client)
+ * Fetches product data with full details for immediate rendering
+ */
+export async function getAdminProductEditData(productId: string) {
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
+
+    // Fetch all required data in parallel for optimal performance
+    const [product, categories, brands, images] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/admin/products/${productId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        cache: 'no-store',
+      }).then(r => r.json()).catch(() => null),
+      
+      fetch(`${API_BASE_URL}/api/categories`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        cache: 'no-store',
+      }).then(r => r.json()).catch(() => ({ categories: [] })),
+      
+      fetch(`${API_BASE_URL}/api/brands`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        cache: 'no-store',
+      }).then(r => r.json()).catch(() => ({ brands: [] })),
+      
+      fetch(`${API_BASE_URL}/api/products/${productId}/images`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        cache: 'no-store',
+      }).then(r => r.json()).catch(() => ({ images: [] })),
+    ])
+
+    clearTimeout(timeoutId)
+
+    if (!product) {
+      console.error(`[v0] Product not found: ${productId}`)
+      return null
+    }
+
+    return {
+      product,
+      categories: categories?.categories || categories?.data || [],
+      brands: brands?.brands || brands?.data || [],
+      images: images?.images || images?.data || [],
+      fetchedAt: new Date().toISOString(),
+    }
+  } catch (error) {
+    console.error('[v0] Failed to fetch admin product edit data:', error)
+    return null
+  }
+}

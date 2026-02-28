@@ -36,9 +36,16 @@ import { useRealtimeAutoSave } from "@/hooks/use-realtime-autosave"
 import { useOptimisticUpdates } from "@/hooks/use-optimistic-updates"
 import { adminService } from "@/services/admin"
 
-// Client component that receives the product ID and fetches data client-side
+// Client component that receives initial SSR data for instant display
 interface EditProductClientProps {
   productId: string
+  initialData?: {
+    product: Product
+    categories: any[]
+    brands: any[]
+    images: any[]
+    fetchedAt: string
+  }
 }
 
 // Function to check if productId is a valid number
@@ -46,22 +53,31 @@ const isValidProductId = (productId: string): boolean => {
   return !isNaN(Number(productId)) && Number(productId) > 0
 }
 
-export function EditProductClient({ productId }: EditProductClientProps) {
+export function EditProductClient({ productId, initialData }: EditProductClientProps) {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading, logout, refreshAccessToken, getToken } = useAdminAuth()
 
-  // Use SWR hooks to fetch data client-side
-  const { product, isLoading: isLoadingProduct, isError: productError, mutate: mutateProduct } = useProduct(productId)
+  // Use SWR hooks with fallback data from SSR
+  const { product, isLoading: isLoadingProduct, isError: productError, mutate: mutateProduct } = useProduct(
+    productId,
+    initialData?.product ? { fallbackData: initialData.product } : undefined
+  )
   const { images: productImages, mutate: mutateImages } = useProductImages(
     isValidProductId(productId) ? productId : undefined,
+    initialData?.images ? { fallbackData: initialData.images } : undefined
   )
   const {
     categories,
     isLoading: isLoadingCategories,
     isError: categoriesError,
     mutate: mutateCategories,
-  } = useCategories()
-  const { brands, isLoading: isLoadingBrands, isError: brandsError } = useBrands()
+  } = useCategories(initialData?.categories ? { fallbackData: initialData.categories } : undefined)
+  const { brands, isLoading: isLoadingBrands, isError: brandsError } = useBrands(
+    initialData?.brands ? { fallbackData: initialData.brands } : undefined
+  )
+  
+  // Add state to track if we're using initial SSR data
+  const [isUsingSSRData, setIsUsingSSRData] = useState(!!initialData)
   
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("basic")
@@ -196,6 +212,14 @@ export function EditProductClient({ productId }: EditProductClientProps) {
       router.push("/admin/products")
     }
   }, [isAuthenticated, authLoading, router])
+
+  // Track when SWR data replaces SSR data
+  useEffect(() => {
+    if (product && isUsingSSRData && !isLoadingProduct) {
+      console.log("[v0] SWR data loaded, replacing SSR data")
+      setIsUsingSSRData(false)
+    }
+  }, [product, isLoadingProduct, isUsingSSRData])
 
   // Update the resetForm call to use the SWR product data when it becomes available
   useEffect(() => {
@@ -551,6 +575,12 @@ export function EditProductClient({ productId }: EditProductClientProps) {
               <CardTitle className="text-xl sm:text-2xl font-bold text-gray-800">
                 Edit Product: {product?.name}
               </CardTitle>
+              {isUsingSSRData && (
+                <div className="ml-auto flex items-center space-x-2 px-3 py-1 bg-blue-50 rounded-full text-sm">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  <span className="text-blue-700">Loading latest data</span>
+                </div>
+              )}
             </div>
           </div>
         </CardHeader>
