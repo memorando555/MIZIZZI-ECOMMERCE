@@ -165,31 +165,31 @@ export default function AdminDashboardPage() {
       returning_customers: data?.counts?.returning_customers || 0,
     },
     sales: {
-      today: Number(data?.sales?.today) || 0,
-      yesterday: Number(data?.sales?.yesterday) || 0,
-      weekly: Number(data?.sales?.weekly) || 0,
-      monthly: Number(data?.sales?.monthly) || 0,
-      yearly: Number(data?.sales?.yearly) || 0,
-      total_revenue: Number(data?.sales?.total_revenue) || 0,
-      pending_amount: Number(data?.sales?.pending_amount) || 0,
-      average_order_value: Number(data?.sales?.average_order_value) || 0,
-      net_profit: Number(data?.sales?.net_profit) || 0,
-      gross_profit: Number(data?.sales?.gross_profit) || 0,
-      refunded_amount: Number(data?.sales?.refunded_amount) || 0,
-      tax_collected: Number(data?.sales?.tax_collected) || 0,
-      shipping_revenue: Number(data?.sales?.shipping_revenue) || 0,
-      today_trend: Number(data?.sales?.today_trend) || 0,
-      weekly_trend: Number(data?.sales?.weekly_trend) || 0,
-      monthly_trend: Number(data?.sales?.monthly_trend) || 0,
+      today: Number(data?.sales?.today ?? 0) || 0,
+      yesterday: Number(data?.sales?.yesterday ?? 0) || 0,
+      weekly: Number(data?.sales?.weekly ?? 0) || 0,
+      monthly: Number(data?.sales?.monthly ?? 0) || 0,
+      yearly: Number(data?.sales?.yearly ?? 0) || 0,
+      total_revenue: Number(data?.sales?.total_revenue ?? 0) || 0,
+      pending_amount: Number(data?.sales?.pending_amount ?? 0) || 0,
+      average_order_value: Number(data?.sales?.average_order_value ?? 0) || 0,
+      net_profit: Number(data?.sales?.net_profit ?? 0) || 0,
+      gross_profit: Number(data?.sales?.gross_profit ?? 0) || 0,
+      refunded_amount: Number(data?.sales?.refunded_amount ?? 0) || 0,
+      tax_collected: Number(data?.sales?.tax_collected ?? 0) || 0,
+      shipping_revenue: Number(data?.sales?.shipping_revenue ?? 0) || 0,
+      today_trend: Number(data?.sales?.today_trend ?? 0) || 0,
+      weekly_trend: Number(data?.sales?.weekly_trend ?? 0) || 0,
+      monthly_trend: Number(data?.sales?.monthly_trend ?? 0) || 0,
     },
     customer_analytics: {
-      total_customers: Number(data?.customer_analytics?.total_customers) || 0,
-      new_customers_today: Number(data?.customer_analytics?.new_customers_today) || 0,
-      repeat_customers: Number(data?.customer_analytics?.repeat_customers) || 0,
-      customer_retention_rate: Number(data?.customer_analytics?.customer_retention_rate) || 0,
-      average_customer_lifetime_value: Number(data?.customer_analytics?.average_customer_lifetime_value) || 0,
-      customer_satisfaction_score: Number(data?.customer_analytics?.customer_satisfaction_score) || 0,
-      churn_rate: Number(data?.customer_analytics?.churn_rate) || 0,
+      total_customers: Number(data?.customer_analytics?.total_customers ?? 0) || 0,
+      new_customers_today: Number(data?.customer_analytics?.new_customers_today ?? 0) || 0,
+      repeat_customers: Number(data?.customer_analytics?.repeat_customers ?? 0) || 0,
+      customer_retention_rate: Number(data?.customer_analytics?.customer_retention_rate ?? 0) || 0,
+      average_customer_lifetime_value: Number(data?.customer_analytics?.average_customer_lifetime_value ?? 0) || 0,
+      customer_satisfaction_score: Number(data?.customer_analytics?.customer_satisfaction_score ?? 0) || 0,
+      churn_rate: Number(data?.customer_analytics?.churn_rate ?? 0) || 0,
     },
     recent_orders: Array.isArray(data?.recent_orders) ? data.recent_orders : [],
     recent_users: Array.isArray(data?.recent_users) ? data.recent_users : [],
@@ -200,6 +200,12 @@ export default function AdminDashboardPage() {
     performance_metrics: data?.performance_metrics || adminService.getDefaultPerformanceMetrics(),
     system_health: data?.system_health || adminService.getDefaultSystemStatus(),
   }
+
+  console.log("[v0] safeData created:", {
+    salesObject: safeData.sales,
+    hasToday: safeData.sales.today !== undefined,
+    todayValue: safeData.sales.today,
+  })
 
   // Calculate growth - with safe defaults
   const salesGrowth = (safeData.sales.yesterday || 0) > 0
@@ -685,7 +691,7 @@ export default function AdminDashboardPage() {
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium">{method.method}</span>
-                            <span className="text-sm text-gray-600">${(method.total_amount / 1000).toFixed(1)}K</span>
+                            <span className="text-sm text-gray-600">${((method.total_amount || 0) / 1000).toFixed(1)}K</span>
                           </div>
                           <Progress value={method.percentage} className="rounded-full h-2" />
                           <p className="text-xs text-gray-500 mt-1">{method.percentage}% • {method.count} transactions</p>
