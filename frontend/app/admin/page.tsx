@@ -142,7 +142,6 @@ export default function AdminDashboardPage() {
 
   // Ensure all data properties have defaults to prevent undefined errors
   const safeData = {
-    ...data,
     counts: {
       users: data?.counts?.users || 0,
       products: data?.counts?.products || 0,
