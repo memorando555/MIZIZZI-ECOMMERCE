@@ -26,28 +26,34 @@ import { ProductSeoTab } from "@/components/admin/products/product-seo-tab"
 import { ProductSpecificationsHighlightsTab } from "@/components/admin/products/product-specifications-highlights-tab"
 import { useProductForm } from "@/hooks/use-product-form"
 import type { Product } from "@/types"
-import { useProduct, useProductImages, useCategories, useBrands } from "@/hooks/use-swr-product"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { websocketService } from "@/services/websocket"
+// Update imports at the top of the file to include our new hooks
+import { useProduct, useProductImages, useCategories, useBrands } from "@/hooks/use-swr-product"
 import { FormProvider } from "react-hook-form"
+// Add import for NetworkDetector
 import { NetworkDetector } from "@/components/network-detector"
 import { productService } from "@/services/product"
-
-// Client component that receives the product ID and fetches data client-side
-interface EditProductClientProps {
-  productId: string
-}
 
 // Function to check if productId is a valid number
 const isValidProductId = (productId: string): boolean => {
   return !isNaN(Number(productId)) && Number(productId) > 0
 }
 
-export function EditProductClient({ productId }: EditProductClientProps) {
+// Client component that receives the unwrapped productId as a prop
+export function EditProductClient({ productId }: { productId: string }) {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading, logout, refreshAccessToken, getToken } = useAdminAuth()
 
-  // Use SWR hooks to fetch data client-side
+  const [isLoading, setIsLoading] = useState(true)
+  // Replace these state variables:
+  // const [product, setProduct] = useState<Product | null>(null)
+  // const [categories, setCategories] = useState<any[]>([])
+  // const [brands, setBrands] = useState<any[]>([])
+  // const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+  // const [isLoadingBrands, setIsLoadingBrands] = useState(true)
+
+  // With SWR hooks:
   const { product, isLoading: isLoadingProduct, isError: productError, mutate: mutateProduct } = useProduct(productId)
   const { images: productImages, mutate: mutateImages } = useProductImages(
     isValidProductId(productId) ? productId : undefined,
@@ -59,8 +65,6 @@ export function EditProductClient({ productId }: EditProductClientProps) {
     mutate: mutateCategories,
   } = useCategories()
   const { brands, isLoading: isLoadingBrands, isError: brandsError } = useBrands()
-  
-  const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("basic")
   const [unsavedChangesDialog, setUnsavedChangesDialog] = useState(false)
   const [navigateTo, setNavigateTo] = useState("")
