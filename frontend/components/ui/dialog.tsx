@@ -51,13 +51,13 @@ const DialogContent = React.forwardRef<
         "shadow-xl dark:shadow-2xl",
         "border-t sm:border border-gray-200 dark:border-slate-800",
         
-        // Desktop positioning - centered
-        "sm:bottom-auto sm:left-[50%] sm:top-[50%]",
+        // Desktop positioning - centered with proper spacing from top/bottom
+        "sm:bottom-auto sm:left-[50%] sm:top-1/2",
         "sm:translate-x-[-50%] sm:translate-y-[-50%]",
         "sm:w-[calc(100%-2rem)] sm:max-w-2xl",
         
-        // Height constraints
-        "max-h-[85vh] sm:max-h-[90vh]",
+        // Height constraints - ensure content is visible with scrolling
+        "max-h-[85vh] sm:max-h-[calc(100vh-4rem)]",
         "overflow-hidden flex flex-col",
         
         // Smooth animations
@@ -68,8 +68,8 @@ const DialogContent = React.forwardRef<
         "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         "sm:data-[state=closed]:fade-out-0 sm:data-[state=open]:fade-in-0",
         "sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
-        "sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]",
-        "sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]",
+        "sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-1/2",
+        "sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-1/2",
         
         className,
       )}
