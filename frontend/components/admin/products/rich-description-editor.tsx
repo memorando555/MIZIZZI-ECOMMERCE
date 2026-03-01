@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef, useEffect } from "react"
+import React, { useRef, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,8 @@ import {
   EyeOff,
   LinkIcon,
   ImageIcon,
+  Upload,
+  Loader,
 } from "lucide-react"
 
 interface RichDescriptionEditorProps {
@@ -30,8 +32,13 @@ export function RichDescriptionEditor({
   productName = "Product",
 }: RichDescriptionEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
-  const [showPreview, setShowPreview] = React.useState(false)
-  const [isInitialized, setIsInitialized] = React.useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [imageUrl, setImageUrl] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadMode, setUploadMode] = useState<"url" | "file">("url")
 
   // Initialize content on mount
   useEffect(() => {
@@ -61,11 +68,53 @@ export function RichDescriptionEditor({
     editorRef.current?.focus()
   }
 
-  const insertImage = () => {
-    const url = prompt("Enter image URL:")
-    if (url) {
-      document.execCommand("insertImage", false, url)
+  const insertImageFromUrl = () => {
+    if (!imageUrl.trim()) {
+      alert("Please enter an image URL")
+      return
+    }
+    
+    // Insert image with proper styling and wrapper
+    const imgHtml = `<img src="${imageUrl}" alt="Product image" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`
+    document.execCommand("insertHTML", false, imgHtml)
+    setImageUrl("")
+    setShowImageModal(false)
+    editorRef.current?.focus()
+  }
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file")
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      // Create FormData for file upload
+      const formData = new FormData()
+      formData.append("file", file)
+
+      // Upload to your image storage service
+      const response = await fetch("/api/upload/image", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error("Upload failed")
+
+      const data = await response.json()
+      const uploadedUrl = data.url || data.path
+
+      // Insert the uploaded image
+      const imgHtml = `<img src="${uploadedUrl}" alt="Product image" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`
+      document.execCommand("insertHTML", false, imgHtml)
+      setShowImageModal(false)
       editorRef.current?.focus()
+    } catch (error) {
+      console.error("[v0] Image upload error:", error)
+      alert("Failed to upload image. Please try a URL instead.")
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -103,7 +152,7 @@ export function RichDescriptionEditor({
       <Alert className="bg-blue-50 border-blue-200">
         <LinkIcon className="h-4 w-4 text-blue-600" />
         <AlertDescription className="text-sm text-blue-900">
-          Format your description with headings, bold text, bullets and lists like Jumia. Use the toolbar to add formatting.
+          Format your description with headings, bold text, bullets and lists like Jumia. Use the toolbar to add formatting and images.
         </AlertDescription>
       </Alert>
 
@@ -178,7 +227,7 @@ export function RichDescriptionEditor({
             <span className="text-xs font-medium text-gray-600 mr-1">Media:</span>
             <button
               type="button"
-              onClick={insertImage}
+              onClick={() => setShowImageModal(true)}
               className="p-2 hover:bg-gray-200 rounded-md transition-colors text-gray-700 hover:text-gray-900"
               title="Insert Image - Add images between sections"
             >
@@ -196,7 +245,7 @@ export function RichDescriptionEditor({
           onInput={handleChange}
           suppressContentEditableWarning
           className="min-h-96 p-6 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-0
-            text-gray-800 leading-relaxed
+            text-gray-800 leading-relaxed font-sans
             [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
             [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
             [&_p]:text-gray-700 [&_p]:leading-relaxed [&_p]:mb-3
@@ -210,11 +259,120 @@ export function RichDescriptionEditor({
         />
       </div>
 
+      {/* Image Insertion Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md p-6 bg-white">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900">Add Image to Description</h3>
+            
+            {/* Mode Tabs */}
+            <div className="flex gap-2 mb-4 border-b border-gray-200">
+              <button
+                type="button"
+                onClick={() => setUploadMode("url")}
+                className={`pb-2 px-2 font-medium transition-colors ${
+                  uploadMode === "url"
+                    ? "text-orange-600 border-b-2 border-orange-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                From URL
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMode("file")}
+                className={`pb-2 px-2 font-medium transition-colors ${
+                  uploadMode === "file"
+                    ? "text-orange-600 border-b-2 border-orange-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Upload File
+              </button>
+            </div>
+
+            {/* URL Mode */}
+            {uploadMode === "url" && (
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-2 block">Image URL</Label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://example.com/image.jpg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setShowImageModal(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={insertImageFromUrl}
+                    className="flex-1 bg-orange-600 hover:bg-orange-700 text-white"
+                  >
+                    Insert Image
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* File Upload Mode */}
+            {uploadMode === "file" && (
+              <div className="space-y-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFileUpload(file)
+                  }}
+                  className="hidden"
+                />
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-orange-500 hover:bg-orange-50 transition-colors"
+                >
+                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-700">Click to upload or drag and drop</p>
+                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 5MB</p>
+                </div>
+                {isUploading && (
+                  <div className="flex items-center justify-center gap-2 py-4">
+                    <Loader className="h-4 w-4 animate-spin text-orange-600" />
+                    <span className="text-sm text-gray-600">Uploading...</span>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setShowImageModal(false)}
+                    variant="outline"
+                    className="flex-1"
+                    disabled={isUploading}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
       {/* Preview */}
       {showPreview && (
         <Card className="p-6 bg-gray-50 border-2 border-orange-100">
           <h3 className="text-lg font-semibold mb-4 text-gray-900">Preview - How customers will see it:</h3>
-          <div className="bg-white p-6 rounded-lg border border-gray-200
+          <div className="bg-white p-6 rounded-lg border border-gray-200 font-sans
             [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
             [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
             [&_p]:text-gray-700 [&_p]:leading-relaxed [&_p]:mb-3
@@ -239,7 +397,7 @@ export function RichDescriptionEditor({
           <li><strong>Bold</strong> text for feature names: "<strong>Deeply Nourishes</strong> Dry and Damaged Hair"</li>
           <li><strong>Bullet Lists</strong> for features, benefits, and key points</li>
           <li><strong>Numbered Lists</strong> for step-by-step instructions like "How to Use"</li>
-          <li><strong>Images</strong> between sections to showcase product features</li>
+          <li><strong>Images</strong> between sections - upload from PC or paste image URLs to showcase product features</li>
         </ul>
       </Card>
     </div>
