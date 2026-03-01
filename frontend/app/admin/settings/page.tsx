@@ -30,37 +30,54 @@ interface Settings {
   seo?: {
     meta_title: string
     meta_description: string
-    sitemap_enabled: boolean
+    meta_keywords: string
+    enable_sitemap: boolean
+    enable_robots_txt: boolean
+    google_analytics_id: string
   }
   email?: {
     smtp_host: string
     smtp_port: number
     smtp_username: string
+    smtp_password: string
     from_email: string
+    from_name: string
+    enable_transactional: boolean
+    enable_marketing: boolean
   }
   payment?: {
-    currency: string
-    tax_rate: number
-    tax_included_in_price: boolean
+    enable_credit_card: boolean
+    enable_paypal: boolean
+    enable_stripe: boolean
+    enable_bank_transfer: boolean
+    currency_code: string
   }
   inventory?: {
     low_stock_threshold: number
     notify_on_low_stock: boolean
     allow_backorders: boolean
+    show_out_of_stock_products: boolean
   }
   reviews?: {
     enabled: boolean
     require_approval: boolean
     allow_guest_reviews: boolean
+    notify_on_new_review: boolean
   }
   security?: {
     password_min_length: number
-    enable_two_factor: boolean
+    password_requires_special_char: boolean
+    password_requires_number: boolean
+    password_requires_uppercase: boolean
     max_login_attempts: number
+    lockout_time: number
+    session_lifetime: number
+    enable_two_factor: boolean
   }
   maintenance?: {
     maintenance_mode: boolean
     maintenance_message: string
+    allowed_ips: string[]
   }
 }
 
