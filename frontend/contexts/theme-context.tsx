@@ -97,10 +97,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   const applyTheme = useCallback((themeData: Theme) => {
-    if (!themeData || !themeData.colors) return
+    if (!themeData || !themeData.colors) {
+      console.log("[v0] Theme data missing, skipping applyTheme")
+      return
+    }
 
     const root = document.documentElement
     const { colors } = themeData
+
+    console.log("[v0] Applying theme with background color:", colors.background.main)
 
     root.style.setProperty("--color-primary", colors.primary.main)
     root.style.setProperty("--color-primary-light", colors.primary.light)
@@ -151,6 +156,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--color-carousel-badge-bg", colors.carousel.badgeBg)
     root.style.setProperty("--color-carousel-badge-text", colors.carousel.badgeText)
 
+    console.log("[v0] Theme applied successfully")
     setTheme(themeData)
 
     try {
@@ -163,18 +169,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const refreshTheme = useCallback(async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"}/api/theme/active`,
-      )
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"}/api/theme/active`
+      console.log("[v0] Fetching theme from:", apiUrl)
+      
+      const response = await fetch(apiUrl)
+
+      console.log("[v0] Theme fetch response status:", response.status)
 
       if (!response.ok) {
         throw new Error("Failed to fetch theme")
       }
 
       const data = await response.json()
+      console.log("[v0] Theme fetch response data:", data)
 
       if (data.success && data.theme) {
+        console.log("[v0] Applying fetched theme:", data.theme.name)
         applyTheme(data.theme)
+      } else {
+        console.log("[v0] No theme in response data")
       }
     } catch (error) {
       console.error("[v0] Error fetching theme:", error)
@@ -184,17 +197,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [applyTheme])
 
   useEffect(() => {
+    console.log("[v0] ThemeProvider useEffect: Initializing theme")
+    
     try {
       const cachedTheme = localStorage.getItem(THEME_STORAGE_KEY)
       if (cachedTheme) {
+        console.log("[v0] Found cached theme")
         const parsedTheme = JSON.parse(cachedTheme) as Theme
         applyTheme(parsedTheme)
+      } else {
+        console.log("[v0] No cached theme found")
       }
     } catch (error) {
       console.error("[v0] Error loading cached theme:", error)
     }
 
     // Then fetch fresh theme from API (will update if changed)
+    console.log("[v0] Fetching fresh theme from API...")
     refreshTheme()
 
     const unsubscribe = websocketService.on("theme_updated", (data: any) => {
@@ -206,6 +225,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     // Keep polling as fallback (increased to 15 seconds for better performance)
     const interval = setInterval(() => {
+      console.log("[v0] Polling for theme updates...")
       refreshTheme()
     }, 15000)
 
