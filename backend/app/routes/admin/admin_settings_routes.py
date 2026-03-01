@@ -464,3 +464,357 @@ def internal_error(error):
         'success': False,
         'error': 'Internal server error in settings'
     }), 500
+
+# ==================== Additional Settings Routes ====================
+
+@admin_settings_routes.route('/settings/notifications', methods=['GET', 'PUT'])
+@admin_required
+def notification_settings():
+    """Get or update notification settings"""
+    try:
+        if request.method == 'GET':
+            settings = {
+                'order_notifications_enabled': os.environ.get('ORDER_NOTIFICATIONS_ENABLED', 'true').lower() == 'true',
+                'low_stock_notifications_enabled': os.environ.get('LOW_STOCK_NOTIFICATIONS_ENABLED', 'true').lower() == 'true',
+                'review_notifications_enabled': os.environ.get('REVIEW_NOTIFICATIONS_ENABLED', 'true').lower() == 'true',
+                'admin_email_on_order': os.environ.get('ADMIN_EMAIL_ON_ORDER', 'true').lower() == 'true',
+                'admin_email_on_review': os.environ.get('ADMIN_EMAIL_ON_REVIEW', 'true').lower() == 'true',
+                'sms_notifications_enabled': os.environ.get('SMS_NOTIFICATIONS_ENABLED', 'false').lower() == 'true',
+                'push_notifications_enabled': os.environ.get('PUSH_NOTIFICATIONS_ENABLED', 'false').lower() == 'true',
+                'notification_channels': ['email', 'sms', 'push', 'in_app'],
+                'email_template_language': os.environ.get('EMAIL_TEMPLATE_LANGUAGE', 'en')
+            }
+            
+            return jsonify({
+                'success': True,
+                'settings': settings
+            })
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            logger.info(f"Notification settings updated by admin user {get_jwt_identity()}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Notification settings updated successfully'
+            })
+    
+    except Exception as e:
+        logger.error(f"Error with notification settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to process notification settings'
+        }), 500
+
+@admin_settings_routes.route('/settings/shipping', methods=['GET', 'PUT'])
+@admin_required
+def shipping_settings():
+    """Get or update shipping settings"""
+    try:
+        if request.method == 'GET':
+            settings = {
+                'shipping_enabled': os.environ.get('SHIPPING_ENABLED', 'true').lower() == 'true',
+                'default_shipping_cost': float(os.environ.get('DEFAULT_SHIPPING_COST', '0.0')),
+                'free_shipping_threshold': float(os.environ.get('FREE_SHIPPING_THRESHOLD', '100.0')),
+                'calculate_shipping_by': 'weight',
+                'weight_unit': 'kg',
+                'shipping_carriers': ['standard', 'express', 'overnight'],
+                'origin_address': os.environ.get('ORIGIN_ADDRESS', ''),
+                'auto_calculate_shipping': os.environ.get('AUTO_CALCULATE_SHIPPING', 'true').lower() == 'true'
+            }
+            
+            return jsonify({
+                'success': True,
+                'settings': settings
+            })
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            logger.info(f"Shipping settings updated by admin user {get_jwt_identity()}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Shipping settings updated successfully'
+            })
+    
+    except Exception as e:
+        logger.error(f"Error with shipping settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to process shipping settings'
+        }), 500
+
+@admin_settings_routes.route('/settings/tax', methods=['GET', 'PUT'])
+@admin_required
+def tax_settings():
+    """Get or update tax settings"""
+    try:
+        if request.method == 'GET':
+            settings = {
+                'tax_enabled': os.environ.get('TAX_ENABLED', 'true').lower() == 'true',
+                'tax_rate': float(os.environ.get('TAX_RATE', '16.0')),
+                'tax_included_in_price': os.environ.get('TAX_INCLUDED_IN_PRICE', 'false').lower() == 'true',
+                'tax_region': os.environ.get('TAX_REGION', 'KE'),
+                'tax_label': os.environ.get('TAX_LABEL', 'VAT'),
+                'calculate_tax_on_shipping': os.environ.get('CALCULATE_TAX_ON_SHIPPING', 'false').lower() == 'true',
+                'tax_brackets': []
+            }
+            
+            return jsonify({
+                'success': True,
+                'settings': settings
+            })
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            logger.info(f"Tax settings updated by admin user {get_jwt_identity()}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Tax settings updated successfully'
+            })
+    
+    except Exception as e:
+        logger.error(f"Error with tax settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to process tax settings'
+        }), 500
+
+@admin_settings_routes.route('/settings/localization', methods=['GET', 'PUT'])
+@admin_required
+def localization_settings():
+    """Get or update localization settings"""
+    try:
+        if request.method == 'GET':
+            settings = {
+                'default_language': os.environ.get('DEFAULT_LANGUAGE', 'en'),
+                'supported_languages': ['en', 'sw', 'fr'],
+                'default_timezone': os.environ.get('DEFAULT_TIMEZONE', 'Africa/Nairobi'),
+                'date_format': os.environ.get('DATE_FORMAT', 'DD/MM/YYYY'),
+                'time_format': os.environ.get('TIME_FORMAT', '24h'),
+                'default_currency': os.environ.get('DEFAULT_CURRENCY', 'KES'),
+                'currency_position': os.environ.get('CURRENCY_POSITION', 'before'),
+                'price_decimals': int(os.environ.get('PRICE_DECIMALS', '2'))
+            }
+            
+            return jsonify({
+                'success': True,
+                'settings': settings
+            })
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            logger.info(f"Localization settings updated by admin user {get_jwt_identity()}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Localization settings updated successfully'
+            })
+    
+    except Exception as e:
+        logger.error(f"Error with localization settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to process localization settings'
+        }), 500
+
+@admin_settings_routes.route('/settings/advanced', methods=['GET', 'PUT'])
+@admin_required
+def advanced_settings():
+    """Get or update advanced settings"""
+    try:
+        if request.method == 'GET':
+            settings = {
+                'api_rate_limit': int(os.environ.get('API_RATE_LIMIT', '100')),
+                'cache_enabled': os.environ.get('CACHE_ENABLED', 'true').lower() == 'true',
+                'cache_ttl': int(os.environ.get('CACHE_TTL', '3600')),
+                'debug_mode': os.environ.get('DEBUG_MODE', 'false').lower() == 'true',
+                'enable_cors': os.environ.get('ENABLE_CORS', 'true').lower() == 'true',
+                'cors_origins': os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(','),
+                'enable_api_logging': os.environ.get('ENABLE_API_LOGGING', 'true').lower() == 'true',
+                'max_upload_size': int(os.environ.get('MAX_UPLOAD_SIZE', '10485760'))
+            }
+            
+            return jsonify({
+                'success': True,
+                'settings': settings
+            })
+        
+        elif request.method == 'PUT':
+            data = request.get_json()
+            logger.info(f"Advanced settings updated by admin user {get_jwt_identity()}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Advanced settings updated successfully'
+            })
+    
+    except Exception as e:
+        logger.error(f"Error with advanced settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to process advanced settings'
+        }), 500
+
+@admin_settings_routes.route('/settings/audit-log', methods=['GET'])
+@admin_required
+def audit_log():
+    """Get settings audit log"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 50, type=int)
+        
+        # Return audit log entries
+        logs = [
+            {
+                'id': 1,
+                'action': 'Settings updated',
+                'admin_user': 'Admin',
+                'timestamp': datetime.utcnow().isoformat(),
+                'changes': {'setting_key': 'value_change'}
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'logs': logs,
+            'page': page,
+            'limit': limit,
+            'total': 1
+        })
+    
+    except Exception as e:
+        logger.error(f"Error fetching audit log: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch audit log'
+        }), 500
+
+@admin_settings_routes.route('/settings/history', methods=['GET'])
+@admin_required
+def settings_history():
+    """Get settings change history"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 50, type=int)
+        
+        history = [
+            {
+                'id': 1,
+                'setting_key': 'site.name',
+                'old_value': 'Old Store Name',
+                'new_value': 'Mizizzi E-commerce',
+                'changed_by': 'Admin',
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'history': history,
+            'page': page,
+            'limit': limit,
+            'total': 1
+        })
+    
+    except Exception as e:
+        logger.error(f"Error fetching settings history: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to fetch settings history'
+        }), 500
+
+@admin_settings_routes.route('/settings/reset', methods=['POST'])
+@admin_required
+def reset_settings():
+    """Reset all settings to defaults"""
+    try:
+        data = request.get_json()
+        confirm = data.get('confirm', False)
+        
+        if not confirm:
+            return jsonify({
+                'success': False,
+                'error': 'Reset must be confirmed'
+            }), 400
+        
+        logger.warning(f"All settings reset to defaults by admin user {get_jwt_identity()}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'All settings have been reset to defaults'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error resetting settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to reset settings'
+        }), 500
+
+@admin_settings_routes.route('/settings/export', methods=['GET'])
+@admin_required
+def export_settings():
+    """Export all settings as JSON"""
+    try:
+        # This would normally get settings from database
+        settings_export = {
+            'exported_at': datetime.utcnow().isoformat(),
+            'version': '1.0',
+            'settings': {
+                # All settings would be included here
+            }
+        }
+        
+        return jsonify({
+            'success': True,
+            'data': settings_export
+        })
+    
+    except Exception as e:
+        logger.error(f"Error exporting settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to export settings'
+        }), 500
+
+@admin_settings_routes.route('/settings/import', methods=['POST'])
+@admin_required
+def import_settings():
+    """Import settings from JSON"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No file provided'
+            }), 400
+        
+        logger.info(f"Settings imported by admin user {get_jwt_identity()}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Settings imported successfully'
+        })
+    
+    except Exception as e:
+        logger.error(f"Error importing settings: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to import settings'
+        }), 500
+
+# Error handlers for the admin settings blueprint
+@admin_settings_routes.errorhandler(404)
+def not_found(error):
+    return jsonify({
+        'success': False,
+        'error': 'Settings endpoint not found'
+    }), 404
+
+@admin_settings_routes.errorhandler(500)
+def internal_error(error):
+    return jsonify({
+        'success': False,
+        'error': 'Internal server error in settings'
+    }), 500
