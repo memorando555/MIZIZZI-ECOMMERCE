@@ -111,7 +111,7 @@ export function CategoryFormDialog({
       const token = localStorage.getItem("admin_token") || localStorage.getItem("mizizzi_token")
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-      const response = await fetch(`${baseUrl}/api/admin/shop-categories/upload`, {
+      const response = await fetch(`${baseUrl}/api/admin/shop-categories/categories/upload-image`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -119,13 +119,17 @@ export function CategoryFormDialog({
         body: formDataObj,
       })
 
-      if (!response.ok) throw new Error("Upload failed")
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Upload failed")
+      }
 
       const data = await response.json()
+
       const fieldName = type === "category" ? "image_url" : "banner_url"
       setFormData((prev) => ({
         ...prev,
-        [fieldName]: data.url,
+        [fieldName]: data.url || data.data, // Use url from response or fallback to base64 data
       }))
 
       toast({
@@ -136,7 +140,7 @@ export function CategoryFormDialog({
       console.error("Error uploading image:", error)
       toast({
         title: "Error",
-        description: "Failed to upload image",
+        description: error instanceof Error ? error.message : "Failed to upload image",
         variant: "destructive",
       })
     } finally {
@@ -168,14 +172,51 @@ export function CategoryFormDialog({
       const token = localStorage.getItem("admin_token") || localStorage.getItem("mizizzi_token")
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
 
-      const payload = {
+      // Extract base64 data from data URLs if they exist
+      let imageData = formData.image_url
+      let imageMimetype = "image/jpeg"
+      if (formData.image_url?.startsWith("data:")) {
+        const matches = formData.image_url.match(/^data:([^;]+);base64,(.+)$/)
+        if (matches) {
+          imageMimetype = matches[1]
+          imageData = matches[2]
+        }
+      }
+
+      let bannerData = formData.banner_url
+      let bannerMimetype = "image/jpeg"
+      if (formData.banner_url?.startsWith("data:")) {
+        const matches = formData.banner_url.match(/^data:([^;]+);base64,(.+)$/)
+        if (matches) {
+          bannerMimetype = matches[1]
+          bannerData = matches[2]
+        }
+      }
+
+      const payload: Record<string, any> = {
         name: formData.name.trim(),
         slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, "-"),
         description: formData.description.trim(),
-        image_url: formData.image_url,
-        banner_url: formData.banner_url,
         is_featured: formData.is_featured,
         sort_order: formData.sort_order,
+      }
+
+      // Add image data if it's a new upload (base64 format)
+      if (imageData && imageData !== editingCategory?.image_url) {
+        if (imageData.includes("base64") || !imageData.startsWith("http")) {
+          payload.image_data = imageData
+          payload.image_mimetype = imageMimetype
+          payload.image_filename = "category_image.jpg"
+        }
+      }
+
+      // Add banner data if it's a new upload (base64 format)
+      if (bannerData && bannerData !== editingCategory?.banner_url) {
+        if (bannerData.includes("base64") || !bannerData.startsWith("http")) {
+          payload.banner_data = bannerData
+          payload.banner_mimetype = bannerMimetype
+          payload.banner_filename = "category_banner.jpg"
+        }
       }
 
       const url = editingCategory
@@ -195,6 +236,8 @@ export function CategoryFormDialog({
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || "Failed to save category")
       }
+
+      const savedData = await response.json()
 
       toast({
         title: "Success",
