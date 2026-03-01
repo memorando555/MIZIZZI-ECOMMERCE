@@ -202,16 +202,26 @@ def create_theme():
         from ...validations.color_validator import ColorValidator
         
         colors = data.get('colors', {})
-        color_validator = ColorValidator(colors)
         
-        if not color_validator.is_valid():
-            return jsonify({
-                'success': False,
-                'message': 'Invalid color values',
-                'errors': color_validator.get_errors()
-            }), 400
-        
-        # Create new theme
+        # Validate color values if present
+        if colors:
+            invalid_colors = []
+            for color_category, color_values in colors.items():
+                if isinstance(color_values, dict):
+                    for key, value in color_values.items():
+                        if isinstance(value, str) and value.strip():
+                            if not ColorValidator.is_valid(value):
+                                invalid_colors.append(f"{color_category}.{key}: {value}")
+                elif isinstance(color_values, str) and color_values.strip():
+                    if not ColorValidator.is_valid(color_values):
+                        invalid_colors.append(f"{color_category}: {color_values}")
+            
+            if invalid_colors:
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid color values',
+                    'errors': invalid_colors
+                }), 400
         new_theme = ThemeSettings(
             name=data.get('name', 'Custom Theme'),
             is_active=data.get('is_active', False),
@@ -489,7 +499,7 @@ def update_theme(theme_id):
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error updating theme: {str(e)}")
+        logger.error(f"Error updating theme: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
             'message': 'Failed to update theme'
