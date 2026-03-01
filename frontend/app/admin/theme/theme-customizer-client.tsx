@@ -103,6 +103,10 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     const startTime = performance.now()
     console.log("[v0] Starting theme save at", new Date().toLocaleTimeString())
 
+    // Create abort controller with 10 second timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+
     try {
       const token = getAuthToken()
 
@@ -123,6 +127,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
       }
 
       console.log("[v0] Sending API request to save color:", backgroundColor)
+      console.log("[v0] API endpoint:", `${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`)
       const apiStartTime = performance.now()
 
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
@@ -132,8 +137,10 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(requestBody),
+        signal: controller.signal,
       })
 
+      clearTimeout(timeoutId)
       const apiDuration = performance.now() - apiStartTime
       console.log(`[v0] API response received in ${apiDuration.toFixed(2)}ms with status ${response.status}`)
 
@@ -144,10 +151,11 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         } catch (e) {
           // Response wasn't JSON
         }
-        throw new Error(errorData?.message || `Failed to save theme (${response.status})`)
+        throw new Error(errorData?.message || `Failed to save theme (Status ${response.status})`)
       }
 
       const data = await response.json()
+      console.log("[v0] API Response data:", data)
 
       // Update local state with the saved theme
       if (data.theme) {
@@ -159,6 +167,8 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         applyTheme(data.theme)
         console.log("[v0] ✅ SUCCESS: Theme saved and applied instantly")
         console.log("[v0] New background color:", savedBg)
+      } else {
+        console.warn("[v0] No theme in response data:", data)
       }
 
       setIsPreviewMode(false)
@@ -170,13 +180,24 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
       // Show success toast
       toast({
         title: "Success!",
-        description: `Background color saved and applied in ${totalTime.toFixed(0)}ms`,
+        description: `Color saved in ${totalTime.toFixed(0)}ms`,
       })
 
       // Refresh theme for other clients without blocking UI
       refreshTheme()
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      clearTimeout(timeoutId)
+      
+      let errorMessage = "Unknown error"
+      
+      if (error instanceof Error) {
+        if (error.name === "AbortError") {
+          errorMessage = "Save request timed out after 10 seconds. Backend may be offline."
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
       console.error("[v0] ❌ Error saving theme:", errorMessage)
 
       toast({
