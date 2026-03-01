@@ -171,6 +171,21 @@ export function RichDescriptionEditor({
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .editor-content img {
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          display: block !important;
+          border-radius: 8px !important;
+          margin: 16px auto !important;
+          object-fit: cover !important;
+        }
+        .editor-content {
+          word-break: break-word;
+          overflow-wrap: break-word;
+        }
+      `}</style>
       <div className="flex items-center justify-between">
         <Label className="text-base font-semibold text-gray-900">Product Description</Label>
         <Button
@@ -289,7 +304,7 @@ export function RichDescriptionEditor({
           contentEditable
           onInput={handleChange}
           suppressContentEditableWarning
-          className="min-h-96 p-6 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-0
+          className="editor-content min-h-96 p-6 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-0
             text-gray-800 leading-relaxed font-sans
             [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
             [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
@@ -417,7 +432,7 @@ export function RichDescriptionEditor({
       {showPreview && (
         <Card className="p-6 bg-gray-50 border-2 border-orange-100">
           <h3 className="text-lg font-semibold mb-4 text-gray-900">Preview - How customers will see it:</h3>
-          <div className="bg-white p-6 rounded-lg border border-gray-200 font-sans overflow-auto max-h-96
+          <div className="editor-content bg-white p-6 rounded-lg border border-gray-200 font-sans overflow-auto max-h-96
             [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
             [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
             [&_p]:text-gray-700 [&_p]:leading-relaxed [&_p]:mb-3
