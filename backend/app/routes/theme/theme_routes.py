@@ -609,6 +609,51 @@ def theme_cache_status():
         'message': 'Cache not available'
     }), 200
 
+@theme_routes.route('/invalidate-cache', methods=['POST'])
+@jwt_required()
+@cross_origin()
+def invalidate_theme_cache():
+    """Manually invalidate theme cache (Admin only). Forces cache refresh."""
+    admin_check = admin_required()
+    if admin_check:
+        return admin_check
+    
+    try:
+        if CACHE_AVAILABLE and product_cache:
+            # Invalidate theme cache keys
+            prefixes_to_clear = ["theme_active", "theme_css", "theme_presets"]
+            cleared_count = 0
+            
+            for prefix in prefixes_to_clear:
+                try:
+                    # Delete the specific cache key
+                    product_cache.delete(prefix)
+                    cleared_count += 1
+                    logger.info(f"[v0] Cleared cache key: {prefix}")
+                except Exception as e:
+                    logger.warning(f"[v0] Could not clear {prefix}: {str(e)}")
+            
+            logger.info(f"[v0] Cache invalidation complete - cleared {cleared_count} keys")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Cache invalidated - {cleared_count} keys cleared',
+                'cleared': prefixes_to_clear
+            }), 200
+        else:
+            logger.info("[v0] Cache invalidation requested but cache not available")
+            return jsonify({
+                'success': True,
+                'message': 'Cache not available - no invalidation needed'
+            }), 200
+    
+    except Exception as e:
+        logger.error(f"Error invalidating theme cache: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Cache invalidation error: {str(e)}'
+        }), 500
+
 # Register blueprint with prefix
 def init_theme_routes(app):
     """Initialize theme routes"""

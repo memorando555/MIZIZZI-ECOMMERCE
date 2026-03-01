@@ -51,7 +51,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
   const [copiedHex, setCopiedHex] = useState(false)
   const [hexInput, setHexInput] = useState(initialTheme?.colors?.background?.main || "#FFFFFF")
   const { toast } = useToast()
-  const { refreshTheme, applyTheme } = useTheme()
+  const { refreshTheme, applyTheme, triggerFastRefresh } = useTheme()
 
   const getAuthToken = () => {
     return localStorage.getItem("admin_token") || localStorage.getItem("token")
@@ -125,22 +125,18 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     console.log(`[v0] ✅ Color applied instantly to UI in ${uiUpdateTime.toFixed(2)}ms`)
     console.log(`[v0] New color: ${backgroundColor}`)
 
-    // Show immediate success with animation
-    setSaveSuccess(true)
-    setTimeout(() => setSaveSuccess(false), 2000)
-
-    toast({
-      title: "Success!",
-      description: `Color updated instantly`,
-    })
-
-    // STEP 2: Save to backend in background (non-blocking)
+    // STEP 2: Save to backend with proper error handling and cache invalidation
     try {
       const token = getAuthToken()
 
       if (!token) {
-        console.warn("[v0] No auth token, skipping backend save")
+        toast({
+          title: "Error",
+          description: "Authentication token not found. Please login again.",
+          variant: "destructive",
+        })
         setIsSaving(false)
+        setSaveSuccess(false)
         return
       }
 
@@ -150,11 +146,11 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         is_active: true,
       }
 
-      console.log("[v0] Saving to backend in background...")
+      console.log("[v0] Saving to backend...")
       const apiStartTime = performance.now()
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
 
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
         method: "PUT",
@@ -170,23 +166,62 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
       const apiDuration = performance.now() - apiStartTime
 
       if (!response.ok) {
-        console.warn(`[v0] Backend returned status ${response.status} (UI already updated)`)
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.message || `Failed to save theme (Status: ${response.status})`
+        
+        console.error(`[v0] Backend error: ${response.status} - ${errorMessage}`)
+        
+        toast({
+          title: "Save Failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+        
         setIsSaving(false)
+        setSaveSuccess(false)
         return
       }
 
       const data = await response.json()
-      console.log(`[v0] ✅ Backend saved in ${apiDuration.toFixed(2)}ms`)
+      console.log(`[v0] ✅ Backend saved successfully in ${apiDuration.toFixed(2)}ms`)
 
       if (data.theme) {
         setActiveTheme(data.theme)
         console.log("[v0] Backend state synced")
       }
 
+      // Trigger fast refresh on context to enable 3-second polling for 30 seconds
+      triggerFastRefresh()
+
+      // Show success feedback
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+
+      toast({
+        title: "Success!",
+        description: `Color saved and will update across all pages within 30 seconds`,
+      })
+
+      // Trigger theme refresh
+      await refreshTheme()
+      console.log("[v0] Theme refreshed from backend")
+
       setIsSaving(false)
     } catch (error) {
-      console.warn("[v0] Backend save error (UI already updated):", error instanceof Error ? error.message : "Unknown error")
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+      
+      console.error("[v0] Save error:", errorMessage)
+      
+      toast({
+        title: "Save Error",
+        description: errorMessage.includes("abort") 
+          ? "Save request timed out. Please try again." 
+          : errorMessage,
+        variant: "destructive",
+      })
+      
       setIsSaving(false)
+      setSaveSuccess(false)
     }
   }
 
