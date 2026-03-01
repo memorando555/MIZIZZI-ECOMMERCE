@@ -57,7 +57,7 @@ const DialogContent = React.forwardRef<
         "sm:w-[calc(100%-2rem)] sm:max-w-2xl",
         
         // Height constraints - ensure content is visible with scrolling
-        "max-h-[85vh] sm:max-h-[calc(100vh-4rem)]",
+        "max-h-[90vh] sm:max-h-[95vh]",
         "overflow-hidden flex flex-col",
         
         // Smooth animations
