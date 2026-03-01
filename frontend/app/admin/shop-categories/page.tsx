@@ -555,31 +555,39 @@ export default function ShopCategoriesAdminPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-full max-w-xl max-h-[95vh] flex flex-col p-0 gap-0 rounded-2xl border-border/50">
-          {/* Sticky Header */}
-          <div className="flex-shrink-0 border-b border-border/40 px-6 py-5">
-            <DialogTitle className="text-2xl font-bold">
-              {editingCategory ? "Edit Category" : "Create Category"}
+        <DialogContent className="w-full max-w-4xl max-h-[95vh] flex flex-col p-0 gap-0 rounded-2xl border-border/50">
+          {/* Header */}
+          <div className="flex-shrink-0 border-b border-border/40 px-8 py-6 bg-background">
+            <DialogTitle className="text-3xl font-bold tracking-tight">
+              {editingCategory ? "Edit Category" : "Create New Category"}
             </DialogTitle>
-            <DialogDescription className="mt-1.5 text-sm">
-              {editingCategory ? "Update your category details" : "Add a new category to your store"}
+            <DialogDescription className="mt-2 text-sm text-muted-foreground">
+              {editingCategory ? "Update category details and manage visibility" : "Set up a new category with image, name, and display settings"}
             </DialogDescription>
           </div>
 
-          {/* Scrollable Content */}
+          {/* Content - Two Column Layout */}
           <div className="overflow-y-auto flex-1">
-            <div className="space-y-4 p-6">
-              {/* Image Upload - Prominent */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Category Image *</Label>
-                <div className="relative rounded-xl overflow-hidden bg-muted border border-border/50 h-40 mb-3">
-                  <Image
-                    src={getValidImageUrl(formData.image_url)}
-                    alt="Preview"
-                    fill
-                    className="object-cover"
-                  />
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 p-8">
+              {/* Left Column - Image (Takes 2 columns on large screens) */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold block">Category Image *</Label>
+                  <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-muted to-muted/50 border border-border/50 aspect-square">
+                    <Image
+                      src={getValidImageUrl(formData.image_url)}
+                      alt="Preview"
+                      fill
+                      className="object-cover"
+                    />
+                    {!formData.image_url && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <ImageIcon className="h-12 w-12 text-muted-foreground/40" />
+                      </div>
+                    )}
+                  </div>
                 </div>
+
                 <input
                   ref={imageInputRef}
                   type="file"
@@ -590,12 +598,13 @@ export default function ShopCategoriesAdminPage() {
                     if (file) handleImageUpload(file, "image_url")
                   }}
                 />
+
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => imageInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="w-full h-10 rounded-lg"
+                  className="w-full h-11 rounded-xl font-medium"
                 >
                   {uploadingImage ? (
                     <>
@@ -609,131 +618,127 @@ export default function ShopCategoriesAdminPage() {
                     </>
                   )}
                 </Button>
+
+                {/* Banner Image - Secondary */}
+                <div className="pt-4 border-t border-border/40">
+                  <Label className="text-sm font-medium block mb-2">Banner Image</Label>
+                  <div className="relative rounded-xl overflow-hidden bg-muted border border-border/50 h-32 mb-3">
+                    <Image
+                      src={getValidImageUrl(formData.banner_url)}
+                      alt="Banner"
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <input
+                    ref={bannerInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleImageUpload(file, "banner_url")
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => bannerInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    size="sm"
+                    className="w-full h-9 rounded-lg text-xs"
+                  >
+                    {uploadingImage ? "Uploading..." : (formData.banner_url ? "Change" : "Upload")} Banner
+                  </Button>
+                </div>
               </div>
 
-              {/* Basic Info */}
-              <div className="space-y-3 pt-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-sm font-medium">Category Name *</Label>
+              {/* Right Column - Form Fields (Takes 3 columns on large screens) */}
+              <div className="lg:col-span-3 space-y-5">
+                {/* Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-semibold">Category Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="Electronics"
-                    className="h-10 rounded-lg text-sm"
+                    placeholder="e.g., Electronics, Fashion, Home & Living"
+                    className="h-11 rounded-xl text-base"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Give your category a clear, descriptive name</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="slug" className="text-sm font-medium">URL Slug</Label>
+                {/* Slug */}
+                <div className="space-y-2">
+                  <Label htmlFor="slug" className="text-sm font-semibold">URL Slug</Label>
                   <Input
                     id="slug"
                     value={formData.slug}
                     onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
-                    placeholder="electronics"
-                    className="h-10 rounded-lg text-sm font-mono"
+                    placeholder="e.g., electronics, fashion"
+                    className="h-11 rounded-xl text-base font-mono text-sm"
                   />
-                  <p className="text-xs text-muted-foreground">Auto-generated from name</p>
+                  <p className="text-xs text-muted-foreground mt-1">Used in URLs and SEO</p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="description" className="text-sm font-semibold">Description</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                    placeholder="Brief description of this category"
-                    rows={2}
-                    className="rounded-lg text-sm resize-none"
+                    placeholder="Brief description about this category"
+                    rows={3}
+                    className="rounded-xl text-sm resize-none"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Keep it concise and informative</p>
                 </div>
-              </div>
 
-              {/* Banner Image */}
-              <div className="space-y-2 pt-2 border-t border-border/40">
-                <Label className="text-sm font-medium">Banner Image (Optional)</Label>
-                <div className="relative rounded-lg overflow-hidden bg-muted border border-border/50 h-24 mb-2">
-                  <Image
-                    src={getValidImageUrl(formData.banner_url)}
-                    alt="Banner"
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <input
-                  ref={bannerInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleImageUpload(file, "banner_url")
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => bannerInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  size="sm"
-                  className="w-full h-9 rounded-lg"
-                >
-                  {uploadingImage ? (
-                    <>
-                      <Loader className="h-3.5 w-3.5 mr-2 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-3.5 w-3.5 mr-2" />
-                      {formData.banner_url ? "Change Banner" : "Upload Banner"}
-                    </>
-                  )}
-                </Button>
-              </div>
-
-              {/* Settings */}
-              <div className="space-y-3 pt-2 border-t border-border/40">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-medium cursor-pointer">Featured</Label>
-                    <p className="text-xs text-muted-foreground">Show on homepage</p>
+                {/* Featured Toggle */}
+                <div className="pt-2 border-t border-border/40">
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-semibold cursor-pointer">Featured Category</Label>
+                      <p className="text-xs text-muted-foreground">Showcase on homepage</p>
+                    </div>
+                    <Switch
+                      checked={formData.is_featured}
+                      onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_featured: checked }))}
+                    />
                   </div>
-                  <Switch
-                    checked={formData.is_featured}
-                    onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_featured: checked }))}
-                  />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="sort_order" className="text-sm font-medium">Display Order</Label>
+                {/* Sort Order */}
+                <div className="space-y-2">
+                  <Label htmlFor="sort_order" className="text-sm font-semibold">Display Order</Label>
                   <Input
                     id="sort_order"
                     type="number"
                     value={formData.sort_order}
                     onChange={(e) => setFormData((prev) => ({ ...prev, sort_order: Number.parseInt(e.target.value) || 0 }))}
                     min={0}
-                    className="h-10 rounded-lg text-sm"
+                    className="h-11 rounded-xl text-base"
                   />
-                  <p className="text-xs text-muted-foreground">Lower numbers appear first</p>
+                  <p className="text-xs text-muted-foreground mt-1">Lower numbers appear first on the homepage</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Sticky Footer */}
-          <div className="flex-shrink-0 border-t border-border/40 bg-background px-6 py-4 flex gap-3 justify-end">
+          {/* Footer */}
+          <div className="flex-shrink-0 border-t border-border/40 bg-background px-8 py-5 flex items-center justify-end gap-3">
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
-              className="h-10 rounded-lg px-6"
+              className="h-11 rounded-xl px-6 font-medium"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={saving || !formData.name || !formData.image_url}
-              className="h-10 rounded-lg px-6 gap-2"
+              className="h-11 rounded-xl px-8 font-medium gap-2"
             >
               {saving ? (
                 <>
@@ -743,7 +748,7 @@ export default function ShopCategoriesAdminPage() {
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  {editingCategory ? "Update" : "Create"}
+                  {editingCategory ? "Update Category" : "Create Category"}
                 </>
               )}
             </Button>
@@ -754,22 +759,22 @@ export default function ShopCategoriesAdminPage() {
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="max-w-sm rounded-2xl border-border/50">
-          <AlertDialogHeader className="space-y-3">
+          <AlertDialogHeader className="space-y-4">
             <div className="flex justify-center mb-2">
-              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                <Trash2 className="h-6 w-6 text-destructive" />
+              <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center animate-pulse">
+                <Trash2 className="h-8 w-8 text-destructive" />
               </div>
             </div>
-            <AlertDialogTitle className="text-center text-xl">Delete Category</AlertDialogTitle>
+            <AlertDialogTitle className="text-center text-2xl">Delete Category?</AlertDialogTitle>
             <AlertDialogDescription className="text-center text-sm">
-              Are you sure you want to delete <strong>{categoryToDelete?.name}</strong>? This cannot be undone.
+              You're about to delete <span className="font-semibold text-foreground">"{categoryToDelete?.name}"</span>. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
-            <AlertDialogCancel className="h-10 rounded-lg">Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col-reverse gap-3 sm:flex-row">
+            <AlertDialogCancel className="h-11 rounded-xl font-medium">Keep It</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="h-10 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-11 rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-medium"
             >
               Delete
             </AlertDialogAction>
