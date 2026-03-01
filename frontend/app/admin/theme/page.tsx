@@ -11,7 +11,7 @@ import { useTheme } from "@/contexts/theme-context"
 
 interface ThemeColors {
   background: {
-    main: string
+    main: stringa
     [key: string]: string
   }
   [key: string]: any
@@ -144,8 +144,21 @@ export default function PremiumThemeCustomizer() {
     try {
       const token = getAuthToken()
 
+      const payload = {
+        name: activeTheme.name,
+        colors: {
+          ...activeTheme.colors,
+          background: {
+            ...activeTheme.colors.background,
+            main: backgroundColor,
+          },
+        },
+        is_active: true,
+      }
+
       console.log("[v0] Saving theme with backgroundColor:", backgroundColor)
       console.log("[v0] API URL:", `${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`)
+      console.log("[v0] Payload:", JSON.stringify(payload, null, 2))
 
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
         method: "PUT",
@@ -153,29 +166,28 @@ export default function PremiumThemeCustomizer() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: activeTheme.name,
-          colors: {
-            ...activeTheme.colors,
-            background: {
-              ...activeTheme.colors.background,
-              main: backgroundColor,
-            },
-          },
-          is_active: true,
-        }),
+        body: JSON.stringify(payload),
       })
 
+      console.log("[v0] Response status:", response.status)
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
+        const errorData = await response.json().catch(() => ({}))
         console.error("[v0] Save theme failed:", response.status, errorData)
+        console.error("[v0] Full error response:", JSON.stringify(errorData, null, 2))
         throw new Error(errorData?.message || `Failed to save theme (${response.status})`)
       }
 
       const data = await response.json()
       console.log("[v0] Theme saved successfully:", data)
+      console.log("[v0] Response data:", JSON.stringify(data, null, 2))
 
-      setActiveTheme(data.theme)
+      if (data.theme) {
+        setActiveTheme(data.theme)
+        setBackgroundColor(data.theme.colors?.background?.main || backgroundColor)
+        setHexInput(data.theme.colors?.background?.main || backgroundColor)
+      }
+
       setIsPreviewMode(false)
 
       toast({
