@@ -100,6 +100,9 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     }
 
     setIsSaving(true)
+    const startTime = performance.now()
+    console.log("[v0] Starting theme save at", new Date().toLocaleTimeString())
+
     try {
       const token = getAuthToken()
 
@@ -119,6 +122,9 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         is_active: true,
       }
 
+      console.log("[v0] Sending API request to save color:", backgroundColor)
+      const apiStartTime = performance.now()
+
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
         method: "PUT",
         headers: {
@@ -127,6 +133,9 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         },
         body: JSON.stringify(requestBody),
       })
+
+      const apiDuration = performance.now() - apiStartTime
+      console.log(`[v0] API response received in ${apiDuration.toFixed(2)}ms with status ${response.status}`)
 
       if (!response.ok) {
         let errorData = null
@@ -148,24 +157,27 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         setHexInput(savedBg)
         // Apply theme immediately to frontend
         applyTheme(data.theme)
+        console.log("[v0] ✅ SUCCESS: Theme saved and applied instantly")
+        console.log("[v0] New background color:", savedBg)
       }
 
       setIsPreviewMode(false)
       setSelectedPalette(null)
 
+      const totalTime = performance.now() - startTime
+      console.log(`[v0] 🎉 Total save completed in ${totalTime.toFixed(2)}ms`)
+
       // Show success toast
       toast({
         title: "Success!",
-        description: "Background color saved and applied instantly",
+        description: `Background color saved and applied in ${totalTime.toFixed(0)}ms`,
       })
 
-      // Refresh theme for other clients (background)
-      setTimeout(() => {
-        refreshTheme()
-      }, 100)
+      // Refresh theme for other clients without blocking UI
+      refreshTheme()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
-      console.error("[v0] Error saving theme:", errorMessage)
+      console.error("[v0] ❌ Error saving theme:", errorMessage)
 
       toast({
         title: "Error",
