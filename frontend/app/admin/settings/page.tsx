@@ -7,14 +7,12 @@ import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
 import {
   SiteSettings,
-  StoreSettings,
   InventorySettings,
   ReviewsSettings,
   SecuritySettings,
   PaymentSettings,
   SeoSettings,
   EmailSettings,
-  LocalizationSettings,
   MaintenanceSettings,
   SettingSection,
 } from '@/components/admin/settings'
@@ -29,57 +27,40 @@ interface Settings {
     phone: string
     address: string
   }
-  store?: {
-    currency: string
-    currency_symbol: string
-    timezone: string
-    default_language: string
-  }
-  inventory?: {
-    low_stock_alert: number
-    track_inventory: boolean
-    auto_calculate_cost: boolean
-  }
-  reviews?: {
-    enable_reviews: boolean
-    moderate_reviews: boolean
-    min_rating: number
-    require_verified_purchase: boolean
-  }
-  security?: {
-    enforce_two_factor: boolean
-    session_timeout: number
-    password_strength: string
-    require_password_change_days: number
-  }
-  payments?: {
-    stripe_enabled: boolean
-    stripe_mode: string
-    paypal_enabled: boolean
-    accept_credit_cards: boolean
-  }
   seo?: {
     meta_title: string
     meta_description: string
-    enable_sitemap: boolean
-    enable_robots_txt: boolean
+    sitemap_enabled: boolean
   }
   email?: {
     smtp_host: string
     smtp_port: number
-    smtp_user: string
+    smtp_username: string
     from_email: string
   }
-  localization?: {
-    language: string
-    timezone: string
-    date_format: string
+  payment?: {
     currency: string
+    tax_rate: number
+    tax_included_in_price: boolean
+  }
+  inventory?: {
+    low_stock_threshold: number
+    notify_on_low_stock: boolean
+    allow_backorders: boolean
+  }
+  reviews?: {
+    enabled: boolean
+    require_approval: boolean
+    allow_guest_reviews: boolean
+  }
+  security?: {
+    password_min_length: number
+    enable_two_factor: boolean
+    max_login_attempts: number
   }
   maintenance?: {
     maintenance_mode: boolean
     maintenance_message: string
-    api_rate_limit: number
   }
 }
 
@@ -119,8 +100,10 @@ export default function SettingsPage() {
     try {
       setIsLoading(true)
       const response = await adminService.getSettings()
+      console.log('[v0] Settings response:', response)
       if (response.success) {
-        setSettings(response.data || {})
+        // Backend returns { success, settings, last_updated }
+        setSettings(response.settings || {})
       } else {
         toast({
           title: 'Error',
@@ -265,13 +248,6 @@ export default function SettingsPage() {
             </SettingSection>
           )}
 
-          {/* Store Settings */}
-          {(!searchQuery || 'store'.includes(searchQuery)) && settings.store && (
-            <SettingSection title="Store" description="Currency, timezone, and language preferences">
-              <StoreSettings store={settings.store} onUpdate={handleSettingUpdate} />
-            </SettingSection>
-          )}
-
           {/* Inventory Settings */}
           {(!searchQuery || 'inventory'.includes(searchQuery)) && settings.inventory && (
             <SettingSection title="Inventory" description="Stock management and tracking">
@@ -294,9 +270,9 @@ export default function SettingsPage() {
           )}
 
           {/* Payment Settings */}
-          {(!searchQuery || 'payment'.includes(searchQuery)) && settings.payments && (
+          {(!searchQuery || 'payment'.includes(searchQuery)) && settings.payment && (
             <SettingSection title="Payments" description="Payment gateway configuration">
-              <PaymentSettings payments={settings.payments} onUpdate={handleSettingUpdate} />
+              <PaymentSettings payments={settings.payment} onUpdate={handleSettingUpdate} />
             </SettingSection>
           )}
 
@@ -311,13 +287,6 @@ export default function SettingsPage() {
           {(!searchQuery || 'email'.includes(searchQuery)) && settings.email && (
             <SettingSection title="Email" description="SMTP and email configuration">
               <EmailSettings email={settings.email} onUpdate={handleSettingUpdate} />
-            </SettingSection>
-          )}
-
-          {/* Localization Settings */}
-          {(!searchQuery || 'localization'.includes(searchQuery)) && settings.localization && (
-            <SettingSection title="Localization" description="Language, timezone, and regional settings">
-              <LocalizationSettings localization={settings.localization} onUpdate={handleSettingUpdate} />
             </SettingSection>
           )}
 
