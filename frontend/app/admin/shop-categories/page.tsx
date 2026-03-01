@@ -712,15 +712,15 @@ export default function ShopCategoriesAdminPage() {
 
           {/* Footer */}
           <div className="sticky bottom-0 border-t border-border/40 bg-background/95 backdrop-blur-sm px-6 py-4 flex items-center justify-between gap-3">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               onClick={() => setIsDialogOpen(false)}
               className="h-10 rounded-lg"
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               disabled={saving || !formData.name || !formData.image_url}
               className="h-10 rounded-lg gap-2 px-6"
             >
@@ -759,11 +759,6 @@ export default function ShopCategoriesAdminPage() {
               onClick={handleDelete}
               className="h-10 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
