@@ -92,6 +92,31 @@ def admin_required():
     
     return None
 
+@theme_routes.route('/admin/themes', methods=['GET'])
+@jwt_required()
+@cross_origin()
+def get_admin_themes():
+    """Get all themes for admin dashboard (Admin only)."""
+    admin_check = admin_required()
+    if admin_check:
+        return admin_check
+    
+    try:
+        themes = ThemeSettings.query.all()
+        
+        return jsonify({
+            'success': True,
+            'themes': [theme.to_dict() for theme in themes],
+            'count': len(themes)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error fetching themes: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Failed to fetch themes'
+        }), 500
+
 @theme_routes.route('/admin/themes', methods=['POST'])
 @jwt_required()
 def create_theme():
