@@ -155,21 +155,19 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
 
       if (data.theme) {
         setActiveTheme(data.theme)
+        // Apply theme immediately for instant UI update
+        applyTheme(data.theme)
       }
       setIsPreviewMode(false)
 
+      // Show success immediately
       toast({
         title: "Success!",
-        description: "Background color updated successfully",
+        description: "Background color saved and updated across all pages",
       })
 
-      // Immediately refresh theme on all clients
-      await refreshTheme()
-
-      toast({
-        title: "Success!",
-        description: "Background color updated successfully",
-      })
+      // Refresh theme in background to sync with backend (for other clients)
+      refreshTheme()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
       console.error("[v0] Error saving theme:", errorMessage)
@@ -182,7 +180,6 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     } finally {
       setIsSaving(false)
     }
-  }
   }
 
   const resetChanges = () => {
