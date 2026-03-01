@@ -3,9 +3,6 @@
   "version": "1.0.0",
   "description": "Mizizzi E-commerce Platform - Monorepo",
   "private": true,
-  "workspaces": [
-    "frontend"
-  ],
   "scripts": {
     "dev": "cd frontend && npm run dev",
     "dev:turbo": "cd frontend && npm run dev:turbo",
