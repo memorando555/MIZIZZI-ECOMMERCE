@@ -692,24 +692,24 @@ export default function InventoryPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      <div className="container mx-auto p-6 space-y-8">
+    <div className="min-h-screen bg-white w-full overflow-x-hidden">
+      <div className="w-full p-2 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-6 md:space-y-8">
         {/* Enhanced Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-400 bg-clip-text text-transparent">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+          <div className="space-y-1 sm:space-y-2">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight">
               Inventory Management
             </h1>
-            <p className="text-lg text-muted-foreground">
+            <p className="text-sm sm:text-base text-gray-600">
               Manage your product inventory with powerful tools and real-time insights
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <Button
               variant="outline"
               onClick={handleRefresh}
               disabled={operationLoading.type === "refresh"}
-              className="flex items-center gap-2 hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-blue-950 bg-transparent"
+              className="flex items-center gap-2 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
             >
               {operationLoading.type === "refresh" ? <MiniSpinner /> : <RefreshCw className="h-4 w-4" />}
               <span>Refresh</span>
@@ -1038,28 +1038,28 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4 mb-6 md:mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 md:p-6 shadow-sm hover:shadow-md transition-all duration-300"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-sm font-medium">Total Items</p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-gray-600 text-xs md:text-sm font-medium truncate">Total Items</p>
                 <motion.p
-                  className="text-3xl font-bold mt-1"
+                  className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.3 }}
                 >
                   {stats?.total_items ?? 0}
                 </motion.p>
-                <p className="text-blue-200 text-xs mt-1">Items tracked</p>
+                <p className="text-gray-500 text-xs mt-1">Items tracked</p>
               </div>
-              <div className="bg-blue-400/30 p-3 rounded-lg">
-                <Package className="h-6 w-6" />
+              <div className="bg-blue-100 p-2 md:p-3 rounded-lg flex-shrink-0">
+                <Package className="h-4 md:h-6 w-4 md:w-6 text-blue-600" />
               </div>
             </div>
           </motion.div>
@@ -1068,23 +1068,23 @@ export default function InventoryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-100 text-sm font-medium">In Stock</p>
+                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">In Stock</p>
                 <motion.p
-                  className="text-3xl font-bold mt-1"
+                  className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.4 }}
                 >
                   {stats?.in_stock ?? 0}
                 </motion.p>
-                <p className="text-green-200 text-xs mt-1">Items available</p>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">Items available</p>
               </div>
-              <div className="bg-green-400/30 p-3 rounded-lg">
-                <CheckCircle className="h-6 w-6" />
+              <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-lg">
+                <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
           </motion.div>
@@ -1093,72 +1093,48 @@ export default function InventoryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
           >
-            <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-100 text-sm font-medium">Low Stock</p>
+                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Low Stock</p>
                 <motion.p
-                  className="text-3xl font-bold mt-1"
+                  className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.5 }}
                 >
                   {stats?.low_stock ?? 0}
                 </motion.p>
-                <p className="text-orange-200 text-xs mt-1">Need restocking</p>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">Need restocking</p>
               </div>
-              <div className="bg-orange-400/30 p-3 rounded-lg">
-                <motion.div
-                  animate={{
-                    rotate: [0, -10, 10, -10, 0],
-                    scale: [1, 1.1, 1],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Number.POSITIVE_INFINITY,
-                    repeatDelay: 3,
-                  }}
-                >
-                  <AlertTriangle className="h-6 w-6" />
-                </motion.div>
+              <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-lg">
+                <AlertTriangle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-red-400/20"
-              animate={{
-                opacity: [0.3, 0.6, 0.3],
-                scale: [1, 1.02, 1],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Number.POSITIVE_INFINITY,
-                ease: "easeInOut",
-              }}
-            />
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
-            className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-red-100 text-sm font-medium">Out of Stock</p>
+                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Out of Stock</p>
                 <motion.p
-                  className="text-3xl font-bold mt-1"
+                  className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.6 }}
                 >
                   {stats?.out_of_stock ?? 0}
                 </motion.p>
-                <p className="text-red-200 text-xs mt-1">Unavailable</p>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">Unavailable</p>
               </div>
-              <div className="bg-red-400/30 p-3 rounded-lg">
-                <XCircle className="h-6 w-6" />
+              <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-lg">
+                <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
             </div>
           </motion.div>
@@ -1167,23 +1143,23 @@ export default function InventoryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
-            className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-indigo-100 text-sm font-medium">Reserved</p>
+                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Reserved</p>
                 <motion.p
-                  className="text-3xl font-bold mt-1"
+                  className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-1"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.7 }}
                 >
                   {stats?.reserved_quantity ?? 0}
                 </motion.p>
-                <p className="text-indigo-200 text-xs mt-1">Items reserved</p>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">Items reserved</p>
               </div>
-              <div className="bg-indigo-400/30 p-3 rounded-lg">
-                <Clock className="h-6 w-6" />
+              <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-lg">
+                <Clock className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
               </div>
             </div>
           </motion.div>
@@ -1192,23 +1168,23 @@ export default function InventoryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium">Total Value</p>
+                <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Total Value</p>
                 <motion.p
-                  className="text-2xl font-bold mt-1"
+                  className="text-2xl font-bold text-slate-900 dark:text-slate-100 mt-1"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ duration: 0.5, delay: 0.8 }}
                 >
                   KSh {(stats?.total_value ?? 0).toLocaleString()}
                 </motion.p>
-                <p className="text-purple-200 text-xs mt-1">Inventory value</p>
+                <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">Inventory value</p>
               </div>
-              <div className="bg-purple-400/30 p-3 rounded-lg">
-                <DollarSign className="h-6 w-6" />
+              <div className="bg-slate-100 dark:bg-slate-700 p-3 rounded-lg">
+                <DollarSign className="h-6 w-6 text-slate-700 dark:text-slate-300" />
               </div>
             </div>
           </motion.div>
@@ -1223,11 +1199,11 @@ export default function InventoryPage() {
                   <Filter className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl">Filters & Controls</CardTitle>
-                  <CardDescription>Search, filter, and manage your inventory</CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">Filters & Controls</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Search, filter, and manage your inventory</CardDescription>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {selectedItems.length > 0 && (
                   <>
                     <Badge variant="secondary" className="px-3 py-1 text-sm">
@@ -1329,8 +1305,8 @@ export default function InventoryPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <CardContent className="p-3 sm:p-4 md:p-6">
+            <div className="grid gap-2 sm:gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
               <div className="space-y-2">
                 <Label htmlFor="search" className="text-sm font-medium">
                   Search Products
@@ -1424,8 +1400,8 @@ export default function InventoryPage() {
         </Card>
 
         {/* Enhanced Inventory Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 h-12 bg-white dark:bg-slate-800 border-2">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-5 h-10 sm:h-12 bg-white border border-gray-200 overflow-x-auto">
             <TabsTrigger
               value="all"
               className="flex items-center gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white"
@@ -1500,8 +1476,8 @@ export default function InventoryPage() {
                         <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl">Inventory Items</CardTitle>
-                        <CardDescription>{inventory.length} items found</CardDescription>
+                        <CardTitle className="text-lg sm:text-xl">Inventory Items</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm">{inventory.length} items found</CardDescription>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1510,17 +1486,17 @@ export default function InventoryPage() {
                         onCheckedChange={handleSelectAll}
                         className="border-2"
                       />
-                      <Label className="text-sm font-medium">Select All</Label>
+                      <Label className="text-xs sm:text-sm font-medium">Select All</Label>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="p-0 overflow-x-auto">
                   {viewMode === "table" ? (
                     /* Enhanced Table View */
-                    <div className="overflow-x-auto">
-                      <div className="min-w-full">
+                    <div className="inline-block min-w-full">
+                      <div className="min-w-max sm:min-w-full">
                         {/* Table Header */}
-                        <div className="grid grid-cols-12 gap-4 p-6 bg-slate-50 dark:bg-slate-800 border-b font-medium text-sm text-slate-600 dark:text-slate-300">
+                        <div className="hidden sm:grid grid-cols-12 gap-2 md:gap-4 p-3 md:p-6 bg-white border-b font-medium text-xs md:text-sm text-gray-700">
                           <div className="col-span-1">Select</div>
                           <div className="col-span-3">Product</div>
                           <div className="col-span-1">Stock</div>
@@ -1532,7 +1508,7 @@ export default function InventoryPage() {
                         </div>
 
                         {/* Table Body */}
-                        <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                        <div className="divide-y divide-gray-100">
                           {inventory.map((item, index) => (
                             <div
                               key={item.id}

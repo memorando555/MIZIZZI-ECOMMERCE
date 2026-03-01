@@ -350,7 +350,7 @@ export function DashboardCards({ data, sales }: DashboardCardsProps) {
 
         {Object.entries(allCards).map(([category, cards]) => (
           <TabsContent key={category} value={category} className="mt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 lg:gap-6">
               {cards.map((card, index) => (
                 <motion.div
                   key={index}

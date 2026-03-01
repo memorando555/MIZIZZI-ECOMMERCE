@@ -23,25 +23,31 @@ body {
 
 @layer base {
   :root {
-    --background: 0 0% 98%; /* Clean off-white like Apple */
-    --foreground: 0 0% 13%; /* Deep charcoal text */
-    --card: 0 0% 100%; /* Pure white cards */
-    --card-foreground: 0 0% 13%;
+    --background: 0 0% 100%;
+    /* Pure white background */
+    --foreground: 0 0% 0%;
+    /* Black text */
+    --card: 0 0% 100%;
+    /* Pure white cards */
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 13%;
-    --primary: 0 0% 13%; /* Dark primary */
+    --popover-foreground: 0 0% 0%;
+    --primary: 0 0% 0%;
+    /* Black primary */
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%; /* Light gray */
-    --secondary-foreground: 0 0% 13%;
-    --muted: 0 0% 96%;
+    --secondary: 0 0% 95%;
+    /* Light gray */
+    --secondary-foreground: 0 0% 0%;
+    --muted: 0 0% 95%;
     --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 13%;
+    --accent: 0 0% 0%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%; /* Subtle borders */
+    --border: 0 0% 90%;
+    /* Subtle borders */
     --input: 0 0% 100%;
-    --ring: 0 0% 13%;
+    --ring: 0 0% 0%;
     --radius: 0.5rem;
 
     /* Success and status colors */
@@ -52,11 +58,10 @@ body {
     --info: 211 100% 50%;
     --info-light: 211 100% 95%;
 
-    /* Apple-inspired design tokens for smooth animations */
-    --apple-ease-out: cubic-bezier(0.2, 0, 0.2, 1);
-    --apple-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-    --apple-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    --apple-smooth: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    /* Smooth animations - removed apple specific glass morphism */
+    --ease-out: cubic-bezier(0.2, 0, 0.2, 1);
+    --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
     --chart-1: 0 84% 60%;
     --chart-2: 173 58% 39%;
@@ -64,13 +69,12 @@ body {
     --chart-4: 262 83% 58%;
     --chart-5: 43 96% 56%;
 
-    /* Luxury color palette additions */
-    --luxury-platinum: 0 0% 95%;
-    --luxury-silver: 0 0% 85%;
-    --luxury-charcoal: 215 25% 27%;
-    --luxury-purple: 262 83% 58%;
-    --luxury-purple-light: 262 83% 95%;
-    --luxury-accent: 262 83% 58%;
+    /* Color palette */
+    --platinum: 0 0% 95%;
+    --silver: 0 0% 85%;
+    --charcoal: 215 25% 27%;
+    --purple: 262 83% 58%;
+    --purple-light: 262 83% 95%;
 
     /* Cherry color palette */
     --cherry-50: 355 100% 97%;
@@ -85,13 +89,12 @@ body {
     --cherry-900: 324 69% 29%;
     --cherry-950: 326 85% 16%;
 
-    /* Dynamic theme variables - will be overridden by ThemeProvider */
+    /* Dynamic theme variables */
     --color-primary: #7c2d12;
     --color-primary-light: #991b1b;
     --color-primary-dark: #450a0a;
     --color-secondary: #dc2626;
     --color-accent: #ef4444;
-    /* Changed default background to white instead of orangish #7c2d12 */
     --color-background: #ffffff;
     --color-card-bg: #ffffff;
     --color-surface: #f5f5f5;
@@ -121,26 +124,26 @@ body {
     --color-nav-text: #1f2937;
     --color-nav-active: #7c2d12;
 
-    /* Added carousel theme color variables that were missing */
+    /* Carousel theme colors */
     --color-carousel-bg: #7c2d12;
     --color-carousel-overlay-dark: rgba(0, 0, 0, 0.7);
     --color-carousel-overlay-light: rgba(0, 0, 0, 0.4);
     --color-carousel-badge-bg: #dc2626;
     --color-carousel-badge-text: #ffffff;
 
-    /* Apple-inspired design tokens for admin profiles */
-    --apple-blue: 211 100% 50%;
-    --apple-blue-light: 211 100% 95%;
-    --apple-green: 142 76% 36%;
-    --apple-green-light: 142 76% 95%;
-    --apple-orange: 38 92% 50%;
-    --apple-orange-light: 38 92% 95%;
-    --apple-red: 0 84% 60%;
-    --apple-red-light: 0 84% 95%;
-    --apple-purple: 262 83% 58%;
-    --apple-purple-light: 262 83% 95%;
+    /* Color palette for components */
+    --blue: 211 100% 50%;
+    --blue-light: 211 100% 95%;
+    --green: 142 76% 36%;
+    --green-light: 142 76% 95%;
+    --orange: 38 92% 50%;
+    --orange-light: 38 92% 95%;
+    --red: 0 84% 60%;
+    --red-light: 0 84% 95%;
+    --purple-color: 262 83% 58%;
+    --purple-color-light: 262 83% 95%;
 
-    /* Apple SF Pro inspired spacing */
+    /* Spacing */
     --spacing-xs: 0.25rem;
     --spacing-sm: 0.5rem;
     --spacing-md: 1rem;
@@ -148,48 +151,13 @@ body {
     --spacing-xl: 2rem;
     --spacing-2xl: 3rem;
   }
-
-  .dark {
-    --background: 222 47% 11%; /* Deep dark background */
-    --foreground: 210 40% 98%; /* Almost white text */
-    --card: 222 47% 11%; /* Same as background for seamless look */
-    --card-foreground: 210 40% 98%;
-    --popover: 224 71% 4%; /* Slightly darker for popovers */
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%; /* White primary */
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 33% 17%; /* Subtle gray for secondary elements */
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%; /* Muted backgrounds */
-    --muted-foreground: 215 20% 65%; /* Muted text */
-    --accent: 217 33% 17%; /* Accent backgrounds */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%; /* Subtle borders */
-    --input: 217 33% 17%; /* Input backgrounds */
-    --ring: 224 76% 48%; /* Blue focus ring */
-
-    /* Added status color tokens for badges */
-    --success: 142 76% 36%;
-    --success-foreground: 138 76% 97%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 48 96% 89%;
-    --info: 199 89% 48%;
-    --info-foreground: 204 94% 94%;
-
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     /* Enhanced Apple-like font smoothing and scroll behavior */
@@ -215,18 +183,20 @@ body {
   }
 
   /* Optimize scrollable containers */
-  main, section, [role="region"] {
+  main,
+  section,
+  [role="region"] {
     -webkit-overflow-scrolling: touch;
     contain: layout style paint;
   }
 }
 
 @layer components {
-  /* Apple-inspired component styles with smooth animations */
+
+  /* Clean component styles - white theme */
   .apple-card {
     @apply bg-white rounded-2xl border border-gray-100 shadow-sm;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s var(--apple-ease-out);
+    transition: all 0.3s var(--ease-out);
   }
 
   .apple-card:hover {
@@ -248,25 +218,25 @@ body {
 
   .apple-button-primary {
     @apply bg-black text-white hover:bg-gray-800 rounded-full px-6 py-3 font-medium;
-    transition: all 0.2s var(--apple-ease-out);
+    transition: all 0.2s var(--ease-out);
   }
 
   .apple-button-secondary {
     @apply bg-gray-100 text-gray-900 hover:bg-gray-200 rounded-full px-6 py-3 font-medium;
-    transition: all 0.2s var(--apple-ease-out);
+    transition: all 0.2s var(--ease-out);
   }
 
   /* Smooth review form animations that prevent auto-scrolling */
   .review-form-container {
     overflow: hidden;
-    transition: all 0.4s var(--apple-ease-in-out);
+    transition: all 0.4s var(--ease-in-out);
     will-change: transform, opacity;
   }
 
   .review-form-content {
     transform: translateY(0);
     opacity: 1;
-    transition: all 0.3s var(--apple-ease-out);
+    transition: all 0.3s var(--ease-out);
   }
 
   .review-form-enter {
@@ -277,7 +247,7 @@ body {
   .review-form-enter-active {
     transform: translateY(0);
     opacity: 1;
-    transition: all 0.4s var(--apple-spring);
+    transition: all 0.4s var(--spring);
   }
 
   .review-form-exit {
@@ -288,31 +258,27 @@ body {
   .review-form-exit-active {
     transform: translateY(-20px);
     opacity: 0;
-    transition: all 0.3s var(--apple-ease-in-out);
+    transition: all 0.3s var(--ease-in-out);
   }
 
-  /* Apple-style input focus states */
+  /* Clean input focus states */
   .apple-input {
-    @apply w-full p-3 border border-gray-200 rounded-xl text-sm;
-    transition: all 0.2s var(--apple-ease-out);
-    background-color: hsl(var(--apple-gray-50));
+    @apply w-full p-3 border border-gray-200 rounded-xl text-sm bg-white;
+    transition: all 0.2s var(--ease-out);
   }
 
   .apple-input:focus {
-    @apply ring-2 ring-blue-500 border-blue-500;
-    background-color: white;
+    @apply ring-2 ring-blue-500 border-blue-500 bg-white;
     transform: scale(1.01);
   }
 
   .apple-textarea {
-    @apply w-full p-3 border border-gray-200 rounded-xl min-h-[100px] text-sm resize-none;
-    transition: all 0.2s var(--apple-ease-out);
-    background-color: hsl(var(--apple-gray-50));
+    @apply w-full p-3 border border-gray-200 rounded-xl min-h-[100px] text-sm resize-none bg-white;
+    transition: all 0.2s var(--ease-out);
   }
 
   .apple-textarea:focus {
-    @apply ring-2 ring-blue-500 border-blue-500;
-    background-color: white;
+    @apply ring-2 ring-blue-500 border-blue-500 bg-white;
     transform: scale(1.005);
   }
 
@@ -323,7 +289,7 @@ body {
   }
 
   .star-button {
-    transition: all 0.15s var(--apple-ease-out);
+    transition: all 0.15s var(--ease-out);
     transform-origin: center;
   }
 
@@ -341,7 +307,7 @@ body {
   }
 
   .star-empty {
-    color: hsl(var(--apple-gray-300));
+    color: #e5e7eb;
   }
 
   .star-empty:hover {
@@ -352,7 +318,7 @@ body {
   .feature-card {
     position: relative;
     overflow: hidden;
-    transition: all 0.3s var(--apple-ease-in-out);
+    transition: all 0.3s var(--ease-in-out);
   }
 
   .feature-card::before {
@@ -362,15 +328,13 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(
-      135deg,
-      rgba(139, 69, 19, 0.08) 0%,
-      rgba(165, 42, 42, 0.08) 30%,
-      rgba(128, 0, 32, 0.08) 70%,
-      rgba(72, 61, 139, 0.08) 100%
-    );
+    background: linear-gradient(135deg,
+        rgba(139, 69, 19, 0.08) 0%,
+        rgba(165, 42, 42, 0.08) 30%,
+        rgba(128, 0, 32, 0.08) 70%,
+        rgba(72, 61, 139, 0.08) 100%);
     transform: translateX(-100%);
-    transition: transform 0.5s var(--apple-ease-in-out);
+    transition: transform 0.5s var(--ease-in-out);
     z-index: 1;
   }
 
@@ -387,7 +351,7 @@ body {
     bottom: 0;
     background: linear-gradient(90deg, transparent 0%, rgba(255, 182, 193, 0.3) 50%, transparent 100%);
     transform: translateX(-100%);
-    transition: transform 0.7s var(--apple-ease-in-out);
+    transition: transform 0.7s var(--ease-in-out);
     transition-delay: 0.1s;
     z-index: 2;
   }
@@ -397,7 +361,7 @@ body {
   }
 
   /* Ensure content stays above animations */
-  .feature-card > * {
+  .feature-card>* {
     position: relative;
     z-index: 10;
   }
@@ -487,8 +451,56 @@ body {
   .apple-button {
     position: relative;
     overflow: hidden;
-    transition: all 0.2s var(--apple-ease-out);
+    transition: all 0.2s var(--ease-out);
     transform-origin: center;
+  }
+
+  .apple-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .apple-button:active {
+    transform: translateY(0);
+    transition-duration: 0.1s;
+  }
+
+  .apple-button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s var(--ease-out);
+  }
+
+  .apple-button:hover::before {
+    transform: translateX(100%);
+  }
+
+  /* Apple-inspired admin profile components */
+  .apple-profile-card {
+    @apply bg-white rounded-2xl border border-gray-100;
+    transition: all 0.3s var(--ease-out);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  .apple-profile-card:hover {
+    @apply shadow-xl border-gray-200;
+    transform: translateY(-2px);
+  }
+
+  .apple-stat-card {
+    @apply bg-white rounded-xl border border-gray-100 p-4;
+    transition: all 0.3s var(--ease-out);
+  }
+
+  .apple-stat-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
   }
 
   .apple-button:hover {
@@ -526,6 +538,7 @@ body {
     from {
       transform: rotate(0deg);
     }
+
     to {
       transform: rotate(360deg);
     }
@@ -547,17 +560,20 @@ body {
   .loading-dot:nth-child(1) {
     animation-delay: -0.32s;
   }
+
   .loading-dot:nth-child(2) {
     animation-delay: -0.16s;
   }
 
   @keyframes loading-bounce {
+
     0%,
     80%,
     100% {
       transform: scale(0.8);
       opacity: 0.5;
     }
+
     40% {
       transform: scale(1);
       opacity: 1;
@@ -570,6 +586,7 @@ body {
       opacity: 0;
       transform: translateY(8px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -591,6 +608,7 @@ body {
     from {
       opacity: 0;
     }
+
     to {
       opacity: 1;
     }
@@ -614,7 +632,8 @@ body {
   }
 
   /* GPU acceleration for smooth scrolling */
-  .grid, [class*="grid-cols-"] {
+  .grid,
+  [class*="grid-cols-"] {
     transform: translateZ(0);
   }
 
@@ -755,12 +774,15 @@ body {
     @apply flex gap-3 mb-8 overflow-x-auto pb-2;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
   }
 
   .orders-status-grid::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
+    display: none;
+    /* Chrome, Safari, Opera */
   }
 
   /* Premium status card styling */
@@ -871,13 +893,16 @@ body {
 
   /* Add animated blob animation for hero section */
   @keyframes blob {
+
     0%,
     100% {
       transform: translate(0, 0) scale(1);
     }
+
     33% {
       transform: translate(30px, -50px) scale(1.1);
     }
+
     66% {
       transform: translate(-20px, 20px) scale(0.9);
     }
@@ -940,12 +965,10 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      105deg,
-      transparent 40%,
-      rgba(255, 255, 255, 0.5) 50%,
-      transparent 60%
-    );
+    background: linear-gradient(105deg,
+        transparent 40%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 60%);
     transform: translateX(-100%);
     transition: none;
     z-index: 5;
@@ -1075,12 +1098,10 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.35) 50%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.35) 50%,
+        transparent 100%);
     animation: jumia-shimmer 2.5s infinite;
   }
 
@@ -1095,12 +1116,10 @@ body {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.2) 50%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.2) 50%,
+        transparent 100%);
     transform: translateX(-100%);
     transition: none;
   }
@@ -1118,17 +1137,187 @@ body {
   .jumia-count-badge {
     animation: jumia-count-pulse 1.5s ease-in-out infinite;
   }
+
+  /* Mobile-first responsive utilities */
+  .mobile-safe-area {
+    @apply p-2 sm:p-4 md:p-6 lg:p-8;
+  }
+
+  .mobile-spacing {
+    @apply space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-6;
+  }
+
+  .mobile-gap {
+    @apply gap-2 sm:gap-3 md:gap-4 lg:gap-6;
+  }
+
+  .mobile-text {
+    @apply text-sm sm:text-base md:text-lg;
+  }
+
+  .mobile-heading {
+    @apply text-lg sm:text-xl md:text-2xl lg:text-3xl;
+  }
+
+  .mobile-grid-cols-auto {
+    @apply grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
+  }
+
+  .mobile-flex-wrap {
+    @apply flex flex-col sm:flex-row gap-2 sm:gap-3 md:gap-4;
+  }
+
+  /* Responsive button sizing */
+  .mobile-button {
+    @apply h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm;
+  }
+
+  /* Responsive input sizing */
+  .mobile-input {
+    @apply h-8 sm:h-9 md:h-10 text-xs sm:text-sm;
+  }
+
+  /* Touch-friendly targets (44px minimum) */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Apple-inspired smooth animations for header */
+  @keyframes appleIconHover {
+    from {
+      transform: translateY(0) translateZ(0);
+      opacity: 1;
+    }
+
+    to {
+      transform: translateY(-2px) translateZ(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes appleFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95) translateZ(0);
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1) translateZ(0);
+    }
+  }
+
+  /* Ultra-smooth button transitions */
+  .apple-button-hover {
+    @apply transition-all duration-150 ease-out;
+    will-change: background-color, color;
+    transform: translateZ(0);
+  }
+
+  /* Smooth icon appearance */
+  .apple-icon-smooth {
+    @apply stroke-[1.5] transition-colors duration-150;
+    will-change: color;
+  }
+
+  /* Profile avatar - smooth and professional */
+  .apple-avatar {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* Header entrance animation */
+  @keyframes headerSlideDown {
+    from {
+      transform: translateY(-100%) translateZ(0);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0) translateZ(0);
+      opacity: 1;
+    }
+  }
+
+  .header-slide-down {
+    animation: headerSlideDown 0.25s ease-out forwards;
+    will-change: transform, opacity;
+  }
+
+  /* Apple-style dropdown fade in */
+  @keyframes dropdownFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) translateZ(0);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) translateZ(0);
+    }
+  }
+
+  .dropdown-fade-in {
+    animation: dropdownFadeIn 0.15s ease-out;
+  }
+
+  /* Apple search input smooth focus */
+  @keyframes searchFocus {
+    from {
+      background-color: rgb(243, 244, 246);
+    }
+
+    to {
+      background-color: rgb(255, 255, 255);
+    }
+  }
+
+  .apple-search-focus {
+    animation: searchFocus 0.15s ease-out;
+  }
+
+  /* Badge pop with subtle spring */
+  @keyframes badgePopSmooth {
+    0% {
+      opacity: 0;
+      transform: scale(0.6) translateZ(0);
+    }
+
+    100% {
+      opacity: 1;
+      transform: scale(1) translateZ(0);
+    }
+  }
+
+  .badge-pop-smooth {
+    animation: badgePopSmooth 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  /* Smooth admin header styling */
+  .admin-header-clean {
+    @apply bg-white border-b border-gray-200;
+    will-change: box-shadow;
+  }
+
+  .admin-header-clean:hover {
+    @apply shadow-sm;
+  }
 }
 
 @layer utilities {
+
   /* Add scrollbar-hide utility for clean search dropdown */
   .scrollbar-hide {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
 
   .scrollbar-hide::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
+    display: none;
+    /* Chrome, Safari, Opera */
   }
 
   /* Custom scrollbar */
@@ -1187,6 +1376,7 @@ body {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1198,6 +1388,7 @@ body {
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -1209,6 +1400,7 @@ body {
     transform: scale(0.9);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -1220,9 +1412,11 @@ body {
     transform: scale(0.9);
     opacity: 0;
   }
+
   50% {
     transform: scale(1.02);
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -1237,6 +1431,7 @@ body {
 
 /* Reduced motion preferences with better fallbacks */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {

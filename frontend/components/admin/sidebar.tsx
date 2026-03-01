@@ -81,12 +81,7 @@ const menuItems: MenuItem[] = [
     badge: 12,
     submenu: [
       { title: "All Orders", path: "/admin/orders" },
-      { title: "Pending", path: "/admin/orders/pending", badge: 5 },
-      { title: "Processing", path: "/admin/orders/processing", badge: 3 },
-      { title: "Completed", path: "/admin/orders/completed" },
-      { title: "Cancelled", path: "/admin/orders/cancelled" },
-      { title: "Returns", path: "/admin/orders/returns", badge: 2 },
-      { title: "Invoices", path: "/admin/orders/invoices" },
+      { title: "Returns", path: "/admin/orders/returns", badge: 2 },    
       { title: "Order Tracking", path: "/admin/orders/tracking" },
     ],
   },
@@ -105,8 +100,7 @@ const menuItems: MenuItem[] = [
     path: "/admin/shop-categories",
     submenu: [
       { title: "All Categories", path: "/admin/shop-categories" },
-      { title: "Add New", path: "/admin/shop-categories/new" },
-      { title: "Featured", path: "/admin/shop-categories?featured=true" },
+     
     ],
   },
   {
@@ -116,11 +110,7 @@ const menuItems: MenuItem[] = [
     badge: "Featured",
     submenu: [
       { title: "All Carousels", path: "/admin/carousel" },
-      { title: "Homepage", path: "/admin/carousel?position=homepage" },
-      { title: "Category Pages", path: "/admin/carousel?position=category_page" },
-      { title: "Flash Sales", path: "/admin/carousel?position=flash_sales" },
-      { title: "Luxury Deals", path: "/admin/carousel?position=luxury_deals" },
-      { title: "Analytics", path: "/admin/carousel/analytics" },
+    
     ],
   },
   {
@@ -154,10 +144,7 @@ const menuItems: MenuItem[] = [
     badge: 8,
     submenu: [
       { title: "Stock Management", path: "/admin/inventory" },
-      { title: "Low Stock", path: "/admin/inventory/low-stock", badge: 8 },
-      { title: "Stock History", path: "/admin/inventory/history" },
-      { title: "Stock Adjustments", path: "/admin/inventory/adjustments" },
-      { title: "Warehouse", path: "/admin/inventory/warehouse" },
+     
     ],
   },
   {
@@ -166,35 +153,19 @@ const menuItems: MenuItem[] = [
     path: "/admin/customers",
     submenu: [
       { title: "All Customers", path: "/admin/customers" },
-      { title: "Customer Groups", path: "/admin/customer-groups" },
       { title: "Addresses", path: "/admin/addresses" },
       { title: "Verification", path: "/admin/customers/verification" },
       { title: "Customer Profiles", path: "/admin/customers/profiles" },
     ],
   },
-  {
-    title: "Cart & Wishlist",
-    icon: <ShoppingCart size={20} />,
-    path: "/admin/cart",
-    submenu: [
-      { title: "Cart Items", path: "/admin/cart-items" },
-      { title: "Abandoned Carts", path: "/admin/cart/abandoned", badge: 7 },
-      { title: "Wishlist Items", path: "/admin/wishlist-items" },
-      { title: "Cart Validation", path: "/admin/cart/validation" },
-    ],
-  },
+ 
   {
     title: "Settings",
     icon: <Settings size={20} />,
     path: "/admin/settings",
     submenu: [
       { title: "General", path: "/admin/settings" },
-      { title: "Store", path: "/admin/settings/store" },
-      { title: "Users & Permissions", path: "/admin/settings/users" },
-      { title: "Taxes", path: "/admin/settings/taxes" },
-      { title: "Integrations", path: "/admin/settings/integrations" },
-      { title: "Localization", path: "/admin/settings/localization" },
-      { title: "Sound Settings", path: "/admin/settings/sound" },
+    
     ],
   },
   {

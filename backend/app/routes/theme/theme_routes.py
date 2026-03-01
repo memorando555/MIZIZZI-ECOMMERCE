@@ -338,18 +338,6 @@ def update_theme(theme_id):
         data = request.get_json()
         user_id = get_jwt_identity()
         
-        from ...validations.color_validator import ColorValidator
-        
-        colors = data.get('colors', {})
-        color_validator = ColorValidator(colors)
-        
-        if not color_validator.is_valid():
-            return jsonify({
-                'success': False,
-                'message': 'Invalid color values',
-                'errors': color_validator.get_errors()
-            }), 400
-        
         # Update basic info
         if 'name' in data:
             theme.name = data['name']
@@ -359,9 +347,23 @@ def update_theme(theme_id):
                 ThemeSettings.deactivate_all()
             theme.is_active = data['is_active']
         
-        # ... existing color update code ...
+        # Handle colors - be defensive and check for nested keys
+        colors = data.get('colors', {})
         
-        if 'primary' in colors:
+        # Only validate if colors data is provided
+        if colors:
+            from ...validations.color_validator import ColorValidator
+            color_validator = ColorValidator(colors)
+            
+            if not color_validator.is_valid():
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid color values',
+                    'errors': color_validator.get_errors()
+                }), 400
+        
+        # Safely update color properties with nested checks
+        if 'primary' in colors and isinstance(colors['primary'], dict):
             if 'main' in colors['primary']:
                 theme.primary_color = colors['primary']['main']
             if 'light' in colors['primary']:
@@ -369,13 +371,13 @@ def update_theme(theme_id):
             if 'dark' in colors['primary']:
                 theme.primary_dark = colors['primary']['dark']
         
-        if 'secondary' in colors:
+        if 'secondary' in colors and isinstance(colors['secondary'], dict):
             if 'main' in colors['secondary']:
                 theme.secondary_color = colors['secondary']['main']
             if 'accent' in colors['secondary']:
                 theme.accent_color = colors['secondary']['accent']
         
-        if 'background' in colors:
+        if 'background' in colors and isinstance(colors['background'], dict):
             if 'main' in colors['background']:
                 theme.background_color = colors['background']['main']
             if 'card' in colors['background']:
@@ -383,7 +385,7 @@ def update_theme(theme_id):
             if 'surface' in colors['background']:
                 theme.surface_color = colors['background']['surface']
         
-        if 'text' in colors:
+        if 'text' in colors and isinstance(colors['text'], dict):
             if 'primary' in colors['text']:
                 theme.text_primary = colors['text']['primary']
             if 'secondary' in colors['text']:
@@ -391,14 +393,14 @@ def update_theme(theme_id):
             if 'onPrimary' in colors['text']:
                 theme.text_on_primary = colors['text']['onPrimary']
         
-        if 'border' in colors:
+        if 'border' in colors and isinstance(colors['border'], dict):
             if 'main' in colors['border']:
                 theme.border_color = colors['border']['main']
             if 'divider' in colors['border']:
                 theme.divider_color = colors['border']['divider']
         
-        if 'button' in colors:
-            if 'primary' in colors['button']:
+        if 'button' in colors and isinstance(colors['button'], dict):
+            if 'primary' in colors['button'] and isinstance(colors['button']['primary'], dict):
                 if 'background' in colors['button']['primary']:
                     theme.button_primary_bg = colors['button']['primary']['background']
                 if 'text' in colors['button']['primary']:
@@ -406,13 +408,13 @@ def update_theme(theme_id):
                 if 'hover' in colors['button']['primary']:
                     theme.button_primary_hover = colors['button']['primary']['hover']
             
-            if 'secondary' in colors['button']:
+            if 'secondary' in colors['button'] and isinstance(colors['button']['secondary'], dict):
                 if 'background' in colors['button']['secondary']:
                     theme.button_secondary_bg = colors['button']['secondary']['background']
                 if 'text' in colors['button']['secondary']:
                     theme.button_secondary_text = colors['button']['secondary']['text']
         
-        if 'status' in colors:
+        if 'status' in colors and isinstance(colors['status'], dict):
             if 'success' in colors['status']:
                 theme.success_color = colors['status']['success']
             if 'warning' in colors['status']:
@@ -422,31 +424,31 @@ def update_theme(theme_id):
             if 'info' in colors['status']:
                 theme.info_color = colors['status']['info']
         
-        if 'header' in colors:
+        if 'header' in colors and isinstance(colors['header'], dict):
             if 'background' in colors['header']:
                 theme.header_background = colors['header']['background']
             if 'text' in colors['header']:
                 theme.header_text = colors['header']['text']
         
-        if 'footer' in colors:
+        if 'footer' in colors and isinstance(colors['footer'], dict):
             if 'background' in colors['footer']:
                 theme.footer_background = colors['footer']['background']
             if 'text' in colors['footer']:
                 theme.footer_text = colors['footer']['text']
         
-        if 'link' in colors:
+        if 'link' in colors and isinstance(colors['link'], dict):
             if 'main' in colors['link']:
                 theme.link_color = colors['link']['main']
             if 'hover' in colors['link']:
                 theme.link_hover_color = colors['link']['hover']
         
-        if 'badge' in colors:
+        if 'badge' in colors and isinstance(colors['badge'], dict):
             if 'background' in colors['badge']:
                 theme.badge_color = colors['badge']['background']
             if 'text' in colors['badge']:
                 theme.badge_text = colors['badge']['text']
         
-        if 'navigation' in colors:
+        if 'navigation' in colors and isinstance(colors['navigation'], dict):
             if 'background' in colors['navigation']:
                 theme.nav_background = colors['navigation']['background']
             if 'text' in colors['navigation']:
@@ -454,7 +456,7 @@ def update_theme(theme_id):
             if 'active' in colors['navigation']:
                 theme.nav_active = colors['navigation']['active']
         
-        if 'carousel' in colors:
+        if 'carousel' in colors and isinstance(colors['carousel'], dict):
             if 'background' in colors['carousel']:
                 theme.carousel_background = colors['carousel']['background']
             if 'overlayDark' in colors['carousel']:
@@ -489,10 +491,10 @@ def update_theme(theme_id):
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error updating theme: {str(e)}")
+        logger.error(f"Error updating theme: {str(e)}", exc_info=True)
         return jsonify({
             'success': False,
-            'message': 'Failed to update theme'
+            'message': f'Failed to update theme: {str(e)}'
         }), 500
 
 @theme_routes.route('/admin/themes/<int:theme_id>/activate', methods=['POST'])

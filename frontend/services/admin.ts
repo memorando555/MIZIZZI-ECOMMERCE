@@ -13,28 +13,76 @@ const websocketService = {
   },
 }
 
-async function prefetchData(url: string, params: any): Promise<boolean> {
+/**
+ * Prefetch helper used by adminService.prefetch* methods.
+ * Performs a simple GET request, stores the response under a swr-key in localStorage and returns success boolean.
+ */
+async function prefetchData(path: string, params: Record<string, any> = {}): Promise<boolean> {
   try {
-    const response = await api.get(url, { params })
-    return response.status === 200
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || ""
+    const url = `${baseUrl}${path}`
+
+    const queryParams = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, String(value))
+      }
+    })
+
+    const fullUrl = queryParams.toString() ? `${url}?${queryParams.toString()}` : url
+    const token = (typeof localStorage !== "undefined" && (localStorage.getItem("mizizzi_token") || localStorage.getItem("admin_token"))) || ""
+
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+      credentials: "include",
+    })
+
+    if (!response.ok) {
+      console.warn(`[prefetchData] Request to ${fullUrl} failed with status ${response.status}`)
+      return false
+    }
+
+    // try to parse JSON; if it fails, still treat as success but don't cache
+    const data = await response.json().catch(() => null)
+    try {
+      if (typeof localStorage !== "undefined") {
+        const cacheKey = `swr-key:${path}${queryParams.toString() ? `?${queryParams.toString()}` : ""}`
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+      }
+    } catch (e) {
+      // ignore localStorage failures
+      console.warn("[prefetchData] Failed to write to localStorage:", e)
+    }
+
+    return true
   } catch (error) {
-    console.error(`Error prefetching data from ${url}:`, error)
+    console.warn("[prefetchData] Error prefetching", error)
     return false
   }
 }
+
+// Explicit re-export of types to ensure proper module resolution
+// Re-export the imported admin types instead of the locally defined interfaces
+// to avoid duplicate export declarations for AdminDashboardResponse/AdminLoginResponse.
+export type { AdminPaginatedResponse, ProductCreatePayload }
+
 
 // Define the base URL for admin API endpoints
 const ADMIN_API_BASE = "/api/admin"
 
 // Define types for admin API responses
-interface AdminLoginResponse {
+export interface AdminLoginResponse {
   user: any
   access_token: string
   refresh_token?: string
   csrf_token?: string
 }
 
-interface AdminDashboardResponse {
+export interface AdminDashboardResponse {
   counts: {
     users: number
     products: number
@@ -49,6 +97,13 @@ interface AdminDashboardResponse {
     orders_in_transit: number
     pending_payments: number
     low_stock_count: number
+    total_active_sessions?: number
+    total_sales_channels?: number
+    refunds_pending?: number
+    support_tickets_open?: number
+    total_wishlist_items?: number
+    active_coupons?: number
+    returning_customers?: number
   }
   sales: {
     today: number
@@ -58,6 +113,24 @@ interface AdminDashboardResponse {
     yearly: number
     total_revenue: number
     pending_amount: number
+    average_order_value?: number
+    net_profit?: number
+    gross_profit?: number
+    refunded_amount?: number
+    tax_collected?: number
+    shipping_revenue?: number
+    today_trend?: number
+    weekly_trend?: number
+    monthly_trend?: number
+  }
+  customer_analytics?: {
+    total_customers?: number
+    new_customers_today?: number
+    repeat_customers?: number
+    customer_retention_rate?: number
+    average_customer_lifetime_value?: number
+    customer_satisfaction_score?: number
+    churn_rate?: number
   }
   order_status: Record<string, number>
   recent_orders: any[]
@@ -73,6 +146,9 @@ interface AdminDashboardResponse {
   revenue_vs_refunds: any[]
   active_users: any[]
   sales_data: any[]
+  payment_methods?: any[]
+  performance_metrics?: any
+  system_health?: any
 }
 
 interface ProductImage {
@@ -1157,12 +1233,19 @@ export const adminService = {
       })
 
       if (!response.ok) {
+        const errorData = await response.text()
+        console.error("[v0] Orders API error:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorData,
+          url: url.toString(),
+        })
         throw new Error(`Orders request failed with status: ${response.status}`)
       }
 
       return await response.json()
     } catch (error) {
-      console.error("Error fetching orders:", error)
+      console.error("[v0] Error fetching orders:", error)
       throw error
     }
   },
@@ -2306,6 +2389,32 @@ export const adminService = {
     }
   },
 
+  getDefaultPerformanceMetrics() {
+    return {
+      cpu_usage: 45,
+      memory_usage: 62,
+      disk_usage: 38,
+      network_traffic: 125,
+      api_response_time: 245,
+      error_rate: 0.5,
+      uptime: 99.9,
+      request_count: 50000,
+    }
+  },
+
+  getDefaultSystemStatus() {
+    return {
+      status: "healthy",
+      last_backup: new Date(Date.now() - 3600000).toISOString(),
+      database_status: "operational",
+      cache_status: "operational",
+      api_status: "operational",
+      services_up: 12,
+      services_total: 12,
+      alerts: 0,
+    }
+  },
+
   async getUsers(params = {}): Promise<AdminPaginatedResponse<any>> {
     try {
       const response = await api.get("/api/admin/users", { params })
@@ -2368,6 +2477,78 @@ export const adminService = {
       console.log("[v0] Product caches invalidated", productId ? `for product ${productId}` : "")
     } catch (error) {
       console.warn("[v0] Error invalidating caches:", error)
+    }
+  },
+
+  // Cart Items Management
+  async getCartItems(params = {}): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/cart-items", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching cart items:", error)
+      throw error
+    }
+  },
+
+  async deleteCartItem(cartItemId: string): Promise<void> {
+    try {
+      await api.delete(`/api/admin/cart-items/${cartItemId}`)
+    } catch (error) {
+      console.error("[v0] Error deleting cart item:", error)
+      throw error
+    }
+  },
+
+  // Wishlist Items Management
+  async getWishlistItems(params = {}): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/wishlist-items", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching wishlist items:", error)
+      throw error
+    }
+  },
+
+  async deleteWishlistItem(wishlistItemId: string): Promise<void> {
+    try {
+      await api.delete(`/api/admin/wishlist-items/${wishlistItemId}`)
+    } catch (error) {
+      console.error("[v0] Error deleting wishlist item:", error)
+      throw error
+    }
+  },
+
+  // Abandoned Carts Management
+  async getAbandonedCarts(params = {}): Promise<any> {
+    try {
+      const response = await api.get("/api/admin/abandoned-carts", { params })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error fetching abandoned carts:", error)
+      throw error
+    }
+  },
+
+  async deleteAbandonedCart(cartId: string): Promise<void> {
+    try {
+      await api.delete(`/api/admin/abandoned-carts/${cartId}`)
+    } catch (error) {
+      console.error("[v0] Error deleting abandoned cart:", error)
+      throw error
+    }
+  },
+
+  async sendRecoveryEmail(cartId: string, emailContent: string): Promise<any> {
+    try {
+      const response = await api.post(`/api/admin/abandoned-carts/${cartId}/send-recovery-email`, {
+        content: emailContent,
+      })
+      return response.data
+    } catch (error) {
+      console.error("[v0] Error sending recovery email:", error)
+      throw error
     }
   },
 }
