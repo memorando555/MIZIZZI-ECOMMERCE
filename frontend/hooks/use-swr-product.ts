@@ -1,6 +1,7 @@
 import useSWR, { type SWRConfiguration, mutate as globalMutate } from "swr"
 import type { Product, ProductImage } from "@/types"
 import { productService } from "@/services/product"
+import { websocketService } from "@/services/websocket"
 import api from "@/lib/api"
 import { adminService } from "@/services/admin"
 import { imageBatchService } from "@/services/image-batch-service"
