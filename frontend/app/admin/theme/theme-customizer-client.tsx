@@ -117,7 +117,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     } as Theme
 
     setActiveTheme(updatedTheme)
-    applyTheme(updatedTheme)
+    applyTheme(updatedTheme as any)
     setIsPreviewMode(false)
     setSelectedPalette(null)
 
