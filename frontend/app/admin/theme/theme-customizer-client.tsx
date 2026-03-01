@@ -102,6 +102,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     setIsSaving(true)
     try {
       const token = getAuthToken()
+      console.log("[v0] Token retrieved:", token ? `${token.substring(0, 20)}...` : "NO TOKEN")
 
       if (!token) {
         throw new Error("No authentication token found")
@@ -119,6 +120,9 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         is_active: true,
       }
 
+      console.log("[v0] Saving theme to:", `${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`)
+      console.log("[v0] Request headers will include Authorization: Bearer ${token.substring(0, 20)}...")
+
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
         method: "PUT",
         headers: {
@@ -128,13 +132,22 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         body: JSON.stringify(requestBody),
       })
 
+      console.log("[v0] Response status:", response.status)
+
       if (!response.ok) {
         let errorData = null
         try {
           errorData = await response.json()
+          console.log("[v0] Error response:", errorData)
         } catch (e) {
-          // ignore
+          console.log("[v0] Could not parse error response as JSON")
         }
+
+        if (response.status === 401) {
+          console.log("[v0] 401 Unauthorized - Token may be invalid or expired")
+          throw new Error("Your session has expired. Please login again and try saving.")
+        }
+
         throw new Error(errorData?.message || `Failed to save theme (${response.status})`)
       }
 
@@ -153,24 +166,23 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
       // Immediately refresh theme on all clients
       await refreshTheme()
 
-      // Also trigger a second refresh after a short delay to ensure propagation
-      setTimeout(() => {
-        refreshTheme()
-      }, 500)
+      toast({
+        title: "Success!",
+        description: "Background color updated successfully",
+      })
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
-      const isNetworkError = errorMessage.includes("fetch") || errorMessage.includes("Failed to")
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      console.error("[v0] Error saving theme:", errorMessage)
 
       toast({
-        title: isNetworkError ? "Backend Server Offline" : "Error",
-        description: isNetworkError
-          ? "Cannot connect to backend server. Please ensure your Flask server is running on port 5000."
-          : `Failed to save theme: ${errorMessage}`,
+        title: "Error",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
       setIsSaving(false)
     }
+  }
   }
 
   const resetChanges = () => {
