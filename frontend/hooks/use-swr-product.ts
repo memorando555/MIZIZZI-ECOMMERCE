@@ -490,11 +490,11 @@ export function prefetchProducts(productIds: string[]): void {
     // Wait for WebSocket to be ready (with timeout)
     const startTime = Date.now()
     const timeout = 5000 // 5 second timeout
-    let isReady = websocketService.isConnected?.() ?? false
+    let isReady = websocketService.getIsConnected()
 
     while (!isReady && Date.now() - startTime < timeout) {
       await new Promise((resolve) => setTimeout(resolve, 200))
-      isReady = websocketService.isConnected?.() ?? false
+      isReady = websocketService.getIsConnected()
     }
 
     if (!isReady) {
