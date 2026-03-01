@@ -1,7 +1,7 @@
 """
 Theme Management Routes
 Handles theme settings, presets, and customization
-OPTIMIZED with Upstash Redis caching for fast frontend responses.
+Direct database updates for instant theme changes.
 """
 from flask import Blueprint, request, jsonify, g, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -16,54 +16,18 @@ logger = logging.getLogger(__name__)
 
 theme_routes = Blueprint('theme', __name__)
 
-try:
-    from ...utils.redis_cache import (
-        product_cache,
-        cached_response,
-        fast_cached_response,
-        invalidate_on_change,
-        fast_json_dumps
-    )
-    CACHE_AVAILABLE = True
-    logger.info("✅ Redis cache available for theme routes")
-except ImportError as e:
-    logger.warning(f"Redis cache not available: {e}")
-    CACHE_AVAILABLE = False
-    product_cache = None
-    
-    # Fallback no-op decorators
-    def cached_response(prefix, ttl=30, key_params=None):
-        def decorator(func):
-            return func
-        return decorator
-    
-    def fast_cached_response(prefix, ttl=30, key_params=None):
-        def decorator(func):
-            return func
-        return decorator
-    
-    def invalidate_on_change(prefixes):
-        def decorator(func):
-            return func
-        return decorator
-    
-    def fast_json_dumps(data):
-        import json
-        return json.dumps(data)
-
 
 # ============================================================================
-# PUBLIC ROUTES - Theme data for frontend (OPTIMIZED with Redis)
+# PUBLIC ROUTES - Theme data for frontend (Direct database queries)
 # ============================================================================
 
 @theme_routes.route('/active', methods=['GET'])
 @cross_origin()
-@cached_response("theme_active", ttl=300, key_params=[])
 def get_active_theme():
     """
     Get currently active theme settings
     PUBLIC ROUTE - No authentication required
-    OPTIMIZED: Redis cached with 5 minute TTL for instant loading.
+    Direct database query for instant updates.
     """
     try:
         active_theme = ThemeSettings.get_active_theme()
@@ -79,7 +43,7 @@ def get_active_theme():
         return {
             'success': True,
             'theme': active_theme.to_dict(),
-            'cached_at': datetime.utcnow().isoformat()
+            'fetched_at': datetime.utcnow().isoformat()
         }, 200
         
     except Exception as e:
@@ -91,12 +55,11 @@ def get_active_theme():
 
 @theme_routes.route('/css', methods=['GET'])
 @cross_origin()
-@fast_cached_response("theme_css", ttl=300, key_params=[]) if CACHE_AVAILABLE else lambda f: f
 def get_theme_css():
     """
     Get active theme as CSS variables
     PUBLIC ROUTE - Returns CSS that can be injected into the page
-    OPTIMIZED: Redis cached with 5 minute TTL.
+    Direct database query for instant updates.
     """
     try:
         active_theme = ThemeSettings.get_active_theme()
@@ -129,68 +92,10 @@ def admin_required():
     
     return None
 
-@theme_routes.route('/admin/themes', methods=['GET'])
-@jwt_required()
-@cross_origin()
-def get_all_themes():
-    """Get all theme configurations (Admin only)"""
-    # Check admin access
-    admin_check = admin_required()
-    if admin_check:
-        return admin_check
-    
-    try:
-        themes = ThemeSettings.query.order_by(ThemeSettings.updated_at.desc()).all()
-        
-        return jsonify({
-            'success': True,
-            'themes': [theme.to_dict() for theme in themes],
-            'count': len(themes)
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error fetching themes: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch themes'
-        }), 500
-
-@theme_routes.route('/admin/themes/<int:theme_id>', methods=['GET'])
-@jwt_required()
-@cross_origin()
-def get_theme_by_id(theme_id):
-    """Get specific theme by ID (Admin only)"""
-    admin_check = admin_required()
-    if admin_check:
-        return admin_check
-    
-    try:
-        theme = ThemeSettings.query.get(theme_id)
-        
-        if not theme:
-            return jsonify({
-                'success': False,
-                'message': 'Theme not found'
-            }), 404
-        
-        return jsonify({
-            'success': True,
-            'theme': theme.to_dict()
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error fetching theme: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'Failed to fetch theme'
-        }), 500
-
 @theme_routes.route('/admin/themes', methods=['POST'])
 @jwt_required()
-@cross_origin()
-@invalidate_on_change(["theme_active", "theme_css"]) if CACHE_AVAILABLE else lambda f: f
 def create_theme():
-    """Create new theme configuration (Admin only). Invalidates theme cache."""
+    """Create new theme configuration (Admin only). Changes take effect immediately."""
     admin_check = admin_required()
     if admin_check:
         return admin_check
@@ -329,9 +234,8 @@ def create_theme():
 @theme_routes.route('/admin/themes/<int:theme_id>', methods=['PUT'])
 @jwt_required()
 @cross_origin()
-@invalidate_on_change(["theme_active", "theme_css"]) if CACHE_AVAILABLE else lambda f: f
 def update_theme(theme_id):
-    """Update existing theme (Admin only). Invalidates theme cache."""
+    """Update existing theme (Admin only). Changes take effect immediately."""
     admin_check = admin_required()
     if admin_check:
         return admin_check
@@ -351,14 +255,26 @@ def update_theme(theme_id):
         from ...validations.color_validator import ColorValidator
         
         colors = data.get('colors', {})
-        color_validator = ColorValidator(colors)
         
-        if not color_validator.is_valid():
-            return jsonify({
-                'success': False,
-                'message': 'Invalid color values',
-                'errors': color_validator.get_errors()
-            }), 400
+        # Validate color values if present
+        if colors:
+            invalid_colors = []
+            for color_category, color_values in colors.items():
+                if isinstance(color_values, dict):
+                    for key, value in color_values.items():
+                        if isinstance(value, str) and value.strip():
+                            if not ColorValidator.is_valid(value):
+                                invalid_colors.append(f"{color_category}.{key}: {value}")
+                elif isinstance(color_values, str) and color_values.strip():
+                    if not ColorValidator.is_valid(color_values):
+                        invalid_colors.append(f"{color_category}: {color_values}")
+            
+            if invalid_colors:
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid color values',
+                    'errors': invalid_colors
+                }), 400
         
         # Update basic info
         if 'name' in data:
@@ -499,18 +415,20 @@ def update_theme(theme_id):
         
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error updating theme: {str(e)}", exc_info=True)
+        logger.error(f"Error updating theme {theme_id}: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
-            'message': 'Failed to update theme'
+            'message': 'Failed to update theme',
+            'error': str(e)
         }), 500
 
 @theme_routes.route('/admin/themes/<int:theme_id>/activate', methods=['POST'])
 @jwt_required()
 @cross_origin()
-@invalidate_on_change(["theme_active", "theme_css"]) if CACHE_AVAILABLE else lambda f: f
 def activate_theme(theme_id):
-    """Activate a specific theme (Admin only). Invalidates theme cache."""
+    """Activate a specific theme (Admin only). Changes take effect immediately."""
     admin_check = admin_required()
     if admin_check:
         return admin_check
@@ -545,9 +463,8 @@ def activate_theme(theme_id):
 @theme_routes.route('/admin/themes/<int:theme_id>', methods=['DELETE'])
 @jwt_required()
 @cross_origin()
-@invalidate_on_change(["theme_active", "theme_css"]) if CACHE_AVAILABLE else lambda f: f
 def delete_theme(theme_id):
-    """Delete a theme (Admin only). Invalidates theme cache."""
+    """Delete a theme (Admin only). Changes take effect immediately."""
     admin_check = admin_required()
     if admin_check:
         return admin_check
@@ -593,9 +510,8 @@ def delete_theme(theme_id):
 
 @theme_routes.route('/presets', methods=['GET'])
 @cross_origin()
-@cached_response("theme_presets", ttl=600, key_params=[])
 def get_theme_presets():
-    """Get all available theme presets. OPTIMIZED: Redis cached."""
+    """Get all available theme presets."""
     try:
         presets = ThemePreset.query.filter_by(is_active=True).all()
         
@@ -611,23 +527,6 @@ def get_theme_presets():
             'success': False,
             'message': 'Failed to fetch theme presets'
         }, 500
-
-@theme_routes.route('/cache/status', methods=['GET'])
-@cross_origin()
-def theme_cache_status():
-    """Get cache status for theme."""
-    if CACHE_AVAILABLE:
-        return jsonify({
-            'connected': product_cache.is_connected,
-            'type': 'upstash' if product_cache.is_connected else 'memory',
-            'stats': product_cache.stats,
-            'timestamp': datetime.utcnow().isoformat()
-        }), 200
-    return jsonify({
-        'connected': False,
-        'type': 'none',
-        'message': 'Cache not available'
-    }), 200
 
 # Register blueprint with prefix
 def init_theme_routes(app):
