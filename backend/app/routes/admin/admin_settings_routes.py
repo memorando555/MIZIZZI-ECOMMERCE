@@ -17,8 +17,16 @@ from app.models.models import User, UserRole
 # Create the admin settings blueprint
 admin_settings_routes = Blueprint('admin_settings_routes', __name__)
 
-# Set up logger
+# Setup logger
 logger = logging.getLogger(__name__)
+
+# CORS allowed origins for all settings routes
+CORS_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://mizizzi-ecommerce-1.onrender.com',
+    os.getenv('FRONTEND_URL', 'https://mizizzi-ecommerce-1.onrender.com')
+]
 
 def admin_required(f):
     """Decorator to ensure only admin users can access these routes"""
@@ -57,7 +65,7 @@ def handle_preflight():
         return response
 
 @admin_settings_routes.route('/settings', methods=['GET', 'PUT'])
-@cross_origin(origins=['http://localhost:3000'], supports_credentials=True)
+@cross_origin(origins=CORS_ORIGINS, supports_credentials=True)
 @admin_required
 def get_settings():
     """Get all system settings"""
@@ -161,7 +169,7 @@ def get_settings():
         }), 500
 
 @admin_settings_routes.route('/settings', methods=['PUT'])
-@cross_origin(origins=['http://localhost:3000'], supports_credentials=True)
+@cross_origin(origins=CORS_ORIGINS, supports_credentials=True)
 @admin_required
 def update_settings():
     """Update system settings"""
