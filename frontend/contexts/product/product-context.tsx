@@ -141,20 +141,31 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
     // Subscribe to product updates
     const unsubscribe = websocketService.subscribe("product_updated", handleProductUpdate)
 
-    // Also listen for the custom event
+    // Track events to prevent infinite loops from self-triggered updates
+    let lastEventTime = 0
+    const eventDebounce = 1500 // 1.5 second debounce to prevent rapid re-fetches
+
+    // Listen for custom events with debouncing to prevent infinite loops
     const handleCustomEvent = (event: CustomEvent) => {
       const { id } = event.detail
+      const now = Date.now()
+      
+      // Debounce: ignore if same product was just refreshed
+      if (now - lastEventTime < eventDebounce) {
+        console.log("Ignoring duplicate custom event for product update:", id)
+        return
+      }
+      
+      lastEventTime = now
       console.log("Received custom event for product update:", id)
       refreshProduct(id)
     }
 
     window.addEventListener("product-updated", handleCustomEvent as EventListener)
-    window.addEventListener("product-refreshed", handleCustomEvent as EventListener)
 
     return () => {
       unsubscribe()
       window.removeEventListener("product-updated", handleCustomEvent as EventListener)
-      window.removeEventListener("product-refreshed", handleCustomEvent as EventListener)
     }
   }, [refreshProduct])
 

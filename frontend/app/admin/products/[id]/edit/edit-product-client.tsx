@@ -466,23 +466,20 @@ export function EditProductClient({
             })
             console.log(`[v0] WebSocket notification sent for product ID: ${productId}`)
 
-            // Also dispatch a custom event that components can listen for
-            if (typeof window !== "undefined") {
-              const event = new CustomEvent("product-updated", {
-                detail: { id: productId, product: updatedProduct, section },
-              })
-              window.dispatchEvent(event)
-              console.log(`[v0] Custom event dispatched for product ID: ${productId}`)
-            }
+            // Don't dispatch custom event here to prevent infinite loops
+            // SWR revalidation is sufficient for data sync
           } catch (notifyError) {
             console.warn("[v0] Failed to notify about product update:", notifyError)
           }
 
           productService.invalidateProductCache(productId)
-          await new Promise((resolve) => setTimeout(resolve, 500))
+          
+          // Shorter delay before revalidation
+          await new Promise((resolve) => setTimeout(resolve, 300))
 
-          mutateProduct(undefined, { revalidate: true })
-          mutateImages(undefined, { revalidate: true })
+          // Soft revalidate in background without triggering events
+          mutateProduct()
+          mutateImages()
 
           return true
         } catch (fetchError: any) {
