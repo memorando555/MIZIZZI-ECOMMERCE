@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Palette, Save, Eye, RefreshCw, Loader2, AlertCircle, Copy, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useTheme } from "@/contexts/theme-context"
-import authService from "@/services/auth"
 
 interface ThemeColors {
   background: {
@@ -66,7 +65,7 @@ export default function PremiumThemeCustomizer() {
   const fetchActiveTheme = async () => {
     setIsLoading(true)
     try {
-      let token = getAuthToken()
+      const token = getAuthToken()
 
       if (!token) {
         setError("No authentication token found. Please login again.")
@@ -74,28 +73,9 @@ export default function PremiumThemeCustomizer() {
         return
       }
 
-      let response = await fetch(`${API_BASE_URL}/api/theme/admin/themes`, {
+      const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-
-      // If token expired (401), try to refresh and retry
-      if (response.status === 401) {
-        console.log("[v0] Token expired when fetching theme, attempting to refresh...")
-        const newToken = await authService.refreshAccessToken()
-
-        if (!newToken) {
-          setError("Your session has expired. Please login again.")
-          setIsLoading(false)
-          return
-        }
-
-        console.log("[v0] Token refreshed, retrying theme fetch...")
-        token = newToken
-
-        response = await fetch(`${API_BASE_URL}/api/theme/admin/themes`, {
-          headers: { Authorization: `Bearer ${newToken}` },
-        })
-      }
 
       if (!response.ok) {
         throw new Error("Failed to fetch theme settings")
@@ -162,7 +142,7 @@ export default function PremiumThemeCustomizer() {
 
     setIsSaving(true)
     try {
-      let token = getAuthToken()
+      const token = getAuthToken()
 
       const payload = {
         name: activeTheme.name,
@@ -178,8 +158,9 @@ export default function PremiumThemeCustomizer() {
 
       console.log("[v0] Saving theme with backgroundColor:", backgroundColor)
       console.log("[v0] API URL:", `${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`)
+      console.log("[v0] Payload:", JSON.stringify(payload, null, 2))
 
-      let response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -190,39 +171,16 @@ export default function PremiumThemeCustomizer() {
 
       console.log("[v0] Response status:", response.status)
 
-      // If token expired (401), try to refresh and retry
-      if (response.status === 401) {
-        console.log("[v0] Token expired (401), attempting to refresh token...")
-        const newToken = await authService.refreshAccessToken()
-
-        if (!newToken) {
-          throw new Error("Your session has expired. Please login again.")
-        }
-
-        console.log("[v0] Token refreshed successfully, retrying save...")
-        token = newToken
-
-        // Retry the request with new token
-        response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${newToken}`,
-          },
-          body: JSON.stringify(payload),
-        })
-
-        console.log("[v0] Retry response status:", response.status)
-      }
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         console.error("[v0] Save theme failed:", response.status, errorData)
+        console.error("[v0] Full error response:", JSON.stringify(errorData, null, 2))
         throw new Error(errorData?.message || `Failed to save theme (${response.status})`)
       }
 
       const data = await response.json()
       console.log("[v0] Theme saved successfully:", data)
+      console.log("[v0] Response data:", JSON.stringify(data, null, 2))
 
       if (data.theme) {
         setActiveTheme(data.theme)
@@ -242,10 +200,13 @@ export default function PremiumThemeCustomizer() {
       console.error("[v0] Error saving theme:", error)
 
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+      const isNetworkError = errorMessage.includes("fetch")
 
       toast({
-        title: "Error",
-        description: errorMessage,
+        title: isNetworkError ? "Backend Server Offline" : "Error",
+        description: isNetworkError
+          ? "Cannot connect to backend server. Please ensure your Flask server is running on port 5000."
+          : `Failed to save theme: ${errorMessage}`,
         variant: "destructive",
       })
     } finally {
