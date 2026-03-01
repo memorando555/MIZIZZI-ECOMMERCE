@@ -431,18 +431,20 @@ export default function ShopCategoriesAdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header Section - Sticky & Responsive */}
-      <div className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-start justify-between gap-4">
+      {/* Premium Header */}
+      <div className="sticky top-0 z-30 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Shop By Category</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">
-                Manage category cards displayed on the homepage
-              </p>
+              <h1 className="text-4xl font-bold tracking-tight text-foreground">Shop Categories</h1>
+              <p className="text-sm text-muted-foreground">Manage your store categories</p>
             </div>
-            <Button onClick={openCreateDialog} className="gap-2 whitespace-nowrap flex-shrink-0">
-              <Plus className="h-4 w-4" />
+            <Button 
+              onClick={openCreateDialog}
+              size="lg"
+              className="gap-2 rounded-xl h-11 px-6 font-medium"
+            >
+              <Plus className="h-5 w-5" />
               <span className="hidden sm:inline">Add Category</span>
               <span className="sm:hidden">Add</span>
             </Button>
@@ -451,240 +453,250 @@ export default function ShopCategoriesAdminPage() {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 sm:px-6 py-8">
-        <div className="space-y-6">
-          {/* Categories Section */}
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle>Current Categories</CardTitle>
-              <CardDescription className="text-sm">
-                Click to edit • Categories are displayed in this order on the homepage
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="flex flex-col items-center gap-3">
+              <Loader className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Loading categories...</p>
+            </div>
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="rounded-2xl bg-muted/50 p-12 text-center space-y-3 max-w-md mx-auto">
+              <div className="flex justify-center mb-2">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <ImageIcon className="h-8 w-8 text-primary/60" />
                 </div>
-              ) : categories.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="font-medium">No categories yet</p>
-                  <p className="text-sm">Click "Add Category" to create your first category</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {categories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="group relative overflow-hidden rounded-lg border border-border bg-card hover:shadow-lg transition-all duration-300 hover:border-primary/50"
-                    >
-                      {/* Category Image */}
-                      <div className="relative h-32 w-full overflow-hidden bg-muted">
-                        <Image
-                          src={category.image_url || "/placeholder.svg"}
-                          alt={category.name}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
+              </div>
+              <h3 className="text-lg font-semibold text-foreground">No Categories Yet</h3>
+              <p className="text-sm text-muted-foreground">Create your first category to get started managing your store</p>
+              <Button 
+                onClick={openCreateDialog}
+                className="mt-6 gap-2 rounded-lg w-full"
+              >
+                <Plus className="h-4 w-4" />
+                Create Category
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* Categories Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card hover:border-border hover:shadow-xl transition-all duration-300"
+                >
+                  {/* Image Container */}
+                  <div className="relative h-40 w-full overflow-hidden bg-muted">
+                    <Image
+                      src={getValidImageUrl(category.image_url)}
+                      alt={category.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {category.is_featured && (
+                      <div className="absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-full bg-primary/90 px-3 py-1.5 backdrop-blur-sm">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                        </span>
+                        <span className="text-xs font-semibold text-white">Featured</span>
                       </div>
+                    )}
+                  </div>
 
-                      {/* Category Info */}
-                      <div className="p-4 space-y-3">
-                        <div className="space-y-1">
-                          <h3 className="font-semibold text-base line-clamp-2">{category.name}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {category.description || "No description"}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-mono">{category.slug}</p>
-                        </div>
-
-                        {/* Actions - Visible on Hover (Desktop) or Always (Mobile) */}
-                        <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(category)}
-                            className="flex-1 h-9"
-                          >
-                            <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                            <span className="text-xs">Edit</span>
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 h-9 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
-                            onClick={() => openDeleteDialog(category)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                            <span className="text-xs">Delete</span>
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Badge for Featured/Active Status */}
-                      {category.is_featured && (
-                        <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded-md">
-                          Featured
-                        </div>
-                      )}
+                  {/* Content */}
+                  <div className="p-5 space-y-4">
+                    {/* Title & Description */}
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-foreground line-clamp-1">{category.name}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {category.description || "No description"}
+                      </p>
+                      <p className="text-xs text-muted-foreground/60 font-mono mt-2">/{category.slug}</p>
                     </div>
-                  ))}
+
+                    {/* Divider */}
+                    <div className="h-px bg-border/50" />
+
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditDialog(category)}
+                        className="flex-1 gap-1.5 rounded-lg h-9 text-sm font-medium"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Edit</span>
+                        <span className="sm:hidden">Edit</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openDeleteDialog(category)}
+                        className="flex-1 gap-1.5 rounded-lg h-9 text-sm font-medium text-destructive hover:text-destructive hover:bg-destructive/5 border-destructive/20"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Delete</span>
+                        <span className="sm:hidden">Del</span>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-full max-w-2xl max-h-[95vh] flex flex-col p-0 gap-0 rounded-2xl">
-          {/* Header */}
-          <div className="border-b border-border/40 bg-background px-6 py-5 flex-shrink-0">
-            <DialogTitle className="text-2xl font-bold tracking-tight">
+        <DialogContent className="w-full max-w-xl max-h-[95vh] flex flex-col p-0 gap-0 rounded-2xl border-border/50">
+          {/* Sticky Header */}
+          <div className="flex-shrink-0 border-b border-border/40 px-6 py-5">
+            <DialogTitle className="text-2xl font-bold">
               {editingCategory ? "Edit Category" : "Create Category"}
             </DialogTitle>
             <DialogDescription className="mt-1.5 text-sm">
-              {editingCategory ? "Update the category details" : "Add a new category to your store"}
+              {editingCategory ? "Update your category details" : "Add a new category to your store"}
             </DialogDescription>
           </div>
 
           {/* Scrollable Content */}
           <div className="overflow-y-auto flex-1">
-            <div className="space-y-5 p-6">
-              {/* Category Image - Compact */}
+            <div className="space-y-4 p-6">
+              {/* Image Upload - Prominent */}
               <div className="space-y-2">
-                <Label className="font-semibold">Category Image *</Label>
-                <div className="relative">
-                  <div className="relative h-32 w-full rounded-lg overflow-hidden bg-muted border border-border/50 mb-2">
-                    <Image
-                      src={formData.image_url || "/placeholder.svg"}
-                      alt="Category preview"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <input
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleImageUpload(file, "image_url")
-                    }}
+                <Label className="text-sm font-semibold">Category Image *</Label>
+                <div className="relative rounded-xl overflow-hidden bg-muted border border-border/50 h-40 mb-3">
+                  <Image
+                    src={getValidImageUrl(formData.image_url)}
+                    alt="Preview"
+                    fill
+                    className="object-cover"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => imageInputRef.current?.click()}
-                    disabled={uploadingImage}
-                    size="sm"
-                    className="w-full h-9 rounded-lg"
-                  >
-                    {uploadingImage ? (
-                      <>
-                        <Loader className="h-3.5 w-3.5 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-3.5 w-3.5 mr-2" />
-                        {formData.image_url ? "Change Image" : "Upload Image"}
-                      </>
-                    )}
-                  </Button>
                 </div>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleImageUpload(file, "image_url")
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="w-full h-10 rounded-lg"
+                >
+                  {uploadingImage ? (
+                    <>
+                      <Loader className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      {formData.image_url ? "Change Image" : "Upload Image"}
+                    </>
+                  )}
+                </Button>
               </div>
 
-              {/* Name and Slug */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="name" className="text-sm font-medium">Name *</Label>
+              {/* Basic Info */}
+              <div className="space-y-3 pt-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-sm font-medium">Category Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     placeholder="Electronics"
-                    className="h-9 rounded-lg text-sm"
+                    className="h-10 rounded-lg text-sm"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="slug" className="text-sm font-medium">Slug</Label>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="slug" className="text-sm font-medium">URL Slug</Label>
                   <Input
                     id="slug"
                     value={formData.slug}
                     onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
                     placeholder="electronics"
-                    className="h-9 rounded-lg text-sm font-mono"
+                    className="h-10 rounded-lg text-sm font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">Auto-generated from name</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Brief description of this category"
+                    rows={2}
+                    className="rounded-lg text-sm resize-none"
                   />
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="space-y-1">
-                <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description"
-                  rows={2}
-                  className="rounded-lg text-sm resize-none"
-                />
-              </div>
-
-              {/* Banner Image - Compact */}
+              {/* Banner Image */}
               <div className="space-y-2 pt-2 border-t border-border/40">
                 <Label className="text-sm font-medium">Banner Image (Optional)</Label>
-                <div className="relative">
-                  <div className="relative h-24 w-full rounded-lg overflow-hidden bg-muted border border-border/50 mb-2">
-                    <Image
-                      src={formData.banner_url || "/placeholder.svg"}
-                      alt="Banner preview"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <input
-                    ref={bannerInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleImageUpload(file, "banner_url")
-                    }}
+                <div className="relative rounded-lg overflow-hidden bg-muted border border-border/50 h-24 mb-2">
+                  <Image
+                    src={getValidImageUrl(formData.banner_url)}
+                    alt="Banner"
+                    fill
+                    className="object-cover"
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => bannerInputRef.current?.click()}
-                    disabled={uploadingImage}
-                    size="sm"
-                    className="w-full h-9 rounded-lg"
-                  >
-                    {uploadingImage ? (
-                      <>
-                        <Loader className="h-3.5 w-3.5 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-3.5 w-3.5 mr-2" />
-                        {formData.banner_url ? "Change Banner" : "Upload Banner"}
-                      </>
-                    )}
-                  </Button>
                 </div>
+                <input
+                  ref={bannerInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleImageUpload(file, "banner_url")
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => bannerInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  size="sm"
+                  className="w-full h-9 rounded-lg"
+                >
+                  {uploadingImage ? (
+                    <>
+                      <Loader className="h-3.5 w-3.5 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3.5 w-3.5 mr-2" />
+                      {formData.banner_url ? "Change Banner" : "Upload Banner"}
+                    </>
+                  )}
+                </Button>
               </div>
 
-              {/* Featured & Sort Order */}
+              {/* Settings */}
               <div className="space-y-3 pt-2 border-t border-border/40">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                  <div>
-                    <Label className="text-sm font-medium">Featured</Label>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium cursor-pointer">Featured</Label>
                     <p className="text-xs text-muted-foreground">Show on homepage</p>
                   </div>
                   <Switch
@@ -693,7 +705,7 @@ export default function ShopCategoriesAdminPage() {
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <Label htmlFor="sort_order" className="text-sm font-medium">Display Order</Label>
                   <Input
                     id="sort_order"
@@ -701,7 +713,7 @@ export default function ShopCategoriesAdminPage() {
                     value={formData.sort_order}
                     onChange={(e) => setFormData((prev) => ({ ...prev, sort_order: Number.parseInt(e.target.value) || 0 }))}
                     min={0}
-                    className="h-9 rounded-lg text-sm"
+                    className="h-10 rounded-lg text-sm"
                   />
                   <p className="text-xs text-muted-foreground">Lower numbers appear first</p>
                 </div>
@@ -709,32 +721,29 @@ export default function ShopCategoriesAdminPage() {
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="border-t border-border/40 bg-background px-6 py-3 flex items-center justify-between gap-2 flex-shrink-0">
-            <Button 
-              variant="ghost" 
+          {/* Sticky Footer */}
+          <div className="flex-shrink-0 border-t border-border/40 bg-background px-6 py-4 flex gap-3 justify-end">
+            <Button
+              variant="outline"
               onClick={() => setIsDialogOpen(false)}
-              size="sm"
-              className="h-9"
+              className="h-10 rounded-lg px-6"
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               disabled={saving || !formData.name || !formData.image_url}
-              size="sm"
-              className="h-9 gap-2"
+              className="h-10 rounded-lg px-6 gap-2"
             >
               {saving ? (
                 <>
-                  <Loader className="h-3.5 w-3.5 animate-spin" />
-                  <span className="hidden sm:inline">Saving...</span>
+                  <Loader className="h-4 w-4 animate-spin" />
+                  Saving...
                 </>
               ) : (
                 <>
-                  <Save className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{editingCategory ? "Update" : "Create"}</span>
-                  <span className="sm:hidden">{editingCategory ? "Save" : "Add"}</span>
+                  <Save className="h-4 w-4" />
+                  {editingCategory ? "Update" : "Create"}
                 </>
               )}
             </Button>
@@ -744,21 +753,23 @@ export default function ShopCategoriesAdminPage() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="max-w-sm rounded-2xl">
+        <AlertDialogContent className="max-w-sm rounded-2xl border-border/50">
           <AlertDialogHeader className="space-y-3">
-            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-destructive/10 mx-auto">
-              <Trash2 className="h-6 w-6 text-destructive" />
+            <div className="flex justify-center mb-2">
+              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Trash2 className="h-6 w-6 text-destructive" />
+              </div>
             </div>
-            <AlertDialogTitle className="text-center">Delete Category?</AlertDialogTitle>
+            <AlertDialogTitle className="text-center text-xl">Delete Category</AlertDialogTitle>
             <AlertDialogDescription className="text-center text-sm">
-              Are you sure you want to delete "<strong>{categoryToDelete?.name}</strong>"? This cannot be undone.
+              Are you sure you want to delete <strong>{categoryToDelete?.name}</strong>? This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
-            <AlertDialogCancel className="h-9 rounded-lg">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-10 rounded-lg">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="h-9 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="h-10 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
