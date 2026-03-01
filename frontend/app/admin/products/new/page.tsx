@@ -76,12 +76,18 @@ export default function NewProductPage() {
 
       const response = await adminService.createProduct(productData)
       
+      console.log('[v0] Full response from createProduct:', JSON.stringify(response, null, 2))
+      
       // Extract product ID from response (handle nested structure)
-      const productId = response?.product?.id || response?.id
+      const productId = response?.product?.id || response?.id || response?.data?.id
+      
+      console.log('[v0] Extracted productId:', productId)
+      console.log('[v0] response.product:', response?.product)
+      console.log('[v0] response.id:', response?.id)
       
       if (!productId) {
-        console.error('[v0] Product response structure:', response)
-        throw new Error('Product created but no ID was returned from the server')
+        console.error('[v0] Product response full structure:', JSON.stringify(response, null, 2))
+        throw new Error('Product created but no ID was returned from the server. Check console for response details.')
       }
 
       toast({
