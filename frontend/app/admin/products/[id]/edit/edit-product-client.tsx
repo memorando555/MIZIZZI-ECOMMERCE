@@ -633,6 +633,7 @@ export function EditProductClient({ productId }: { productId: string }) {
                     brandError={brandError}
                     saveSectionChanges={saveSectionChanges}
                     mutateCategories={mutateCategories}
+                    productId={productId}
                   />
                 </TabsContent>
 
