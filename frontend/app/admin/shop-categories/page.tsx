@@ -442,20 +442,20 @@ export default function ShopCategoriesAdminPage() {
 
       {/* Create/Edit Dialog - Modern Apple-style Form */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] flex flex-col p-0 gap-0 rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl">
+        <DialogContent>
           {/* Fixed Header */}
-          <div className="flex-shrink-0 border-b border-border/40 px-6 sm:px-8 py-5 bg-background sticky top-0 z-10">
-            <DialogTitle className="text-2xl sm:text-3xl font-bold">
+          <DialogHeader className="border-b border-border/40 sticky top-0 z-10 bg-background">
+            <DialogTitle className="text-3xl font-bold">
               {editingCategory ? "Edit Category" : "Create Category"}
             </DialogTitle>
-            <DialogDescription className="mt-2 text-sm sm:text-base text-muted-foreground">
+            <DialogDescription className="mt-2 text-base">
               {editingCategory ? "Update your category details and visibility settings" : "Set up a new category for your store with all necessary details"}
             </DialogDescription>
-          </div>
+          </DialogHeader>
 
           {/* Scrollable Content - Clean organized layout */}
           <div className="overflow-y-auto flex-1 min-h-0 px-6 sm:px-8 py-6">
-            <div className="space-y-6 max-w-3xl">
+            <div className="space-y-6 max-w-2xl">
               {/* Section 1: Image Uploads */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
@@ -635,7 +635,7 @@ export default function ShopCategoriesAdminPage() {
           </div>
 
           {/* Fixed Footer */}
-          <div className="flex-shrink-0 border-t border-border/40 bg-background px-6 sm:px-8 py-4 flex items-center justify-end gap-3 sticky bottom-0 z-10">
+          <DialogFooter className="border-t border-border/40 sticky bottom-0 bg-background">
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
@@ -662,7 +662,7 @@ export default function ShopCategoriesAdminPage() {
                 </>
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
