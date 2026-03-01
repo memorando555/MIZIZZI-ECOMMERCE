@@ -11,7 +11,7 @@ import { useTheme } from "@/contexts/theme-context"
 
 interface ThemeColors {
   background: {
-    main: stringa
+    main: string
     [key: string]: string
   }
   [key: string]: any

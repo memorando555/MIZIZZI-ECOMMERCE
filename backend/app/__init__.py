@@ -456,6 +456,7 @@ def create_app(config_name=None, enable_socketio=True):
         'admin_auth_routes': Blueprint('admin_auth_routes', __name__),
         'admin_google_auth_routes': Blueprint('admin_google_auth_routes', __name__),
         'admin_email_routes': Blueprint('admin_email_routes', __name__),
+        'admin_settings_routes': Blueprint('admin_settings_routes', __name__),
         'dashboard_routes': Blueprint('dashboard_routes', __name__),
         'order_routes': Blueprint('order_routes', __name__),
         'admin_order_routes': Blueprint('admin_order_routes', __name__),
@@ -662,31 +663,11 @@ def create_app(config_name=None, enable_socketio=True):
             ('backend.app.routes.admin.admin_email_routes', 'admin_email_routes'),
             ('backend.routes.admin.admin_email_routes', 'admin_email_routes')
         ],
-        'dashboard_routes': [
-            ('app.routes.admin.dashboard', 'dashboard_routes'),
-            ('routes.admin.dashboard', 'dashboard_routes')
-        ],
-        'order_routes': [
-            ('app.routes.order.order_routes', 'order_routes'),
-            ('routes.order.order_routes', 'order_routes')
-        ],
-        'admin_order_routes': [
-            ('app.routes.order.admin_order_routes', 'admin_order_routes'),
-            ('routes.order.admin_order_routes', 'admin_order_routes'),
-            ('backend.app.routes.order.admin_order_routes', 'admin_order_routes'),
-            ('backend.routes.order.admin_order_routes', 'admin_order_routes')
-        ],
-        'admin_cart_routes': [
-            ('app.routes.admin.admin_cart_routes', 'admin_cart_routes'),
-            ('routes.admin.admin_cart_routes', 'admin_cart_routes')
-        ],
-        'admin_cloudinary_routes': [
-            ('app.routes.admin.admin_cloudinary_routes', 'admin_cloudinary_routes'),
-            ('routes.admin.admin_cloudinary_routes', 'admin_cloudinary_routes')
-        ],
-        'admin_category_routes': [
-            ('app.routes.admin.admin_category_routes', 'admin_category_routes'),
-            ('routes.admin.admin_category_routes', 'admin_category_routes')
+        'admin_settings_routes': [
+            ('app.routes.admin.admin_settings_routes', 'admin_settings_routes'),
+            ('routes.admin.admin_settings_routes', 'admin_settings_routes'),
+            ('backend.app.routes.admin.admin_settings_routes', 'admin_settings_routes'),
+            ('backend.routes.admin.admin_settings_routes', 'admin_settings_routes')
         ],
         'admin_shop_categories_routes': [
             ('app.routes.admin.admin_shop_categories_routes', 'admin_shop_categories_routes'),
@@ -948,8 +929,9 @@ def create_app(config_name=None, enable_socketio=True):
         app.register_blueprint(final_blueprints['admin_auth_routes'], url_prefix='/api/admin')
         if 'admin_google_auth_routes' in final_blueprints:
             app.register_blueprint(final_blueprints['admin_google_auth_routes'], url_prefix='/api/admin/auth')
-        app.register_blueprint(final_blueprints['admin_email_routes'], url_prefix='/api/admin')
-        app.register_blueprint(final_blueprints['dashboard_routes'], url_prefix='/api/admin/dashboard')
+    app.register_blueprint(final_blueprints['admin_email_routes'], url_prefix='/api/admin')
+    app.register_blueprint(final_blueprints['admin_settings_routes'], url_prefix='/api/admin')
+    app.register_blueprint(final_blueprints['dashboard_routes'], url_prefix='/api/admin/dashboard')
         
         app.register_blueprint(final_blueprints['order_routes'], url_prefix='/api/orders')
         app.register_blueprint(final_blueprints['admin_order_routes'], url_prefix='/api/admin')
