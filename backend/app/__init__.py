@@ -100,10 +100,6 @@ except ImportError:
         mail = Mail()
         cache = Cache()
         limiter = Limiter(key_func=get_remote_address)
-        # Removed duplicate SQLAlchemy instance - import from extensions instead
-        from .configuration.extensions import db, ma, mail, cache, limiter
-        from flask_socketio import SocketIO
-
         socketio = SocketIO()
         
         def get_database_url():
@@ -113,7 +109,7 @@ except ImportError:
                 if database_url.startswith('postgres://'):
                     database_url = database_url.replace('postgres://', 'postgresql://', 1)
                 return database_url
-            return 'DATABASE_URL', 'postgresql://neondb_owner:npg_0gMwASZYo9pJ@ep-shiny-term-adlossxs-pooler.c-2.us-east-1.aws.neon.tech/mizizzi_project?sslmode=require&channel_binding=require'
+            return 'postgresql://neondb_owner:npg_0gMwASZYo9pJ@ep-shiny-term-adlossxs-pooler.c-2.us-east-1.aws.neon.tech/mizizzi_project?sslmode=require&channel_binding=require'
         
         # Minimal config classes
         class Config:
@@ -966,7 +962,7 @@ def create_app(config_name=None, enable_socketio=True):
         app.register_blueprint(final_blueprints['admin_meilisearch_routes'], url_prefix='/api/admin/meilisearch')
         app.logger.info("✅ Meilisearch routes registered successfully")
         app.register_blueprint(final_blueprints['flash_sale_routes'], url_prefix='/api/flash-sale')
-        app.logger.info("✅ Flash sale routes registered at /api/flash-sale")
+        app.logger.info("��� Flash sale routes registered at /api/flash-sale")
     except KeyError as e:
         app.logger.error(f"❌ Blueprint registration error - missing blueprint: {str(e)}")
     except Exception as e:
