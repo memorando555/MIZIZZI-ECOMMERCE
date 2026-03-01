@@ -446,7 +446,7 @@ export function RichDescriptionEditor({
       {showPreview && (
         <Card className="p-6 bg-gray-50 border-2 border-orange-100">
           <h3 className="text-lg font-semibold mb-4 text-gray-900">Preview - How customers will see it:</h3>
-          <div className="editor-content bg-white p-6 rounded-lg border border-gray-200 font-sans overflow-auto max-h-96
+          <div className="bg-white p-6 rounded-lg border border-gray-200 font-sans overflow-auto
             [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-gray-900
             [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
             [&_p]:text-gray-700 [&_p]:leading-relaxed [&_p]:mb-3
@@ -455,8 +455,10 @@ export function RichDescriptionEditor({
             [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:my-3 [&_ul]:text-gray-700
             [&_ol]:list-decimal [&_ol]:ml-6 [&_ol]:my-3 [&_ol]:text-gray-700
             [&_li]:text-gray-700 [&_li]:my-1 [&_li]:mb-2
-            [&_img]:w-full [&_img]:max-w-full [&_img]:h-auto [&_img]:block [&_img]:rounded-lg [&_img]:my-4 [&_img]:mx-0
-          ">
+            [&_img]:w-full [&_img]:max-w-full [&_img]:h-auto [&_img]:block [&_img]:rounded-lg [&_img]:my-4 [&_img]:mx-auto
+          "
+          style={{ minHeight: '300px', maxHeight: 'none' }}
+          >
             <div dangerouslySetInnerHTML={{ __html: value }} />
           </div>
         </Card>
