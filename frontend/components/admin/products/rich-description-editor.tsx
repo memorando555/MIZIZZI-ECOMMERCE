@@ -130,8 +130,12 @@ export function RichDescriptionEditor({
       const uploadResult = await response.json()
       console.log("[v0] Cloudinary upload response:", uploadResult)
 
-      // Extract secure URL from backend response (same format as product images use)
-      const uploadedUrl = uploadResult.secure_url || uploadResult.url || uploadResult.data?.secure_url
+      // Extract secure URL from backend response - check image object first
+      const uploadedUrl = uploadResult.image?.secure_url || 
+                         uploadResult.image?.url ||
+                         uploadResult.secure_url || 
+                         uploadResult.url || 
+                         uploadResult.data?.secure_url
 
       if (!uploadedUrl) {
         console.error("[v0] No URL found in upload response:", uploadResult)
