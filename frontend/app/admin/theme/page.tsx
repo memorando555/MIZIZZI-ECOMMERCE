@@ -68,31 +68,43 @@ export default function PremiumThemeCustomizer() {
       const token = getAuthToken()
 
       if (!token) {
+        console.log("[v0] No token found")
         setError("No authentication token found. Please login again.")
         setIsLoading(false)
         return
       }
 
+      console.log("[v0] Fetching active theme from:", `${API_BASE_URL}/api/theme/admin/themes`)
+
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes`, {
         headers: { Authorization: `Bearer ${token}` },
       })
+
+      console.log("[v0] Fetch response status:", response.status)
 
       if (!response.ok) {
         throw new Error("Failed to fetch theme settings")
       }
 
       const data = await response.json()
+      console.log("[v0] Fetched themes data:", data)
+
       const active = data.themes?.find((t: Theme) => t.is_active)
+      console.log("[v0] Active theme found:", active)
 
       if (active) {
         setActiveTheme(active)
-        const bg = active.colors.background?.main || "#FFFFFF"
+        const bg = active.colors?.background?.main || "#FFFFFF"
+        console.log("[v0] Setting background color:", bg)
         setBackgroundColor(bg)
         setHexInput(bg)
         setError(null)
+      } else {
+        console.log("[v0] No active theme found in data")
+        setError("No active theme found")
       }
     } catch (error) {
-      console.error("Error fetching theme:", error)
+      console.error("[v0] Error fetching theme:", error)
       setError("Unable to load theme settings")
       toast({
         title: "Error",
@@ -138,14 +150,41 @@ export default function PremiumThemeCustomizer() {
   }
 
   const saveTheme = async () => {
-    if (!activeTheme) return
+    if (!activeTheme) {
+      console.log("[v0] No active theme found, cannot save")
+      toast({
+        title: "Error",
+        description: "No active theme found. Please reload the page.",
+        variant: "destructive",
+      })
+      return
+    }
 
     setIsSaving(true)
     try {
       const token = getAuthToken()
 
+      if (!token) {
+        throw new Error("No authentication token found")
+      }
+
       console.log("[v0] Saving theme with backgroundColor:", backgroundColor)
+      console.log("[v0] Active theme ID:", activeTheme.id)
       console.log("[v0] API URL:", `${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`)
+
+      const requestBody = {
+        name: activeTheme.name,
+        colors: {
+          ...activeTheme.colors,
+          background: {
+            ...(activeTheme.colors?.background || {}),
+            main: backgroundColor,
+          },
+        },
+        is_active: true,
+      }
+
+      console.log("[v0] Request body:", JSON.stringify(requestBody, null, 2))
 
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
         method: "PUT",
@@ -153,29 +192,29 @@ export default function PremiumThemeCustomizer() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name: activeTheme.name,
-          colors: {
-            ...activeTheme.colors,
-            background: {
-              ...activeTheme.colors.background,
-              main: backgroundColor,
-            },
-          },
-          is_active: true,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
+      console.log("[v0] Response status:", response.status)
+      console.log("[v0] Response headers:", Object.fromEntries(response.headers.entries()))
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null)
-        console.error("[v0] Save theme failed:", response.status, errorData)
+        let errorData = null
+        try {
+          errorData = await response.json()
+          console.log("[v0] Error response data:", errorData)
+        } catch (e) {
+          console.log("[v0] Could not parse error response as JSON")
+        }
         throw new Error(errorData?.message || `Failed to save theme (${response.status})`)
       }
 
       const data = await response.json()
       console.log("[v0] Theme saved successfully:", data)
 
-      setActiveTheme(data.theme)
+      if (data.theme) {
+        setActiveTheme(data.theme)
+      }
       setIsPreviewMode(false)
 
       toast({
@@ -188,7 +227,7 @@ export default function PremiumThemeCustomizer() {
       console.error("[v0] Error saving theme:", error)
 
       const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
-      const isNetworkError = errorMessage.includes("fetch")
+      const isNetworkError = errorMessage.includes("fetch") || errorMessage.includes("Failed to")
 
       toast({
         title: isNetworkError ? "Backend Server Offline" : "Error",
