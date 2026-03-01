@@ -21,7 +21,7 @@ interface Theme {
   id: number
   name: string
   is_active: boolean
-  colors: ThemeColors
+  colors: Record<string, any>
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -45,6 +45,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
   const [activeTheme, setActiveTheme] = useState<Theme | null>(initialTheme)
   const [backgroundColor, setBackgroundColor] = useState(initialTheme?.colors?.background?.main || "#FFFFFF")
   const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [selectedPalette, setSelectedPalette] = useState<string | null>(null)
   const [copiedHex, setCopiedHex] = useState(false)
@@ -100,6 +101,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     }
 
     setIsSaving(true)
+    setSaveSuccess(false)
     const startTime = performance.now()
 
     // STEP 1: OPTIMISTIC UPDATE - Apply color immediately without waiting for API
@@ -112,7 +114,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
           main: backgroundColor,
         },
       },
-    }
+    } as Theme
 
     setActiveTheme(updatedTheme)
     applyTheme(updatedTheme)
@@ -123,10 +125,13 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     console.log(`[v0] ✅ Color applied instantly to UI in ${uiUpdateTime.toFixed(2)}ms`)
     console.log(`[v0] New color: ${backgroundColor}`)
 
-    // Show immediate success
+    // Show immediate success with animation
+    setSaveSuccess(true)
+    setTimeout(() => setSaveSuccess(false), 2000)
+
     toast({
       title: "Success!",
-      description: `Color updated in ${uiUpdateTime.toFixed(0)}ms`,
+      description: `Color updated instantly`,
     })
 
     // STEP 2: Save to backend in background (non-blocking)
@@ -415,17 +420,28 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
 
             <Button
               onClick={saveTheme}
-              disabled={isSaving}
-              className="bg-gradient-to-r from-gray-900 to-gray-800 text-white hover:from-gray-800 hover:to-gray-700"
+              disabled={isSaving || saveSuccess}
+              className={`relative overflow-hidden px-8 py-2.5 font-semibold rounded-full transition-all duration-300 ${
+                saveSuccess
+                  ? "bg-green-600 text-white shadow-lg scale-100"
+                  : isSaving
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "bg-gray-900 text-white hover:bg-gray-800 hover:shadow-lg hover:scale-105 active:scale-95"
+              }`}
             >
-              {isSaving ? (
+              {saveSuccess ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Check className="h-4 w-4 mr-2 inline-block" />
+                  Saved
+                </>
+              ) : isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin inline-block" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-4 w-4 mr-2 inline-block" />
                   Save Background Color
                 </>
               )}
