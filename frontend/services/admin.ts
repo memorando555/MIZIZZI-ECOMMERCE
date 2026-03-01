@@ -1026,7 +1026,8 @@ export const adminService = {
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || ""
-      const endpoint = `${apiUrl}/api/admin/products/${id}`
+      // Add hard_delete=true query parameter to permanently delete from database
+      const endpoint = `${apiUrl}/api/admin/products/${id}?hard_delete=true`
       console.log("[v0] Making DELETE request to:", endpoint)
 
       // Add a timeout to ensure the request doesn't hang
@@ -1065,7 +1066,7 @@ export const adminService = {
                 })
                 if (retryResponse.ok) {
                   const responseData = await retryResponse.json()
-                  console.log("[v0] Product deleted successfully after token refresh")
+                  console.log("[v0] Product permanently deleted successfully after token refresh")
                   this.invalidateProductCache(id)
                   return responseData
                 }

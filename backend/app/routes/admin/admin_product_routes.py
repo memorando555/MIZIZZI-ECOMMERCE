@@ -175,6 +175,9 @@ def get_products():
         # Build query
         query = Product.query
 
+        # Exclude soft-deleted products by default
+        query = query.filter((Product.is_deleted == False) | (Product.is_deleted == None))
+
         # Apply filters
         if search:
             query = query.filter(Product.name.ilike(f'%{search}%'))
@@ -245,6 +248,10 @@ def get_product(product_id):
         product = Product.query.get(product_id)
         if not product:
             return jsonify({'error': 'Product not found'}), 404
+
+        # Check if product is soft-deleted
+        if product.is_deleted:
+            return jsonify({'error': 'Product has been deleted'}), 404
 
         def to_dict_with_images(product_instance):
             """Convert product to dictionary with proper image handling"""
@@ -360,6 +367,11 @@ def update_product(product_id):
 
     try:
         product = Product.query.get_or_404(product_id)
+        
+        # Check if product is soft-deleted
+        if product.is_deleted:
+            return jsonify({'error': 'Cannot update a deleted product'}), 404
+        
         data = request.get_json()
 
         if not data:
