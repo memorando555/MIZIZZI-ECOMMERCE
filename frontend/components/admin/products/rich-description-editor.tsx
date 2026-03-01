@@ -86,6 +86,13 @@ export function RichDescriptionEditor({
     setImageUrl("")
     setShowImageModal(false)
     editorRef.current?.focus()
+    
+    // Trigger change to update state and cause re-render
+    setTimeout(() => {
+      if (editorRef.current) {
+        handleChange()
+      }
+    }, 50)
   }
 
   const handleFileUpload = async (file: File) => {
@@ -154,6 +161,13 @@ export function RichDescriptionEditor({
       console.log("[v0] Image inserted successfully into description")
       setShowImageModal(false)
       editorRef.current?.focus()
+      
+      // Trigger change to update state and cause immediate re-render
+      setTimeout(() => {
+        if (editorRef.current) {
+          handleChange()
+        }
+      }, 50)
     } catch (error) {
       console.error("[v0] Image upload error:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to upload image"
