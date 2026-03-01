@@ -6,13 +6,14 @@ import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Loader2, ChevronLeft, Package } from 'lucide-react'
+import { Loader2, ArrowLeft, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { adminService } from '@/services/admin'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from '@/components/ui/use-toast'
 import { generateSlug } from '@/lib/utils'
+import { Loader } from '@/components/ui/loader'
 import { useAdminAuth } from '@/contexts/admin/auth-context'
 
 const productSchema = z.object({
@@ -25,7 +26,6 @@ type ProductFormValues = z.infer<typeof productSchema>
 export default function NewProductPage() {
   const router = useRouter()
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth()
-  const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<ProductFormValues>({
@@ -36,7 +36,7 @@ export default function NewProductPage() {
     },
   })
 
-  const { setValue } = form
+  const { watch, setValue, handleSubmit } = form
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue('name', e.target.value)
@@ -72,20 +72,20 @@ export default function NewProductPage() {
       const productId = response?.id
 
       if (!productId) {
-        throw new Error('Product created but no ID was returned')
+        throw new Error('Product created but no ID was returned from the server')
       }
 
       toast({
         title: 'Success',
-        description: 'Product created successfully',
+        description: 'Product created successfully. You can now edit it to add more details.',
       })
 
       setTimeout(() => {
         router.push(`/admin/products/${productId}/edit`)
       }, 500)
     } catch (error) {
-      console.error('[v0] Error creating product:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create product'
+      console.error('Failed to create product:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create product. Please try again.'
       toast({
         title: 'Error',
         description: errorMessage,
@@ -98,57 +98,56 @@ export default function NewProductPage() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground border-t-foreground" />
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8">
+          <Loader />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation Bar */}
-      <div className="sticky top-0 z-40 border-b border-border/40 bg-background/95 backdrop-blur-sm">
-        <div className="container mx-auto px-4 sm:px-6 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/50">
+      <div className="container mx-auto py-12 px-4 max-w-2xl">
+        {/* Header */}
+        <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => router.push('/admin/products')}
-            className="gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            className="mb-6 hover:bg-muted transition-colors group"
           >
-            <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Back</span>
+            <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+            Back to Products
           </Button>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 py-16 md:py-24">
-        <div className="mx-auto w-full max-w-md">
-          {/* Hero Section */}
-          <div className="mb-12 space-y-4 text-center">
-            <div className="inline-flex items-center justify-center h-12 w-12 rounded-xl bg-primary/10">
-              <Package className="h-6 w-6 text-primary" />
+          <div className="flex items-start gap-4">
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/10 flex items-center justify-center">
+              <Package className="h-7 w-7 text-primary/70" />
             </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                Create New Product
-              </h1>
-              <p className="text-base text-muted-foreground">
-                Add a name and URL slug. Edit details later.
-              </p>
+            <div className="flex-1">
+              <h1 className="text-4xl font-bold text-foreground tracking-tight">Create New Product</h1>
+              <p className="text-muted-foreground mt-2">Add essential product information to get started</p>
             </div>
           </div>
+        </div>
 
-          {/* Form Card */}
+        {/* Main Form Card */}
+        <div className="bg-card border border-border rounded-2xl shadow-sm backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Product Name Field */}
+            <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-8 sm:p-10">
+              {/* Product Name */}
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-sm font-medium text-foreground">Product Name</FormLabel>
+                  <FormItem className="space-y-3">
+                    <div className="space-y-1">
+                      <FormLabel className="text-base font-semibold text-foreground">Product Name</FormLabel>
+                      <FormDescription className="text-sm text-muted-foreground">
+                        Enter the name of your product
+                      </FormDescription>
+                    </div>
                     <FormControl>
                       <Input
                         {...field}
@@ -156,9 +155,8 @@ export default function NewProductPage() {
                           field.onChange(e)
                           handleNameChange(e)
                         }}
-                        placeholder="Wireless Headphones"
-                        disabled={isSubmitting}
-                        className="h-11 bg-muted/50 border-border hover:bg-muted focus:bg-background focus:border-primary transition-colors text-base rounded-lg"
+                        placeholder="e.g., Premium Wireless Headphones"
+                        className="h-11 text-base border-border bg-background focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all duration-200 rounded-lg"
                       />
                     </FormControl>
                     <FormMessage className="text-xs" />
@@ -166,69 +164,78 @@ export default function NewProductPage() {
                 )}
               />
 
-              {/* URL Slug Field */}
+              {/* URL Slug */}
               <FormField
                 control={form.control}
                 name="slug"
                 render={({ field }) => (
-                  <FormItem className="space-y-2">
-                    <FormLabel className="text-sm font-medium text-foreground">URL Slug</FormLabel>
+                  <FormItem className="space-y-3">
+                    <div className="space-y-1">
+                      <FormLabel className="text-base font-semibold text-foreground">URL Slug</FormLabel>
+                      <FormDescription className="text-sm text-muted-foreground">
+                        Auto-generated from product name. Used in product URLs for SEO.
+                      </FormDescription>
+                    </div>
                     <FormControl>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">/products/</span>
-                        <Input
-                          {...field}
-                          placeholder="wireless-headphones"
-                          disabled={isSubmitting}
-                          className="flex-1 h-11 bg-muted/50 border-border hover:bg-muted focus:bg-background focus:border-primary transition-colors text-base rounded-lg font-mono text-sm"
-                        />
-                      </div>
+                      <Input
+                        {...field}
+                        placeholder="product-url-slug"
+                        className="h-11 border-border bg-background focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all duration-200 rounded-lg font-mono text-sm"
+                      />
                     </FormControl>
                     <FormMessage className="text-xs" />
-                    <p className="text-xs text-muted-foreground">Auto-generated from name. Used for SEO.</p>
                   </FormItem>
                 )}
               />
 
+              {/* Info Box */}
+              <div className="bg-muted/40 border border-border rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium text-foreground">What's next?</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  After creating this product, you'll be able to edit it and add images, pricing, inventory, descriptions, and more advanced settings.
+                </p>
+              </div>
+
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => router.push('/admin/products')}
-                  className="h-11 flex-1 border-border hover:bg-muted rounded-lg font-medium"
+                  className="h-11 rounded-lg flex-1 hover:bg-muted transition-colors"
                   disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || !form.watch('name').trim()}
-                  className="h-11 flex-1 bg-primary hover:bg-primary/90 rounded-lg font-medium gap-2"
+                  disabled={isSubmitting}
+                  className="h-11 rounded-lg bg-primary hover:bg-primary/90 shadow-sm hover:shadow-md transition-all duration-200 flex-1"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Creating</span>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
                     </>
                   ) : (
                     <>
-                      <Package className="h-4 w-4" />
-                      <span>Create</span>
+                      <Package className="mr-2 h-4 w-4" />
+                      Create Product
                     </>
                   )}
                 </Button>
               </div>
             </form>
           </Form>
+        </div>
 
-          {/* Hint */}
-          <p className="mt-12 text-center text-sm text-muted-foreground">
-            You can edit all details after creation
+        {/* Footer hint */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            You can always edit product details after creation
           </p>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
-
