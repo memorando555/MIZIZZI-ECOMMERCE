@@ -102,7 +102,6 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
     setIsSaving(true)
     try {
       const token = getAuthToken()
-      console.log("[v0] Token retrieved:", token ? `${token.substring(0, 20)}...` : "NO TOKEN")
 
       if (!token) {
         throw new Error("No authentication token found")
@@ -120,9 +119,6 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         is_active: true,
       }
 
-      console.log("[v0] Saving theme to:", `${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`)
-      console.log("[v0] Request headers will include Authorization: Bearer ${token.substring(0, 20)}...")
-
       const response = await fetch(`${API_BASE_URL}/api/theme/admin/themes/${activeTheme.id}`, {
         method: "PUT",
         headers: {
@@ -132,42 +128,41 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         body: JSON.stringify(requestBody),
       })
 
-      console.log("[v0] Response status:", response.status)
-
       if (!response.ok) {
         let errorData = null
         try {
           errorData = await response.json()
-          console.log("[v0] Error response:", errorData)
         } catch (e) {
-          console.log("[v0] Could not parse error response as JSON")
+          // Response wasn't JSON
         }
-
-        if (response.status === 401) {
-          console.log("[v0] 401 Unauthorized - Token may be invalid or expired")
-          throw new Error("Your session has expired. Please login again and try saving.")
-        }
-
         throw new Error(errorData?.message || `Failed to save theme (${response.status})`)
       }
 
       const data = await response.json()
 
+      // Update local state with the saved theme
       if (data.theme) {
         setActiveTheme(data.theme)
-        // Apply theme immediately for instant UI update
+        const savedBg = data.theme.colors?.background?.main || "#FFFFFF"
+        setBackgroundColor(savedBg)
+        setHexInput(savedBg)
+        // Apply theme immediately to frontend
         applyTheme(data.theme)
       }
-      setIsPreviewMode(false)
 
-      // Show success immediately
+      setIsPreviewMode(false)
+      setSelectedPalette(null)
+
+      // Show success toast
       toast({
         title: "Success!",
-        description: "Background color saved and updated across all pages",
+        description: "Background color saved and applied instantly",
       })
 
-      // Refresh theme in background to sync with backend (for other clients)
-      refreshTheme()
+      // Refresh theme for other clients (background)
+      setTimeout(() => {
+        refreshTheme()
+      }, 100)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error"
       console.error("[v0] Error saving theme:", errorMessage)
@@ -178,6 +173,7 @@ export default function ThemeCustomizerClient({ initialTheme }: { initialTheme: 
         variant: "destructive",
       })
     } finally {
+      // Always reset the saving state
       setIsSaving(false)
     }
   }
