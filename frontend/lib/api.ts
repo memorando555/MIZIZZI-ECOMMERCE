@@ -437,7 +437,7 @@ const originalDelete = api.delete
 
 // Add interceptor for request
 api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
     if (config.url?.includes("/api/refresh")) {
       console.log("[v0] Skipping token validation for refresh request")
       return config
@@ -453,6 +453,25 @@ api.interceptors.request.use(
         // If no regular token, try admin token for admin routes
         if (!token && config.url?.includes("/api/admin/")) {
           token = localStorage.getItem("admin_token")
+        }
+
+        // Check if token is about to expire (within 5 minutes) and proactively refresh
+        if (token && config.url?.includes("/api/admin/")) {
+          const decoded = decodeJWT(token)
+          if (decoded && decoded.exp) {
+            const now = Math.floor(Date.now() / 1000)
+            const timeUntilExpiry = decoded.exp - now
+            const PROACTIVE_REFRESH_BUFFER = 300 // 5 minutes in seconds
+
+            if (timeUntilExpiry > 0 && timeUntilExpiry < PROACTIVE_REFRESH_BUFFER) {
+              console.log(`[v0] Token expiring in ${timeUntilExpiry}s, proactively refreshing...`)
+              const newToken = await refreshAuthToken()
+              if (newToken) {
+                token = newToken
+                console.log("[v0] Token proactively refreshed before expiration")
+              }
+            }
+          }
         }
       } catch (error) {
         console.error("Error accessing localStorage in request interceptor:", error)

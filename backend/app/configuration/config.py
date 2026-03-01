@@ -19,8 +19,8 @@ class Config:
 
     # JWT configuration
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your-jwt-secret-key-here')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=90)
     JWT_TOKEN_LOCATION = ['headers', 'cookies']
     JWT_COOKIE_CSRF_PROTECT = True
     JWT_CSRF_IN_COOKIES = True

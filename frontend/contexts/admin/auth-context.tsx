@@ -330,6 +330,42 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, router])
 
+  // Add periodic token refresh every 5 minutes for active sessions
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const tokenRefreshInterval = setInterval(async () => {
+      console.log("[v0] Performing periodic token refresh check...")
+      const token = localStorage.getItem("admin_token") || localStorage.getItem("mizizzi_token")
+      if (token) {
+        // Decode token to check expiry
+        try {
+          const base64Url = token.split(".")[1]
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          )
+          const decoded = JSON.parse(jsonPayload)
+          const now = Math.floor(Date.now() / 1000)
+          const timeUntilExpiry = decoded.exp - now
+
+          // If token expires in less than 10 minutes, refresh it
+          if (timeUntilExpiry > 0 && timeUntilExpiry < 600) {
+            console.log(`[v0] Token expiring in ${timeUntilExpiry}s, refreshing...`)
+            await refreshToken()
+          }
+        } catch (error) {
+          console.error("[v0] Error during periodic token refresh check:", error)
+        }
+      }
+    }, 300000) // Check every 5 minutes
+
+    return () => clearInterval(tokenRefreshInterval)
+  }, [isAuthenticated])
+
   const login = async (credentials: { email: string; password: string; mfa_token?: string }): Promise<{
     success: boolean
     error?: string

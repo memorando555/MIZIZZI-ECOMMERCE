@@ -876,14 +876,14 @@ def refresh_admin_token():
         new_access_token = create_access_token(
             identity=str(current_user_id),
             additional_claims=additional_claims,
-            expires_delta=timedelta(hours=8)  # Shorter expiry for admin tokens
+            expires_delta=timedelta(hours=24)  # Extended to 24 hours for admin sessions
         )
 
         # Optionally create new refresh token (token rotation)
         new_refresh_token = create_refresh_token(
             identity=str(current_user_id),
             additional_claims=additional_claims,
-            expires_delta=timedelta(days=7)  # Shorter refresh for admin
+            expires_delta=timedelta(days=90)  # Extended to 90 days for admin sessions
         )
 
         # Generate CSRF token
@@ -896,7 +896,7 @@ def refresh_admin_token():
             'access_token': new_access_token,
             'refresh_token': new_refresh_token,  # Include new refresh token
             'csrf_token': csrf_token,
-            'expires_in': 28800  # 8 hours in seconds
+            'expires_in': 86400  # 24 hours in seconds
         })
 
         # Set cookies for tokens
