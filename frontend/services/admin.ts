@@ -1196,7 +1196,6 @@ export const adminService = {
     page?: number
     per_page?: number
     status?: string
-    payment_status?: string
     search?: string
     date_from?: string
     date_to?: string
@@ -1204,10 +1203,61 @@ export const adminService = {
     max_amount?: number
   }): Promise<any> {
     try {
-      const token = localStorage.getItem("mizizzi_token")
+      const { getAuthToken } = await import("@/lib/auth")
+      const token = getAuthToken()
+      
       if (!token) {
-        throw new Error("No authentication token available")
+        console.error("[v0] No authentication token available")
+        throw new Error("No authentication token available. Please login first.")
       }
+
+      const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/orders`)
+
+      url.searchParams.append("include_items", "true")
+      url.searchParams.append("with_items", "true")
+
+      // Add query parameters if provided
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined) {
+            url.searchParams.append(key, value.toString())
+          }
+        })
+      }
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        const errorData = await response.text()
+        console.error("[v0] Orders API error:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorData,
+          url: url.toString(),
+        })
+
+        if (response.status === 401) {
+          console.error("[v0] Authentication failed - token invalid or expired")
+          const { removeAuthToken } = await import("@/lib/auth")
+          removeAuthToken()
+        }
+
+        throw new Error(`Orders request failed with status: ${response.status}`)
+      }
+
+      return await response.json()
+    } catch (error) {
+      console.error("[v0] Error fetching orders:", error)
+      throw error
+    }
+  }
 
       const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/orders`)
 
