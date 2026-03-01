@@ -1,14 +1,22 @@
 "use client"
 
-import React, { useState } from "react"
-import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
+import React, { useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
-import { ImageIcon, Plus, X, Eye, EyeOff, LinkIcon } from "lucide-react"
+import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import Image from "next/image"
+import {
+  Bold,
+  Italic,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Eye,
+  EyeOff,
+  LinkIcon,
+  ImageIcon,
+} from "lucide-react"
 
 interface RichDescriptionEditorProps {
   value: string
@@ -16,121 +24,45 @@ interface RichDescriptionEditorProps {
   productName?: string
 }
 
-interface DescriptionBlock {
-  id: string
-  type: "text" | "image"
-  content: string
-}
+export function RichDescriptionEditor({
+  value,
+  onChange,
+  productName = "Product",
+}: RichDescriptionEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null)
+  const [showPreview, setShowPreview] = React.useState(false)
 
-export function RichDescriptionEditor({ value, onChange, productName = "Product" }: RichDescriptionEditorProps) {
-  const [blocks, setBlocks] = useState<DescriptionBlock[]>(() => {
-    // Parse existing HTML description into blocks
-    if (!value) return [{ id: "1", type: "text", content: "" }]
-
-    try {
-      const parser = new DOMParser()
-      const doc = parser.parseFromString(value, "text/html")
-      const parsedBlocks: DescriptionBlock[] = []
-      let blockId = 1
-
-      // Extract text and images
-      const children = doc.body.childNodes
-      let textBuffer = ""
-
-      children.forEach((node) => {
-        if (node.nodeName === "IMG") {
-          // Save any accumulated text
-          if (textBuffer.trim()) {
-            parsedBlocks.push({
-              id: String(blockId++),
-              type: "text",
-              content: textBuffer.trim(),
-            })
-            textBuffer = ""
-          }
-          // Add image block
-          const img = node as HTMLImageElement
-          parsedBlocks.push({
-            id: String(blockId++),
-            type: "image",
-            content: img.src || "",
-          })
-        } else {
-          // Accumulate text content
-          textBuffer += node.textContent || ""
-        }
-      })
-
-      // Add any remaining text
-      if (textBuffer.trim()) {
-        parsedBlocks.push({
-          id: String(blockId++),
-          type: "text",
-          content: textBuffer.trim(),
-        })
-      }
-
-      return parsedBlocks.length > 0 ? parsedBlocks : [{ id: "1", type: "text", content: value }]
-    } catch (error) {
-      // Fallback to single text block
-      return [{ id: "1", type: "text", content: value }]
-    }
-  })
-
-  const [showPreview, setShowPreview] = useState(false)
-
-  // Convert blocks to HTML
-  const blocksToHTML = (blocks: DescriptionBlock[]): string => {
-    return blocks
-      .map((block) => {
-        if (block.type === "text") {
-          return `<p>${block.content.replace(/\n/g, "<br>")}</p>`
-        } else {
-          return `<img src="${block.content}" alt="${productName}" style="width: 100%; max-width: 800px; height: auto; margin: 20px 0; border-radius: 8px;" />`
-        }
-      })
-      .join("\n")
+  const executeCommand = (command: string, value: string = "") => {
+    document.execCommand(command, false, value)
+    editorRef.current?.focus()
   }
 
-  // Update parent component whenever blocks change
-  React.useEffect(() => {
-    const html = blocksToHTML(blocks)
-    onChange(html)
-  }, [blocks])
-
-  const addTextBlock = () => {
-    setBlocks([...blocks, { id: Date.now().toString(), type: "text", content: "" }])
+  const insertHeading = (level: 1 | 2 | 3) => {
+    document.execCommand("formatBlock", false, `<h${level}>`)
+    editorRef.current?.focus()
   }
 
-  const addImageBlock = () => {
-    setBlocks([...blocks, { id: Date.now().toString(), type: "image", content: "" }])
+  const insertBulletList = () => {
+    document.execCommand("insertUnorderedList", false)
+    editorRef.current?.focus()
   }
 
-  const updateBlock = (id: string, content: string) => {
-    setBlocks(blocks.map((block) => (block.id === id ? { ...block, content } : block)))
+  const insertNumberedList = () => {
+    document.execCommand("insertOrderedList", false)
+    editorRef.current?.focus()
   }
 
-  const removeBlock = (id: string) => {
-    if (blocks.length > 1) {
-      setBlocks(blocks.filter((block) => block.id !== id))
+  const insertImage = () => {
+    const url = prompt("Enter image URL:")
+    if (url) {
+      document.execCommand("insertImage", false, url)
+      editorRef.current?.focus()
     }
   }
 
-  const moveBlockUp = (id: string) => {
-    const index = blocks.findIndex((b) => b.id === id)
-    if (index > 0) {
-      const newBlocks = [...blocks]
-      ;[newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]]
-      setBlocks(newBlocks)
-    }
-  }
-
-  const moveBlockDown = (id: string) => {
-    const index = blocks.findIndex((b) => b.id === id)
-    if (index < blocks.length - 1) {
-      const newBlocks = [...blocks]
-      ;[newBlocks[index], newBlocks[index + 1]] = [newBlocks[index + 1], newBlocks[index]]
-      setBlocks(newBlocks)
+  const handleChange = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML)
     }
   }
 
@@ -138,135 +70,154 @@ export function RichDescriptionEditor({ value, onChange, productName = "Product"
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Label className="text-base font-medium">Product Description</Label>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
-            {showPreview ? (
-              <>
-                <EyeOff className="h-4 w-4 mr-1" /> Hide Preview
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4 mr-1" /> Show Preview
-              </>
-            )}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setShowPreview(!showPreview)}
+        >
+          {showPreview ? (
+            <>
+              <EyeOff className="h-4 w-4 mr-1" />
+              Hide Preview
+            </>
+          ) : (
+            <>
+              <Eye className="h-4 w-4 mr-1" />
+              Show Preview
+            </>
+          )}
+        </Button>
       </div>
 
       <Alert>
         <LinkIcon className="h-4 w-4" />
         <AlertDescription className="text-sm">
-          Build your product description  - add text sections and images alternately to showcase features.
-          Images will be displayed full-width between text sections.
+          Format your description with headings, bold text, bullets and lists like Jumia does. Use the toolbar to add formatting.
         </AlertDescription>
       </Alert>
 
-      {/* Editor Blocks */}
-      <div className="space-y-4">
-        {blocks.map((block, index) => (
-          <Card key={block.id} className="p-4 border-2 hover:border-orange-200 transition-colors">
-            <div className="flex items-start gap-3">
-              <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">
-                    {block.type === "text" ? "Text Section" : "Image Section"}
-                  </span>
-                  <div className="flex gap-1">
-                    {index > 0 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveBlockUp(block.id)}
-                        className="h-7 w-7 p-0"
-                      >
-                        ↑
-                      </Button>
-                    )}
-                    {index < blocks.length - 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveBlockDown(block.id)}
-                        className="h-7 w-7 p-0"
-                      >
-                        ↓
-                      </Button>
-                    )}
-                    {blocks.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeBlock(block.id)}
-                        className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
+      {/* Formatting Toolbar */}
+      <Card className="p-3 bg-gray-50 border border-gray-200">
+        <div className="flex flex-wrap gap-2">
+          {/* Headings */}
+          <div className="flex items-center gap-1 border-r pr-2">
+            <button
+              type="button"
+              onClick={() => insertHeading(2)}
+              className="p-2 hover:bg-gray-200 rounded-md transition-colors"
+              title="Heading 2"
+            >
+              <Heading2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => insertHeading(3)}
+              className="p-2 hover:bg-gray-200 rounded-md transition-colors"
+              title="Heading 3"
+            >
+              <Heading3 className="h-4 w-4" />
+            </button>
+          </div>
 
-                {block.type === "text" ? (
-                  <Textarea
-                    value={block.content}
-                    onChange={(e) => updateBlock(block.id, e.target.value)}
-                    placeholder="Enter text content for this section..."
-                    className="min-h-[120px] resize-y"
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <Input
-                      type="text"
-                      value={block.content}
-                      onChange={(e) => updateBlock(block.id, e.target.value)}
-                      placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
-                      className="font-mono text-sm"
-                    />
-                    {block.content && (
-                      <div className="relative w-full max-w-md h-48 bg-gray-100 rounded-lg overflow-hidden">
-                        <Image
-                          src={block.content || "/placeholder.svg"}
-                          alt="Preview"
-                          fill
-                          className="object-contain"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.style.display = "none"
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+          {/* Text Formatting */}
+          <div className="flex items-center gap-1 border-r pr-2">
+            <button
+              type="button"
+              onClick={() => executeCommand("bold")}
+              className="p-2 hover:bg-gray-200 rounded-md transition-colors font-bold"
+              title="Bold (Ctrl+B)"
+            >
+              <Bold className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => executeCommand("italic")}
+              className="p-2 hover:bg-gray-200 rounded-md transition-colors italic"
+              title="Italic (Ctrl+I)"
+            >
+              <Italic className="h-4 w-4" />
+            </button>
+          </div>
 
-      {/* Add Block Buttons */}
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" onClick={addTextBlock} className="flex-1 bg-transparent">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Text Section
-        </Button>
-        <Button type="button" variant="outline" onClick={addImageBlock} className="flex-1 bg-transparent">
-          <ImageIcon className="h-4 w-4 mr-2" />
-          Add Image Section
-        </Button>
+          {/* Lists */}
+          <div className="flex items-center gap-1 border-r pr-2">
+            <button
+              type="button"
+              onClick={insertBulletList}
+              className="p-2 hover:bg-gray-200 rounded-md transition-colors"
+              title="Bullet List"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={insertNumberedList}
+              className="p-2 hover:bg-gray-200 rounded-md transition-colors"
+              title="Numbered List"
+            >
+              <ListOrdered className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Image */}
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={insertImage}
+              className="p-2 hover:bg-gray-200 rounded-md transition-colors"
+              title="Insert Image"
+            >
+              <ImageIcon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Editor */}
+      <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
+        <div
+          ref={editorRef}
+          contentEditable
+          onInput={handleChange}
+          suppressContentEditableWarning
+          dangerouslySetInnerHTML={{ __html: value || "" }}
+          className="min-h-96 p-6 bg-white focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-orange-500 prose prose-sm max-w-none
+            prose-h2:text-xl prose-h2:font-bold prose-h2:mt-6 prose-h2:mb-3
+            prose-h3:text-lg prose-h3:font-semibold prose-h3:mt-4 prose-h3:mb-2
+            prose-p:text-gray-700 prose-p:leading-relaxed
+            prose-strong:font-bold prose-strong:text-gray-900
+            prose-em:italic prose-em:text-gray-600
+            prose-ul:list-disc prose-ul:ml-6 prose-ul:my-3
+            prose-ol:list-decimal prose-ol:ml-6 prose-ol:my-3
+            prose-li:text-gray-700 prose-li:my-1
+            prose-img:max-w-full prose-img:h-auto prose-img:rounded-lg prose-img:my-4
+          "
+        />
       </div>
 
       {/* Preview */}
       {showPreview && (
-        <Card className="p-6 bg-gray-50">
-          <h3 className="text-lg font-semibold mb-4">Preview</h3>
-          <div className="prose prose-sm max-w-none bg-white p-6 rounded-lg">
-            <div dangerouslySetInnerHTML={{ __html: blocksToHTML(blocks) }} />
+        <Card className="p-6 bg-gray-50 border-2 border-orange-200">
+          <h3 className="text-lg font-semibold mb-4 text-gray-900">Preview</h3>
+          <div className="bg-white p-6 rounded-lg prose prose-sm max-w-none">
+            <div dangerouslySetInnerHTML={{ __html: value }} />
           </div>
         </Card>
       )}
+
+      {/* Format Help */}
+      <Card className="p-4 bg-blue-50 border border-blue-200">
+        <p className="text-sm font-medium text-blue-900 mb-2">Formatting Tips:</p>
+        <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+          <li>Use <strong>Heading 2</strong> for main sections like "Key Benefits"</li>
+          <li>Use <strong>Heading 3</strong> for subsections</li>
+          <li>Use <strong>Bold</strong> to highlight important terms</li>
+          <li>Use <strong>Bullet Lists</strong> for features and benefits</li>
+          <li>Use <strong>Numbered Lists</strong> for step-by-step instructions</li>
+          <li>Insert images between sections for visual appeal</li>
+        </ul>
+      </Card>
     </div>
   )
 }
