@@ -929,44 +929,31 @@ def create_app(config_name=None, enable_socketio=True):
         app.register_blueprint(final_blueprints['admin_auth_routes'], url_prefix='/api/admin')
         if 'admin_google_auth_routes' in final_blueprints:
             app.register_blueprint(final_blueprints['admin_google_auth_routes'], url_prefix='/api/admin/auth')
-    app.register_blueprint(final_blueprints['admin_email_routes'], url_prefix='/api/admin')
-    app.register_blueprint(final_blueprints['admin_settings_routes'], url_prefix='/api/admin')
-    app.register_blueprint(final_blueprints['dashboard_routes'], url_prefix='/api/admin/dashboard')
-        
+        app.register_blueprint(final_blueprints['admin_email_routes'], url_prefix='/api/admin')
+        app.register_blueprint(final_blueprints['admin_settings_routes'], url_prefix='/api/admin')
+        app.register_blueprint(final_blueprints['dashboard_routes'], url_prefix='/api/admin/dashboard')
         app.register_blueprint(final_blueprints['order_routes'], url_prefix='/api/orders')
         app.register_blueprint(final_blueprints['admin_order_routes'], url_prefix='/api/admin')
-        
         app.register_blueprint(final_blueprints['admin_cart_routes'], url_prefix='/api/admin/cart')
         app.register_blueprint(final_blueprints['admin_cloudinary_routes'], url_prefix='/api/admin/cloudinary')
         app.register_blueprint(final_blueprints['admin_category_routes'], url_prefix='/api/admin/categories')
         app.register_blueprint(final_blueprints['admin_shop_categories_routes'], url_prefix='/api/admin/shop-categories')
         app.register_blueprint(final_blueprints['product_images_batch_bp'])
-        
-        # Removed payment_routes registration
         app.register_blueprint(final_blueprints['pesapal_routes'], url_prefix='/api/pesapal')
-        
         app.register_blueprint(final_blueprints['coupon_routes'], url_prefix='/api/coupons')
-        
         app.register_blueprint(final_blueprints['user_review_routes'], url_prefix='/api/reviews/user')
         app.register_blueprint(final_blueprints['admin_review_routes'], url_prefix='/api/admin/reviews')
-        
         app.register_blueprint(final_blueprints['user_brand_routes'], url_prefix='/api/brands')
         app.register_blueprint(final_blueprints['admin_brand_routes'], url_prefix='/api/admin/brands')
-        
         app.register_blueprint(final_blueprints['user_wishlist_routes'], url_prefix='/api/wishlist/user')
         app.register_blueprint(final_blueprints['admin_wishlist_routes'], url_prefix='/api/admin/wishlist')
-        
         app.register_blueprint(final_blueprints['products_routes'], url_prefix='/api/products')
         app.register_blueprint(final_blueprints['categories_routes'], url_prefix='/api/categories')
-        
         app.register_blueprint(final_blueprints['user_address_routes'], url_prefix='/api/addresses/user')
         app.register_blueprint(final_blueprints['admin_address_routes'], url_prefix='/api/admin/addresses')
-        
         app.register_blueprint(final_blueprints['user_inventory_routes'], url_prefix='/api/inventory/user')
         app.register_blueprint(final_blueprints['admin_inventory_routes'], url_prefix='/api/inventory/admin')
-        
         app.register_blueprint(final_blueprints['admin_products_routes'], url_prefix='/api/admin/products')
-        
         app.register_blueprint(final_blueprints['notification_routes'], url_prefix='/api/notifications')
         app.register_blueprint(final_blueprints['carousel_routes'], url_prefix='/api/carousel')
         app.register_blueprint(final_blueprints['theme_routes'], url_prefix='/api/theme')
@@ -975,95 +962,98 @@ def create_app(config_name=None, enable_socketio=True):
         app.register_blueprint(final_blueprints['topbar_routes'], url_prefix='/api/topbar')
         app.register_blueprint(final_blueprints['contact_cta_routes'], url_prefix='/api/contact-cta')
         app.register_blueprint(final_blueprints['featured_routes'], url_prefix='/api/products/featured')
-
         app.register_blueprint(final_blueprints['meilisearch_routes'], url_prefix='/api/meilisearch')
         app.register_blueprint(final_blueprints['admin_meilisearch_routes'], url_prefix='/api/admin/meilisearch')
         app.logger.info("✅ Meilisearch routes registered successfully")
-
         app.register_blueprint(final_blueprints['flash_sale_routes'], url_prefix='/api/flash-sale')
         app.logger.info("✅ Flash sale routes registered at /api/flash-sale")
+    except KeyError as e:
+        app.logger.error(f"❌ Blueprint registration error - missing blueprint: {str(e)}")
+    except Exception as e:
+        app.logger.error(f"❌ Blueprint registration error: {str(e)}")
 
-        try:
-            app.logger.debug("Importing Google Auth routes...")
-            from app.routes.auth.google_auth import google_auth_routes
-            app.register_blueprint(google_auth_routes, url_prefix='/api/auth')
-            app.logger.info("✅ Google OAuth routes registered successfully")
-            imported_blueprints['google_auth_routes'] = google_auth_routes
-        except ImportError as e:
-            app.logger.error(f"Failed to import Google OAuth routes: {str(e)}")
-            fallback_google = Blueprint('google_auth_routes', __name__)
-            
-            @fallback_google.route('/google-config', methods=['GET'])
-            def fallback_google_config():
-                return jsonify({
-                    'configured': False,
-                    'message': 'Google OAuth is not configured'
-                }), 500
-            
-            app.register_blueprint(fallback_google, url_prefix='/api/auth')
-            app.logger.warning("⚠️ Using fallback Google OAuth routes")
+    try:
+        app.logger.debug("Importing Google Auth routes...")
+        from app.routes.auth.google_auth import google_auth_routes
+        app.register_blueprint(google_auth_routes, url_prefix='/api/auth')
+        app.logger.info("✅ Google OAuth routes registered successfully")
+        imported_blueprints['google_auth_routes'] = google_auth_routes
+    except ImportError as e:
+        app.logger.error(f"Failed to import Google OAuth routes: {str(e)}")
+        fallback_google = Blueprint('google_auth_routes', __name__)
         
-        # Clean startup logging
-        def log_startup_summary():
-            """Generate and log a clean startup summary."""
-            app.logger.info("=" * 60)
-            app.logger.info("🚀 MIZIZZI E-COMMERCE PLATFORM - STARTUP COMPLETE")
-            app.logger.info("=" * 60)
-            
-            app.logger.info("📦 BLUEPRINT REGISTRATION SUMMARY")
-            app.logger.info("-" * 40)
-            fallback_count = 0
-            success_count = 0
-            
-            blueprint_url_prefixes = {
-                'validation_routes': '/api',
-                'cart_routes': '/api/cart',
-                'admin_routes': '/api/admin',
-                'admin_auth_routes': '/api/admin',
-                'admin_google_auth_routes': '/api/admin/auth',
-                'admin_email_routes': '/api/admin',
-                'dashboard_routes': '/api/admin/dashboard',
-                'order_routes': '/api/orders',
-                'admin_order_routes': '/api/admin',
-                'admin_cart_routes': '/api/admin/cart',
-                'admin_cloudinary_routes': '/api/admin/cloudinary',
-                'admin_category_routes': '/api/admin/categories',
-                'admin_shop_categories_routes': '/api/admin/shop-categories',
-                'product_images_batch_bp': '/',
-                'pesapal_routes': '/api/pesapal',
-                'coupon_routes': '/api/coupons',
-                'user_review_routes': '/api/reviews/user',
-                'admin_review_routes': '/api/admin/reviews',
-                'user_wishlist_routes': '/api/wishlist/user',
-                'admin_wishlist_routes': '/api/admin/wishlist',
-                'products_routes': '/api/products',
-                'categories_routes': '/api/categories',
-                'user_address_routes': '/api/addresses/user',
-                'admin_address_routes': '/api/admin/addresses',
-                'user_inventory_routes': '/api/inventory/user',
-                'admin_inventory_routes': '/api/inventory/admin',
-                'admin_products_routes': '/api/admin/products',
-                'user_brand_routes': '/api/brands',
-                'admin_brand_routes': '/api/admin/brands',
-                'notification_routes': '/api/notifications',
-                'carousel_routes': '/api/carousel',
-                'google_auth_routes': '/api/auth',
-                'theme_routes': '/api/theme',
-                'footer_routes': '/api/footer',
-                'side_panel_routes': '/api/panels',
-                'topbar_routes': '/api/topbar',
-                'contact_cta_routes': '/api/contact-cta',
-                'featured_routes': '/api/products/featured',
-                'meilisearch_routes': '/api/meilisearch',
-                'admin_meilisearch_routes': '/api/admin/meilisearch',
-                'flash_sale_routes': '/api/flash-sale',
-            }
-            
-            for blueprint_name in final_blueprints:
-                if blueprint_name in imported_blueprints:
-                    status = "✅"
-                    success_count += 1
-                else:
+        @fallback_google.route('/google-config', methods=['GET'])
+        def fallback_google_config():
+            return jsonify({
+                'configured': False,
+                'message': 'Google OAuth is not configured'
+            }), 500
+        
+        app.register_blueprint(fallback_google, url_prefix='/api/auth')
+        app.logger.warning("⚠️ Using fallback Google OAuth routes")
+    
+    # Clean startup logging
+    def log_startup_summary():
+        """Generate and log a clean startup summary."""
+        app.logger.info("=" * 60)
+        app.logger.info("🚀 MIZIZZI E-COMMERCE PLATFORM - STARTUP COMPLETE")
+        app.logger.info("=" * 60)
+        
+        app.logger.info("📦 BLUEPRINT REGISTRATION SUMMARY")
+        app.logger.info("-" * 40)
+        fallback_count = 0
+        success_count = 0
+        
+        blueprint_url_prefixes = {
+            'validation_routes': '/api',
+            'cart_routes': '/api/cart',
+            'admin_routes': '/api/admin',
+            'admin_auth_routes': '/api/admin',
+            'admin_google_auth_routes': '/api/admin/auth',
+            'admin_email_routes': '/api/admin',
+            'admin_settings_routes': '/api/admin',
+            'dashboard_routes': '/api/admin/dashboard',
+            'order_routes': '/api/orders',
+            'admin_order_routes': '/api/admin',
+            'admin_cart_routes': '/api/admin/cart',
+            'admin_cloudinary_routes': '/api/admin/cloudinary',
+            'admin_category_routes': '/api/admin/categories',
+            'admin_shop_categories_routes': '/api/admin/shop-categories',
+            'product_images_batch_bp': '/',
+            'pesapal_routes': '/api/pesapal',
+            'coupon_routes': '/api/coupons',
+            'user_review_routes': '/api/reviews/user',
+            'admin_review_routes': '/api/admin/reviews',
+            'user_wishlist_routes': '/api/wishlist/user',
+            'admin_wishlist_routes': '/api/admin/wishlist',
+            'products_routes': '/api/products',
+            'categories_routes': '/api/categories',
+            'user_address_routes': '/api/addresses/user',
+            'admin_address_routes': '/api/admin/addresses',
+            'user_inventory_routes': '/api/inventory/user',
+            'admin_inventory_routes': '/api/inventory/admin',
+            'admin_products_routes': '/api/admin/products',
+            'user_brand_routes': '/api/brands',
+            'admin_brand_routes': '/api/admin/brands',
+            'notification_routes': '/api/notifications',
+            'carousel_routes': '/api/carousel',
+            'google_auth_routes': '/api/auth',
+            'theme_routes': '/api/theme',
+            'footer_routes': '/api/footer',
+            'side_panel_routes': '/api/panels',
+            'topbar_routes': '/api/topbar',
+            'contact_cta_routes': '/api/contact-cta',
+            'featured_routes': '/api/products/featured',
+            'meilisearch_routes': '/api/meilisearch',
+            'admin_meilisearch_routes': '/api/admin/meilisearch',
+            'flash_sale_routes': '/api/flash-sale',
+        }
+        
+        for blueprint_name in final_blueprints:
+            if blueprint_name in imported_blueprints:
+                status = "✅"
+                success_count += 1
+            else:
                     status = "⚠️"
                     fallback_count += 1
                 
