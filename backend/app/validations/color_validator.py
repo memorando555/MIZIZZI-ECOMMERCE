@@ -13,6 +13,7 @@ CSS_COLOR_NAMES = {
 }
 
 HEX_COLOR_RE = re.compile(r'^#(?:[0-9a-fA-F]{3}){1,2}$')
+RGBA_COLOR_RE = re.compile(r'^rgba?\s*\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*[\d.]+\s*)?\)$', re.IGNORECASE)
 
 class ColorValidator:
     """Lightweight validator for color strings.
@@ -37,6 +38,9 @@ class ColorValidator:
             return False
         # Hex color
         if HEX_COLOR_RE.match(color):
+            return True
+        # RGBA/RGB color
+        if RGBA_COLOR_RE.match(color):
             return True
         # Named color (basic set)
         if color.lower() in CSS_COLOR_NAMES:
