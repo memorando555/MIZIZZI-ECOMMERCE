@@ -442,105 +442,108 @@ export default function ShopCategoriesAdminPage() {
 
       {/* Create/Edit Dialog - Modern Apple-style Form */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-full max-w-2xl max-h-[95vh] flex flex-col p-0 gap-0 rounded-2xl border-border/50">
-          {/* Header */}
-          <DialogHeader className="px-8 py-6 border-b border-border/40 bg-background">
-            <DialogTitle className="text-3xl font-bold">
+        <DialogContent className="w-[95vw] max-w-4xl h-[90vh] flex flex-col p-0 gap-0 rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl">
+          {/* Fixed Header */}
+          <div className="flex-shrink-0 border-b border-border/40 px-6 sm:px-8 py-5 bg-background sticky top-0 z-10">
+            <DialogTitle className="text-2xl sm:text-3xl font-bold">
               {editingCategory ? "Edit Category" : "Create Category"}
             </DialogTitle>
-            <DialogDescription className="mt-2 text-base text-muted-foreground">
+            <DialogDescription className="mt-2 text-sm sm:text-base text-muted-foreground">
               {editingCategory ? "Update your category details and visibility settings" : "Set up a new category for your store with all necessary details"}
             </DialogDescription>
-          </DialogHeader>
+          </div>
 
-          {/* Scrollable Content - Clean Single Column */}
-          <div className="overflow-y-auto flex-1 min-h-0">
-            <div className="space-y-6 p-8">
+          {/* Scrollable Content - Clean organized layout */}
+          <div className="overflow-y-auto flex-1 min-h-0 px-6 sm:px-8 py-6">
+            <div className="space-y-6 max-w-3xl">
               {/* Section 1: Image Uploads */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-primary" />
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Category Images</h3>
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-widest">Images</h3>
                 </div>
                 
-                {/* Main Category Image */}
-                <div className="space-y-3">
-                  <Label htmlFor="category-image" className="text-sm font-semibold">Category Image *</Label>
-                  <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-muted to-muted/50 border-2 border-border/40 h-48 group hover:border-border/60 transition-colors">
-                    <Image
-                      src={getValidImageUrl(formData.image_url)}
-                      alt="Category preview"
-                      fill
-                      className="object-cover group-hover:opacity-90 transition-opacity"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Main Category Image */}
+                  <div className="space-y-2">
+                    <Label htmlFor="category-image" className="text-sm font-semibold">Category Image *</Label>
+                    <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-muted to-muted/50 border-2 border-border/40 h-32 sm:h-40 group hover:border-border/60 transition-colors">
+                      <Image
+                        src={getValidImageUrl(formData.image_url)}
+                        alt="Category preview"
+                        fill
+                        className="object-cover group-hover:opacity-90 transition-opacity"
+                      />
+                      {!formData.image_url && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
+                          <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                        </div>
+                      )}
+                    </div>
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleImageUpload(file, "image_url")
+                      }}
                     />
-                    {!formData.image_url && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
-                      </div>
-                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      size="sm"
+                      className="w-full h-9 rounded-lg font-medium text-xs sm:text-sm"
+                    >
+                      {uploadingImage ? (
+                        <>
+                          <Loader className="h-3.5 w-3.5 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-3.5 w-3.5 mr-2" />
+                          {formData.image_url ? "Change" : "Upload"} Image
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <input
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleImageUpload(file, "image_url")
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => imageInputRef.current?.click()}
-                    disabled={uploadingImage}
-                    className="w-full h-11 rounded-lg font-medium text-base"
-                  >
-                    {uploadingImage ? (
-                      <>
-                        <Loader className="h-4 w-4 mr-2 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        {formData.image_url ? "Change Image" : "Upload Image"}
-                      </>
-                    )}
-                  </Button>
-                </div>
 
-                {/* Banner Image */}
-                <div className="space-y-3 pt-2">
-                  <Label htmlFor="banner-image" className="text-sm font-semibold">Banner Image (Optional)</Label>
-                  <div className="relative rounded-lg overflow-hidden bg-muted border border-border/40 h-24 group hover:border-border/60 transition-colors">
-                    <Image
-                      src={getValidImageUrl(formData.banner_url)}
-                      alt="Banner preview"
-                      fill
-                      className="object-cover"
+                  {/* Banner Image */}
+                  <div className="space-y-2">
+                    <Label htmlFor="banner-image" className="text-sm font-semibold">Banner (Optional)</Label>
+                    <div className="relative rounded-lg overflow-hidden bg-muted border border-border/40 h-32 sm:h-40 group hover:border-border/60 transition-colors">
+                      <Image
+                        src={getValidImageUrl(formData.banner_url)}
+                        alt="Banner preview"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <input
+                      ref={bannerInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleImageUpload(file, "banner_url")
+                      }}
                     />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => bannerInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      size="sm"
+                      className="w-full h-9 rounded-lg font-medium text-xs sm:text-sm"
+                    >
+                      {uploadingImage ? "Uploading..." : (formData.banner_url ? "Change" : "Upload")} Banner
+                    </Button>
                   </div>
-                  <input
-                    ref={bannerInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) handleImageUpload(file, "banner_url")
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => bannerInputRef.current?.click()}
-                    disabled={uploadingImage}
-                    size="sm"
-                    className="w-full h-10 rounded-lg font-medium"
-                  >
-                    {uploadingImage ? "Uploading..." : (formData.banner_url ? "Change" : "Upload")} Banner
-                  </Button>
                 </div>
               </div>
 
@@ -548,47 +551,47 @@ export default function ShopCategoriesAdminPage() {
               <div className="h-px bg-border/40" />
 
               {/* Section 2: Basic Information */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-primary" />
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Basic Information</h3>
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-widest">Information</h3>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-medium">Category Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder="e.g., Electronics, Fashion, Home & Living"
-                    className="h-11 rounded-lg text-base border-border/40 focus:border-primary/50"
-                  />
-                  <p className="text-xs text-muted-foreground">Choose a clear, descriptive name for your category</p>
-                </div>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="name" className="text-sm font-medium">Category Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => handleNameChange(e.target.value)}
+                      placeholder="e.g., Electronics, Fashion"
+                      className="h-10 rounded-lg text-sm border-border/40 focus:border-primary/50"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="slug" className="text-sm font-medium">URL Slug</Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
-                    placeholder="e.g., electronics"
-                    className="h-11 rounded-lg text-base font-mono text-sm border-border/40 focus:border-primary/50"
-                  />
-                  <p className="text-xs text-muted-foreground">Used in URLs and for SEO optimization</p>
-                </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="slug" className="text-sm font-medium">URL Slug</Label>
+                    <Input
+                      id="slug"
+                      value={formData.slug}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                      placeholder="e.g., electronics"
+                      className="h-10 rounded-lg text-sm font-mono text-xs border-border/40 focus:border-primary/50"
+                    />
+                    <p className="text-xs text-muted-foreground">Used in URLs and SEO</p>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                    placeholder="Provide a brief description of this category..."
-                    rows={3}
-                    className="rounded-lg text-base border-border/40 focus:border-primary/50 resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground">Keep it concise and informative for customers</p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+                      placeholder="Describe this category..."
+                      rows={2}
+                      className="rounded-lg text-sm border-border/40 focus:border-primary/50 resize-none"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -596,17 +599,17 @@ export default function ShopCategoriesAdminPage() {
               <div className="h-px bg-border/40" />
 
               {/* Section 3: Display Settings */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="h-1 w-1 rounded-full bg-primary" />
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Display Settings</h3>
+                  <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-widest">Settings</h3>
                 </div>
 
                 {/* Featured Toggle */}
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/40 border border-border/40 hover:bg-muted/50 transition-colors group cursor-pointer">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/40 border border-border/40 hover:bg-muted/50 transition-colors">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-semibold cursor-pointer">Featured Category</Label>
-                    <p className="text-xs text-muted-foreground">Display this category prominently on your homepage</p>
+                    <p className="text-xs text-muted-foreground">Show on homepage</p>
                   </div>
                   <Switch
                     checked={formData.is_featured}
@@ -615,7 +618,7 @@ export default function ShopCategoriesAdminPage() {
                 </div>
 
                 {/* Sort Order */}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label htmlFor="sort_order" className="text-sm font-medium">Display Order</Label>
                   <Input
                     id="sort_order"
@@ -623,41 +626,43 @@ export default function ShopCategoriesAdminPage() {
                     value={formData.sort_order}
                     onChange={(e) => setFormData((prev) => ({ ...prev, sort_order: Number.parseInt(e.target.value) || 0 }))}
                     min={0}
-                    className="h-11 rounded-lg text-base border-border/40 focus:border-primary/50"
+                    className="h-10 rounded-lg text-sm border-border/40 focus:border-primary/50"
                   />
-                  <p className="text-xs text-muted-foreground">Categories with lower numbers appear first</p>
+                  <p className="text-xs text-muted-foreground">Lower numbers appear first</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Footer with Actions */}
-          <DialogFooter className="px-8 py-5 border-t border-border/40 bg-background">
+          {/* Fixed Footer */}
+          <div className="flex-shrink-0 border-t border-border/40 bg-background px-6 sm:px-8 py-4 flex items-center justify-end gap-3 sticky bottom-0 z-10">
             <Button
               variant="outline"
               onClick={() => setIsDialogOpen(false)}
-              className="h-11 rounded-lg px-8 font-medium text-base"
+              size="sm"
+              className="h-10 px-6 rounded-lg font-medium text-sm"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={saving || !formData.name || !formData.image_url}
-              className="h-11 rounded-lg px-8 font-medium text-base gap-2"
+              size="sm"
+              className="h-10 px-6 rounded-lg font-medium text-sm gap-2"
             >
               {saving ? (
                 <>
-                  <Loader className="h-4 w-4 animate-spin" />
+                  <Loader className="h-3.5 w-3.5 animate-spin" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4" />
-                  {editingCategory ? "Update Category" : "Create Category"}
+                  <Save className="h-3.5 w-3.5" />
+                  {editingCategory ? "Update" : "Create"}
                 </>
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
