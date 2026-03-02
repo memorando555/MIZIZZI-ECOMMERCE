@@ -651,11 +651,29 @@ export const productService = {
         return cachedItem.data[0] // Return the first product from the array
       }
 
-      // Try common endpoints (slug-specific first, then fallback)
-      const endpoints = [
+      // Try extracting numeric ID from slug (format: name-id or name-slug-id)
+      const slugParts = slug.split("-")
+      let extractedId: string | null = null
+      
+      // Try to find a numeric part in the slug
+      for (let i = slugParts.length - 1; i >= 0; i--) {
+        if (/^\d+$/.test(slugParts[i])) {
+          extractedId = slugParts[i]
+          break
+        }
+      }
+
+      // Try common endpoints (slug-specific first, then fallback to ID if extracted)
+      const endpoints: string[] = [
         `${API_BASE_URL}/api/products/slug/${encodeURIComponent(slug)}`,
         `${API_BASE_URL}/api/products/${encodeURIComponent(slug)}`,
       ]
+
+      // Add ID-based endpoint if we extracted an ID
+      if (extractedId) {
+        endpoints.push(`${API_BASE_URL}/api/products/${extractedId}`)
+        console.log(`[v0] Extracted product ID from slug: ${extractedId}`)
+      }
 
       let response: any = null
       let lastError: any = null
@@ -663,11 +681,15 @@ export const productService = {
       for (const url of endpoints) {
         try {
           response = await api.get(url)
-          if (response && response.data) break
+          if (response && response.data) {
+            console.log(`[v0] Successfully fetched product from: ${url}`)
+            break
+          }
         } catch (err: any) {
           lastError = err
           // If 404, try next endpoint
           if (err?.response?.status === 404) {
+            console.log(`[v0] Endpoint returned 404, trying fallback: ${url}`)
             continue
           }
           // Network issues -> return null (caller can decide)
@@ -683,6 +705,7 @@ export const productService = {
       if (!response) {
         // If last attempt returned 404, treat as not found
         if (lastError?.response?.status === 404) {
+          console.log(`[v0] Product not found with slug: ${slug}`)
           return null
         }
         // Otherwise return null as a safe fallback
