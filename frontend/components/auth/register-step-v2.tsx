@@ -235,7 +235,10 @@ export function RegisterStepV2({ identifier, onSubmit, isLoading, onBack }: Regi
                       setError("")
                     }}
                     onKeyPress={(e) => e.key === "Enter" && handleNameNext()}
-                    autoComplete="name"
+                    autoComplete="off"
+                    data-1p-ignore
+                    data-lpignore="true"
+                    data-form-type="other"
                     autoFocus
                     className="h-12 text-base"
                   />
