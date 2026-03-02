@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth/auth-context"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { toast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react"
@@ -23,13 +23,6 @@ export function GoogleAuthButton({ mode = "signup", fullWidth = false, showAnima
   const router = useRouter()
   const googleOAuth = new GoogleOAuthAPI()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
-
-  // Ensure modal is never open on initial mount
-  useEffect(() => {
-    setIsMounted(true)
-    setIsModalOpen(false)
-  }, []) // Modal should start closed
 
   const handleGoogleAuth = async () => {
     setIsLoading(true)
@@ -184,7 +177,7 @@ export function GoogleAuthButton({ mode = "signup", fullWidth = false, showAnima
         )}
       </motion.div>
 
-      {isMounted && <GoogleAuthModal open={isModalOpen && isMounted} onOpenChange={setIsModalOpen} mode={mode} />}
+      <GoogleAuthModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} mode={mode} />
     </>
   )
 }

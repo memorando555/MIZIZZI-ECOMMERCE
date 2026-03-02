@@ -481,7 +481,7 @@ export function prefetchProducts(productIds: string[]): void {
 }
 // Best-effort: subscribe to socket events to auto-invalidate categories cache when backend emits changes.
 // This uses runtime-only lookups to avoid bundler resolution errors for optional socket module.
-; (async function initCategorySocketListeners() {
+;(async function initCategorySocketListeners() {
   try {
     // Only run in browser
     if (typeof window === "undefined") return
@@ -489,47 +489,11 @@ export function prefetchProducts(productIds: string[]): void {
     // Wait for WebSocket to be ready (with timeout)
     const startTime = Date.now()
     const timeout = 5000 // 5 second timeout
-
-    // Prefer resolving common global websocket instances safely from window
-    const win = window as any
-    const possibleGlobalsForWebsocket = [
-      win.__MIZIZZI_SOCKET__,
-      win.__MIZIZZI_IO__,
-      win.socket,
-      win._socket,
-      win.$socket,
-      win.ioSocket,
-      win.io, // could be factory or instance
-    ]
-
-    let websocketService: any = null
-    for (const candidate of possibleGlobalsForWebsocket) {
-      if (!candidate) continue
-      // If candidate is an instance with isConnected or on
-      if (typeof candidate.isConnected === "function" || typeof candidate.on === "function") {
-        websocketService = candidate
-        break
-      }
-      // If candidate is a factory, try invoking it (safe-guarded)
-      if (typeof candidate === "function") {
-        try {
-          const maybeSocket = candidate()
-          if (maybeSocket && (typeof maybeSocket.isConnected === "function" || typeof maybeSocket.on === "function")) {
-            websocketService = maybeSocket
-            break
-          }
-        } catch (e) {
-          // ignore factory errors and try next candidate
-        }
-      }
-    }
-
-    // Fallback: not ready if we couldn't find any websocket service
-    let isReady = websocketService?.isConnected?.() ?? false
+    let isReady = websocketService.isConnected?.() ?? false
 
     while (!isReady && Date.now() - startTime < timeout) {
       await new Promise((resolve) => setTimeout(resolve, 200))
-      isReady = websocketService?.isConnected?.() ?? false
+      isReady = websocketService.isConnected?.() ?? false
     }
 
     if (!isReady) {
@@ -538,12 +502,14 @@ export function prefetchProducts(productIds: string[]): void {
       return
     }
 
+    const win = window as any
+
     const attachListeners = (socket: any) => {
       if (!socket || typeof socket.on !== "function") return
       const handleInvalidate = () => {
         try {
           // Use centralized helper to clear & revalidate category-related keys
-          invalidateCategories().catch(() => { })
+          invalidateCategories().catch(() => {})
         } catch (e) {
           /* ignore */
         }

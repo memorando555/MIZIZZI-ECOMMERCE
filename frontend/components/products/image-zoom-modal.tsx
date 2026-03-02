@@ -2,8 +2,8 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Modal } from "@/components/ui/modal"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Product } from "@/types"
 import { cloudinaryService } from "@/services/cloudinary-service"
@@ -137,34 +137,52 @@ export function ImageZoomModal({ product, isOpen, onClose, selectedImageIndex }:
   }
 
   return (
-    <Modal open={isOpen} onOpenChange={(open) => !open && onClose()} title="Product Images" size="fullscreen">
-      <div className="w-full h-full flex flex-col gap-4">
-        {/* Main Image Area */}
-        <div className="flex-1 relative bg-white flex items-center justify-center overflow-hidden rounded-lg border border-gray-200">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        className="max-w-[1100px] w-[95vw] h-[90vh] p-0 bg-white overflow-hidden flex flex-col gap-0"
+        onKeyDown={handleKeyDown}
+      >
+        <DialogTitle className="sr-only">Product Images - {productName}</DialogTitle>
+        <div className="flex items-center justify-between px-4 py-2 border-b shrink-0">
+          <h2 className="font-medium text-base text-gray-900">Product Images</h2>
+          <button
+            onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="flex-1 relative bg-white flex items-center justify-center min-h-0 overflow-hidden">
           {images.length > 1 && (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handlePrevious}
-                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 rounded-full h-12 w-12 shadow-lg z-10 border border-gray-200 flex items-center justify-center transition-all hover:scale-110"
+                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 rounded-full h-10 w-10 shadow-md z-10 border border-gray-200"
                 aria-label="Previous image"
               >
-                <ChevronLeft className="h-6 w-6 text-gray-600" />
-              </button>
-              <button
+                <ChevronLeft className="h-5 w-5 text-gray-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleNext}
-                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 rounded-full h-12 w-12 shadow-lg z-10 border border-gray-200 flex items-center justify-center transition-all hover:scale-110"
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 rounded-full h-10 w-10 shadow-md z-10 border border-gray-200"
                 aria-label="Next image"
               >
-                <ChevronRight className="h-6 w-6 text-gray-600" />
-              </button>
+                <ChevronRight className="h-5 w-5 text-gray-600" />
+              </Button>
             </>
           )}
 
-          <div className="w-full h-full flex items-center justify-center px-8 py-6">
+          <div className="w-full h-full flex items-center justify-center px-16 py-4">
             {imageError ? (
               <div className="flex flex-col items-center justify-center text-gray-400">
-                <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-12 h-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center mb-3">
+                  <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -173,13 +191,13 @@ export function ImageZoomModal({ product, isOpen, onClose, selectedImageIndex }:
                     />
                   </svg>
                 </div>
-                <span className="text-sm font-medium">Image not available</span>
+                <span className="text-sm">Image not available</span>
               </div>
             ) : (
               <>
                 {!imageLoaded && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/50">
-                    <div className="w-10 h-10 border-3 border-gray-300 border-t-cherry-600 rounded-full animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-gray-200 border-t-[#8B1538] rounded-full animate-spin" />
                   </div>
                 )}
                 <img
@@ -198,22 +216,20 @@ export function ImageZoomModal({ product, isOpen, onClose, selectedImageIndex }:
           </div>
         </div>
 
-        {/* Thumbnails Area */}
         {images.length > 1 && (
-          <div className="flex-shrink-0 py-3 px-4 border-t border-gray-200 bg-gray-50/50 rounded-lg">
-            <div className="flex gap-3 justify-center overflow-x-auto pb-2">
+          <div className="py-2 px-4 border-t shrink-0 bg-white">
+            <div className="flex gap-2 justify-center overflow-x-auto">
               {images.map((image, index) => (
                 <button
                   key={index}
                   className={cn(
-                    "relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden transition-all border-2",
+                    "relative flex-shrink-0 w-12 h-12 rounded overflow-hidden transition-all",
                     currentIndex === index
-                      ? "border-cherry-600 ring-2 ring-cherry-200"
-                      : "border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300",
+                      ? "ring-2 ring-[#8B1538] ring-offset-1"
+                      : "border border-gray-200 opacity-70 hover:opacity-100",
                   )}
                   onClick={() => setCurrentIndex(index)}
                   aria-label={`View image ${index + 1}`}
-                  title={`Image ${index + 1}`}
                 >
                   <img
                     src={image || "/generic-product-display.png"}
@@ -221,6 +237,7 @@ export function ImageZoomModal({ product, isOpen, onClose, selectedImageIndex }:
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
+                      // Only set fallback if not already set to prevent infinite loop
                       if (!target.src.includes("generic-product-display")) {
                         target.src = "/generic-product-display.png"
                       }
@@ -231,14 +248,7 @@ export function ImageZoomModal({ product, isOpen, onClose, selectedImageIndex }:
             </div>
           </div>
         )}
-
-        {/* Counter */}
-        {images.length > 1 && (
-          <div className="text-center text-sm text-gray-500">
-            Image {currentIndex + 1} of {images.length}
-          </div>
-        )}
-      </div>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Modal } from "@/components/ui/modal"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, AlertCircle, Lock, Shield } from "lucide-react"
+import { X, CheckCircle2, AlertCircle, Lock, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 interface PesapalPaymentModalProps {
