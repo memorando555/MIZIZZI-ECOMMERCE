@@ -48,9 +48,10 @@ export function RegisterStepV2({ identifier, onSubmit, isLoading, onBack }: Regi
     }
   }, [identifier])
 
-  // Save form data when it changes
+  // Save form data when it changes - ISOLATED to component state only
   useEffect(() => {
     if (formData.name) {
+      // Only save to localStorage, never to global state
       localStorage.setItem(
         "register_form_data_v2",
         JSON.stringify({
@@ -72,6 +73,17 @@ export function RegisterStepV2({ identifier, onSubmit, isLoading, onBack }: Regi
     }
     setError("")
     setStepTransitionLoading(true)
+    // Clear any accidental global state pollution
+    if (typeof window !== "undefined") {
+      try {
+        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement
+        if (searchInput && searchInput.value === formData.name) {
+          searchInput.value = ""
+        }
+      } catch (e) {
+        // Ignore if element not found
+      }
+    }
     setTimeout(() => {
       setCurrentStep("password")
       setStepTransitionLoading(false)

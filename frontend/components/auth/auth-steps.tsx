@@ -304,20 +304,22 @@ export function AuthSteps() {
       let errorMessage = "Failed to create account"
       let toastDuration = 5000
 
+      // Check if account was created but email verification failed
       if (error.message?.includes("account was created")) {
         errorMessage = error.message
         toastDuration = 10000
 
         toast({
-          title: "Account created with issues",
-          description: errorMessage,
+          title: "Account created with issue",
+          description: "Your account was created successfully, but we couldn't send the verification email. You can request a new verification code after login.",
           variant: "default",
           duration: toastDuration,
         })
 
+        // Allow user to continue to verification step or go back
         setTimeout(() => {
-          setStep("identifier")
-        }, 3000)
+          setStep("verification")
+        }, 2000)
         return
       } else if (error.message?.includes("email") && error.message?.includes("exists")) {
         errorMessage = "This email is already registered. Please use a different email."
