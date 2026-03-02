@@ -184,7 +184,7 @@ export function GoogleAuthButton({ mode = "signup", fullWidth = false, showAnima
         )}
       </motion.div>
 
-      {isMounted && <GoogleAuthModal isOpen={isModalOpen && isMounted} onClose={() => setIsModalOpen(false)} mode={mode} />}
+      {isMounted && <GoogleAuthModal open={isModalOpen && isMounted} onOpenChange={setIsModalOpen} mode={mode} />}
     </>
   )
 }

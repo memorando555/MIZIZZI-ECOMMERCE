@@ -8,28 +8,29 @@ import { useState, useEffect } from "react"
 import { GoogleOAuthAPI } from "@/lib/api/google-oauth"
 import { useAuth } from "@/contexts/auth/auth-context"
 import { useRouter } from "next/navigation"
-import { toast } from "@/components/ui/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 interface GoogleAuthModalProps {
-  isOpen: boolean
-  onClose: () => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
   mode?: "signup" | "signin"
 }
 
-export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuthModalProps) {
+export function GoogleAuthModal({ open, onOpenChange, mode = "signup" }: GoogleAuthModalProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
   const { refreshAuthState } = useAuth()
   const router = useRouter()
   const googleOAuth = new GoogleOAuthAPI()
+  const { toast } = useToast()
 
   // Reset status when modal opens
   useEffect(() => {
-    if (isOpen) {
+    if (open) {
       setStatus("idle")
       setErrorMessage("")
     }
-  }, [isOpen])
+  }, [open])
 
   const handleGoogleAuth = async () => {
     try {
@@ -59,8 +60,8 @@ export function GoogleAuthModal({ isOpen, onClose, mode = "signup" }: GoogleAuth
   const subtitle = mode === "signup" ? "Join MIZIZZI and discover luxury fashion" : "Welcome back to MIZIZZI"
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
-      <div className="w-full max-w-md mx-auto">
+    <Modal open={open} onOpenChange={onOpenChange} size="sm">
+      <div className="w-full">
         {/* Header */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
