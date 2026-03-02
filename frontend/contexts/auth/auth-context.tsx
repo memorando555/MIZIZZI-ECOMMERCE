@@ -336,7 +336,7 @@ const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Then check verification state
         const verificationState = checkVerificationState()
         if (verificationState.needsVerification && !isAuthenticated) {
-          if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth") && !window.location.pathname.startsWith("/admin")) {
+          if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
             router.push("/auth")
           }
         }
