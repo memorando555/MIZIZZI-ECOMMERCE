@@ -24,7 +24,7 @@ class Config:
 
 	# Brevo (formerly Sendinblue) configuration
 	BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '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')
-	BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'info.contactgilbertdev@gmail.com')
+	BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'noreply@mizizzi.com')
 	BREVO_SENDER_NAME = os.environ.get('BREVO_SENDER_NAME', 'MIZIZZI')
 
 
