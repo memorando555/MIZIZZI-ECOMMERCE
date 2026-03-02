@@ -82,8 +82,7 @@ const DialogContent = React.forwardRef<
           "z-50",
         )}
       >
-        <X className="h-5 w-5" />
-        <span className="sr-only">Close dialog</span>
+   
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>
