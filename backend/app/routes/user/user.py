@@ -114,16 +114,15 @@ def send_email(to_email, subject, html_content):
     """Send email using Brevo API directly - single method, no fallbacks."""
     try:
         brevo_api_key = current_app.config.get('BREVO_API_KEY')
-        sender_email = current_app.config.get('BREVO_SENDER_EMAIL', 'noreply@mizizzi.com')
-        sender_name = current_app.config.get('BREVO_SENDER_NAME', 'MIZIZZI')
+        sender_email = current_app.config.get('BREVO_SENDER_EMAIL')
+        sender_name = "MIZIZZI"
 
         if not brevo_api_key:
-            logger.error("[v0] ❌ BREVO_API_KEY not configured. Set BREVO_API_KEY environment variable on Render backend.")
-            logger.error("[v0] 📖 See BREVO_SETUP_GUIDE.md for detailed setup instructions")
+            logger.error("[v0] BREVO_API_KEY not configured")
             return False
 
         if not sender_email:
-            logger.error("[v0] ❌ BREVO_SENDER_EMAIL not configured in config")
+            logger.error("[v0] BREVO_SENDER_EMAIL not configured")
             return False
 
         url = "https://api.brevo.com/v3/smtp/email"
@@ -148,56 +147,22 @@ def send_email(to_email, subject, html_content):
             "api-key": brevo_api_key
         }
 
-        logger.info(f"[v0] 📧 Sending email via Brevo API to {to_email}")
-        logger.info(f"[v0] Sender: {sender_email}")
-        logger.info(f"[v0] Subject: {subject}")
-        logger.info(f"[v0] To: {to_email}")
-        logger.info(f"[v0] From: {sender_email} ({sender_name})")
-        logger.info(f"[v0] Subject: {subject}")
-        logger.info(f"[v0] API Key length: {len(brevo_api_key)} chars")
-        logger.info(f"[v0] API Key last chars: {brevo_api_key[-10:] if brevo_api_key else 'NOT SET'}")
-        
-        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        logger.info(f"[v0] Sending email via Brevo API to {to_email} from {sender_email}")
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
 
-        logger.info(f"[v0] Brevo response status code: {response.status_code}")
-        
-        if response.status_code in [200, 201]:
-            logger.info(f"[v0] ✅ Email sent successfully to {to_email}. Status: {response.status_code}")
-            try:
-                response_data = response.json()
-                logger.info(f"[v0] Brevo response: {response_data}")
-            except:
-                logger.info(f"[v0] Brevo response (non-JSON): {response.text}")
+        if response.status_code == 201:
+            logger.info(f"[v0] Email sent successfully to {to_email}. Status: {response.status_code}")
             return True
         else:
-            logger.error(f"[v0] ❌ Brevo API error: Status {response.status_code}")
-            logger.error(f"[v0] Response headers: {dict(response.headers)}")
-            logger.error(f"[v0] Response body: {response.text}")
-            
-            # Try to parse error details
-            try:
-                error_data = response.json()
-                logger.error(f"[v0] Error details: {error_data}")
-                if 'message' in error_data:
-                    logger.error(f"[v0] Error message: {error_data['message']}")
-                if 'code' in error_data:
-                    logger.error(f"[v0] Error code: {error_data['code']}")
-            except:
-                pass
-            
+            logger.error(f"[v0] Brevo API error: Status {response.status_code}")
+            logger.error(f"[v0] Response: {response.text}")
             return False
 
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"[v0] ❌ Connection error sending email to {to_email}: {str(e)}")
-        return False
-    except requests.exceptions.Timeout as e:
-        logger.error(f"[v0] ❌ Timeout sending email to {to_email}: {str(e)}")
-        return False
-    except requests.exceptions.RequestException as e:
-        logger.error(f"[v0] ❌ Request exception sending email: {str(e)}")
+    except requests.exceptions.Timeout:
+        logger.error(f"[v0] Timeout sending email to {to_email}")
         return False
     except Exception as e:
-        logger.error(f"[v0] ❌ Unexpected error sending email: {str(e)}", exc_info=True)
+        logger.error(f"[v0] Error sending email: {str(e)}")
         return False
 
 def send_sms(phone_number, message):

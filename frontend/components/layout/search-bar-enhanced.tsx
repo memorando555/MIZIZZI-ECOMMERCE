@@ -50,13 +50,13 @@ const JumiaSearchInput = memo(
         )}
       </div>
       <input
-        ref={searchInputRef}
+        ref={inputRef}
         type="text"
-        value={query}
-        onChange={handleInputChange}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
+        value={value}
+        onChange={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         className="w-full h-[42px] pl-11 pr-4 text-sm bg-white border border-gray-300 rounded-[4px] focus:outline-none focus:ring-2 focus:ring-[#8B0A1A] focus:ring-opacity-20 focus:border-[#8B0A1A] placeholder:text-gray-400 text-gray-900 transition-all"
         autoComplete="off"
@@ -64,9 +64,6 @@ const JumiaSearchInput = memo(
         autoCapitalize="off"
         spellCheck="false"
         aria-label={placeholder}
-        data-1p-ignore
-        data-lpignore="true"
-        data-form-type="other"
       />
     </div>
   ),

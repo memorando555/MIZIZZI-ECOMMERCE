@@ -73,20 +73,6 @@ class Config:
     def init_app(app):
         app.logger.info(f"Using database: {app.config.get('SQLALCHEMY_DATABASE_URI')}")
         app.logger.info(f"Uploads folder: {app.config.get('UPLOAD_FOLDER')}")
-        
-        # Log Brevo configuration status
-        brevo_api_key = app.config.get('BREVO_API_KEY')
-        brevo_sender = app.config.get('BREVO_SENDER_EMAIL')
-        brevo_name = app.config.get('BREVO_SENDER_NAME', 'MIZIZZI')
-        
-        if brevo_api_key:
-            app.logger.info(f"[v0] ✅ BREVO_API_KEY is configured (key length: {len(brevo_api_key)})")
-            app.logger.info(f"[v0] ✅ BREVO_SENDER_EMAIL: {brevo_sender}")
-            app.logger.info(f"[v0] ✅ BREVO_SENDER_NAME: {brevo_name}")
-        else:
-            app.logger.error("[v0] ❌ BREVO_API_KEY is NOT configured! Email sending will fail.")
-            app.logger.error("[v0] ❌ Please set BREVO_API_KEY environment variable on Render backend")
-        
         # Log effective CORS origins to aid debugging of "not an accepted origin" errors
         try:
             app.logger.info(f"CORS_ORIGINS: {app.config.get('CORS_ORIGINS')}")

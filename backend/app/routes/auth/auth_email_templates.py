@@ -18,23 +18,22 @@ def send_email(to, subject, template):
         logger.info(f"[v0] Email subject: {subject}")
 
         # Get the Brevo API key from configuration
-        brevo_api_key = current_app.config.get('BREVO_API_KEY')
-        sender_email = current_app.config.get('BREVO_SENDER_EMAIL', 'noreply@mizizzi.com')
-        sender_name = current_app.config.get('BREVO_SENDER_NAME', 'MIZIZZI')
+        brevo_api_key = current_app.config.get('BREVO_API_KEY', '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')
 
         if not brevo_api_key:
-            logger.error("[v0] BREVO_API_KEY not configured in config")
+            logger.error("[v0] BREVO_API_KEY not configured")
             return False
 
         logger.info(f"[v0] Using Brevo API key: {brevo_api_key[:10]}...")
-        logger.info(f"[v0] Using sender: {sender_email}")
 
         url = "https://api.brevo.com/v3/smtp/email"
 
-        # Prepare the payload for Brevo API
+        sender_email = "info.contactgilbertdev@gmail.com"
+        
+        # Prepare the payload for Brevo API with anti-spam headers
         payload = {
             "sender": {
-                "name": sender_name,
+                "name": "MIZIZZI",
                 "email": sender_email
             },
             "to": [{"email": to}],
@@ -42,6 +41,8 @@ def send_email(to, subject, template):
             "htmlContent": template,
             "headers": {
                 "X-Mailer": "MIZIZZI/1.0",
+                "List-Unsubscribe": f"<mailto:unsubscribe@mizizzi.com?subject=unsubscribe>",
+                "Precedence": "bulk",
                 "Content-Type": "text/html; charset=UTF-8"
             },
             "tags": ["transactional", "authentication"]
@@ -54,14 +55,13 @@ def send_email(to, subject, template):
         }
 
         logger.info(f"[v0] Sending email via Brevo API to {to}")
-        logger.info(f"[v0] Payload: sender={payload['sender']}, to={payload['to'][0]['email']}, subject={subject}")
+        logger.info(f"[v0] Payload prepared with sender: {sender_email}")
 
         response = requests.post(url, json=payload, headers=headers, timeout=30)
 
         logger.info(f"[v0] Brevo API response status: {response.status_code}")
-        logger.info(f"[v0] Brevo API response headers: {dict(response.headers)}")
 
-        if response.status_code in [200, 201]:
+        if response.status_code >= 200 and response.status_code < 300:
             logger.info(f"[v0] ✅ Email sent successfully via Brevo API to {to}. Status: {response.status_code}")
             try:
                 response_data = response.json()
@@ -81,7 +81,7 @@ def send_email(to, subject, template):
                 
                 if 'message' in error_data:
                     error_msg = error_data['message'].lower()
-                    if 'sender' in error_msg or 'verify' in error_msg or 'from' in error_msg:
+                    if 'sender' in error_msg or 'verify' in error_msg:
                         logger.error(f"[v0] ⚠️ SENDER VERIFICATION ISSUE: The sender email '{sender_email}' may not be verified in Brevo")
                     elif 'recipient' in error_msg or 'invalid' in error_msg:
                         logger.error(f"[v0] ⚠️ RECIPIENT ISSUE: The recipient email '{to}' may be invalid")
