@@ -9,12 +9,12 @@ import { LayoutRendererClient } from "@/components/layout/layout-renderer-client
 import { getCategoriesWithSubcategories } from "@/lib/server/get-categories"
 
 async function LayoutContent() {
-  // Check if this is an admin or auth route
+  // Check if this is an admin route (but keep header/footer for auth)
   let isAdminRoute = false
   try {
     const headersList = await headers()
     const pathname = headersList.get("x-pathname") || ""
-    isAdminRoute = pathname?.startsWith("/admin") || pathname?.startsWith("/auth") || false
+    isAdminRoute = pathname?.startsWith("/admin") || false
   } catch (error) {
     // Silently handle errors - default to non-admin
   }
@@ -41,12 +41,12 @@ async function LayoutContent() {
 }
 
 async function FooterContent() {
-  // Check if this is an admin or auth route
+  // Check if this is an admin route (but keep footer for auth)
   let isAdminRoute = false
   try {
     const headersList = await headers()
     const pathname = headersList.get("x-pathname") || ""
-    isAdminRoute = pathname?.startsWith("/admin") || pathname?.startsWith("/auth") || false
+    isAdminRoute = pathname?.startsWith("/admin") || false
   } catch (error) {
     // Silently handle errors - default to non-admin
   }

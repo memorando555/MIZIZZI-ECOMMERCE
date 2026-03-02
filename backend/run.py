@@ -8,6 +8,7 @@ import os
 import sys
 import logging
 from pathlib import Path
+import ast
 
 # Optional dotenv loader (no-op fallback)
 try:
@@ -25,15 +26,52 @@ def import_create_app():
         return create_app
     except Exception:
         try:
-            from backend.app import create_app
+            from .app import create_app
             return create_app
         except Exception:
             return None
+
+def _normalize_env_value(val: str):
+	"""
+	If val is a string representation of a 2-tuple like "('KEY','value')" or "('KEY', 'value')",
+	return (key, value). Otherwise return None.
+	"""
+	try:
+		if isinstance(val, str) and val.startswith("(") and val.endswith(")"):
+			obj = ast.literal_eval(val)
+			if isinstance(obj, tuple) and len(obj) == 2 and all(isinstance(x, str) for x in obj):
+				return obj
+	except Exception:
+		return None
+	return None
+
+def normalize_env(logger=None):
+	"""Detect and fix environment variables that were accidentally stored as tuple-like strings."""
+	_fixed = []
+	for k, v in list(os.environ.items()):
+		res = _normalize_env_value(v)
+		if res:
+			key, value = res
+			# Only apply if tuple indicates an env key/value pair
+			if key and value:
+				# set the intended key to the proper string value
+				os.environ[key] = value
+				_fixed.append((k, key))
+				if logger:
+					logger.info("Normalized env var from %r -> set %r", k, key)
+	# return list of fixes for tests/logging
+	return _fixed
 
 def main():
     load_dotenv()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     logger = logging.getLogger("run")
+
+    # Normalize environment early (fix tuple-like string encodings such as "('DATABASE_URL','...')")
+    try:
+        normalize_env(logger)
+    except Exception:
+        logger.debug("Environment normalization encountered an error, continuing", exc_info=True)
 
     create_app = import_create_app()
     if not create_app:
