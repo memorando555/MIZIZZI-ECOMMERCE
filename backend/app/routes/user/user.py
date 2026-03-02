@@ -154,6 +154,7 @@ def send_email(to_email, subject, html_content):
         logger.info(f"[v0] To: {to_email}")
         logger.info(f"[v0] From: {sender_email} ({sender_name})")
         logger.info(f"[v0] Subject: {subject}")
+        logger.info(f"[v0] API Key length: {len(brevo_api_key)} chars")
         logger.info(f"[v0] API Key last chars: {brevo_api_key[-10:] if brevo_api_key else 'NOT SET'}")
         
         response = requests.post(url, json=payload, headers=headers, timeout=15)
