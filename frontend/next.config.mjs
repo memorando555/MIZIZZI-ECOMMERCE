@@ -1,3 +1,5 @@
+import path from 'path';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
@@ -103,7 +105,10 @@ const nextConfig = {
   },
   output: 'standalone',
   turbopack: {
-    root: process.cwd(),
+    // When using a monorepo / npm workspaces the `next` package may be hoisted
+    // to the repository root. Point Turbopack's root at the workspace root
+    // so it can resolve the Next.js package correctly.
+    root: path.resolve(process.cwd(), '..'),
   },
   typescript: {
     ignoreBuildErrors: true,
