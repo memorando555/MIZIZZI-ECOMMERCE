@@ -3,6 +3,18 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
 
+// Debug: Log which URL is being used (only in development)
+if (typeof window === "undefined" && process.env.NODE_ENV === "development") {
+  console.log(
+    "[v0] API_BASE_URL configured as:",
+    process.env.NEXT_PUBLIC_API_URL 
+      ? `NEXT_PUBLIC_API_URL: ${process.env.NEXT_PUBLIC_API_URL}`
+      : process.env.NEXT_PUBLIC_BACKEND_URL
+      ? `NEXT_PUBLIC_BACKEND_URL: ${process.env.NEXT_PUBLIC_BACKEND_URL}`
+      : "Default Render URL: https://mizizzi-ecommerce-1.onrender.com"
+  )
+}
+
 export const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL || "wss://mizizzi-ecommerce-1.onrender.com"
 
 export const SITE_URL =

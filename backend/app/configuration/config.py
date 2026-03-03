@@ -141,17 +141,17 @@ class Config:
     RATELIMIT_HEADERS_ENABLED = True
     RATELIMIT_IN_MEMORY_FALLBACK_ENABLED = True
 
-    # Email configuration
-    MAIL_SERVER = os.environ.get('MAIL_SERVER')
+    # Email configuration - SMTP (Brevo)
+    MAIL_SERVER = os.environ.get('MAIL_SERVER') or 'smtp-relay.brevo.com'
     MAIL_PORT = int(os.environ.get('MAIL_PORT') or 587)
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ['true', 'on', '1']
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-
-    # Brevo API configuration
-    BREVO_API_KEY = os.environ.get('BREVO_API_KEY')
+    MAIL_USERNAME = os.environ.get('MAIL_USERNAME') or os.environ.get('BREVO_SMTP_LOGIN')
+    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') or os.environ.get('BREVO_SMTP_PASSWORD')
+    
+    # Brevo email sender configuration
     BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL') or 'info.contactgilbertdev@gmail.com'
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'info.contactgilbertdev@gmail.com'
+    BREVO_SENDER_NAME = os.environ.get('BREVO_SENDER_NAME') or 'MIZIZZI'
+    MAIL_DEFAULT_SENDER = (os.environ.get('BREVO_SENDER_NAME') or 'MIZIZZI', os.environ.get('BREVO_SENDER_EMAIL') or 'info.contactgilbertdev@gmail.com')
 
     # Pagination
     POSTS_PER_PAGE = 20

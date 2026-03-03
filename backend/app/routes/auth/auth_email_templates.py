@@ -17,23 +17,25 @@ def send_email(to, subject, template):
         logger.info(f"[v0] Starting email send process to: {to}")
         logger.info(f"[v0] Email subject: {subject}")
 
-        # Get the Brevo API key from configuration
-        brevo_api_key = current_app.config.get('BREVO_API_KEY', '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')
+        # Get the Brevo API key from configuration - NO FALLBACK, must be set in environment
+        brevo_api_key = current_app.config.get('BREVO_API_KEY')
 
         if not brevo_api_key:
-            logger.error("[v0] BREVO_API_KEY not configured")
+            logger.error("[v0] BREVO_API_KEY not configured in environment variables")
             return False
 
         logger.info(f"[v0] Using Brevo API key: {brevo_api_key[:10]}...")
 
         url = "https://api.brevo.com/v3/smtp/email"
 
-        sender_email = "info.contactgilbertdev@gmail.com"
+        # Get sender email from config
+        sender_email = current_app.config.get('BREVO_SENDER_EMAIL', 'info.contactgilbertdev@gmail.com')
+        sender_name = current_app.config.get('BREVO_SENDER_NAME', 'MIZIZZI')
         
         # Prepare the payload for Brevo API with anti-spam headers
         payload = {
             "sender": {
-                "name": "MIZIZZI",
+                "name": sender_name,
                 "email": sender_email
             },
             "to": [{"email": to}],

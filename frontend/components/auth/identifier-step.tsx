@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import type { z } from "zod"
@@ -8,9 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { identifierSchema } from "@/lib/validations/auth"
-import { Loader2, HelpCircle } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { GoogleAuthButton } from "./google-auth-button"
-import { AuthHelpGuide } from "./auth-help-guide"
 
 interface IdentifierStepProps {
   onSubmit: (identifier: string, isEmail: boolean) => void
@@ -18,8 +16,6 @@ interface IdentifierStepProps {
 }
 
 export function IdentifierStep({ onSubmit, isLoading }: IdentifierStepProps) {
-  const [showHelp, setShowHelp] = useState(false)
-
   const emailForm = useForm<z.infer<typeof identifierSchema>>({
     resolver: zodResolver(identifierSchema),
     defaultValues: {
@@ -34,18 +30,7 @@ export function IdentifierStep({ onSubmit, isLoading }: IdentifierStepProps) {
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="space-y-1">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Welcome</h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowHelp(true)}
-            className="text-cherry-600 hover:text-cherry-700 hover:bg-cherry-50 gap-1.5"
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span className="text-xs font-medium">Help</span>
-          </Button>
-        </div>
+        <h1 className="text-xl font-semibold">Welcome</h1>
         <p className="text-xs text-muted-foreground">Enter your email to continue</p>
       </div>
 
@@ -110,8 +95,6 @@ export function IdentifierStep({ onSubmit, isLoading }: IdentifierStepProps) {
           Privacy Policy
         </a>
       </div>
-
-      <AuthHelpGuide isOpen={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   )
 }

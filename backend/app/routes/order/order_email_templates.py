@@ -33,20 +33,24 @@ def send_email(to_email, subject, html_content):
     try:
         import requests
         
-        # Get Brevo API key from environment
+        # Get Brevo API key from environment - NO FALLBACK, must be set
         api_key = current_app.config.get('BREVO_API_KEY')
         if not api_key:
-            logger.error("BREVO_API_KEY not configured")
+            logger.error("BREVO_API_KEY not configured in environment variables")
             return False
         
         # Brevo API endpoint
         url = "https://api.brevo.com/v3/smtp/email"
         
+        # Get sender info from config
+        sender_name = current_app.config.get('BREVO_SENDER_NAME', 'MIZIZZI')
+        sender_email = current_app.config.get('BREVO_SENDER_EMAIL', 'info.contactgilbertdev@gmail.com')
+        
         # Email payload
         payload = {
             "sender": {
-                "name": "MIZIZZI",
-                "email": "info.contactgilbertdev@gmail.com"
+                "name": sender_name,
+                "email": sender_email
             },
             "to": [
                 {

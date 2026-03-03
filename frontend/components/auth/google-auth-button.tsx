@@ -102,9 +102,24 @@ export function GoogleAuthButton({ mode = "signup", fullWidth = false, showAnima
           onClick={() => setIsModalOpen(true)}
           className={`${
             fullWidth ? "w-full" : "w-full"
-          } h-11 bg-white border-2 border-gray-200 hover:border-cherry-400 hover:bg-gray-50 hover:shadow-md font-medium text-sm transition-all duration-300 relative overflow-hidden group`}
+          } h-11 relative overflow-hidden group backdrop-blur-md bg-white/30 border-2 border-white/40 hover:border-white/60 hover:bg-white/50 shadow-lg shadow-white/20 font-medium text-sm transition-all duration-300 rounded-2xl`}
+          style={{
+            background: "linear-gradient(135deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.15) 100%)",
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 8px 32px rgba(255,255,255,0.1), inset 0 1px 2px rgba(255,255,255,0.6)",
+            border: "2px solid rgba(255,255,255,0.4)",
+          }}
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-cherry-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          {/* Animated gradient shine effect */}
+          <motion.div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+              background: "linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)",
+              transform: "translateX(-100%)",
+            }}
+            animate={{ x: ["0%", "100%"] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          />
 
           <motion.div
             className="flex items-center justify-center gap-2 relative z-10"
@@ -165,6 +180,21 @@ export function GoogleAuthButton({ mode = "signup", fullWidth = false, showAnima
               </>
             )}
           </motion.div>
+
+          {/* Bubble effect on hover */}
+          <motion.div
+            className="absolute w-12 h-12 rounded-full opacity-0 group-hover:opacity-20 pointer-events-none"
+            style={{ background: "radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%)" }}
+            animate={{
+              scale: [1, 1.5, 2],
+              opacity: [0.4, 0.2, 0],
+            }}
+            transition={{
+              duration: 0.8,
+              repeat: Infinity,
+              ease: "easeOut",
+            }}
+          />
         </Button>
 
         {status === "loading" && (

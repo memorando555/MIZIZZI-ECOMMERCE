@@ -60,16 +60,37 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
     <div className="flex justify-center items-start pt-3 px- min-h-screen bg-[#f9f9f9]">
       <div className="w-full max-w-[900px] grid grid-cols-1 md:grid-cols-7 bg-white rounded-lg shadow-md overflow-hidden">
         {/* Image Section */}
-        <div className="relative hidden md:block md:col-span-3 bg-gray-100">
-          <Image
-            src="/ten.jpg"
-            alt="Authentication"
-            width={800}
-            height={800}
-            className="h-full w-full object-cover"
-            priority
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/10 to-transparent flex flex-col justify-end p-4">
+        <div className="relative hidden md:block md:col-span-3 bg-gradient-to-br from-cherry-600 to-cherry-800 flex flex-col items-center justify-center p-8">
+          {/* Mizizzi Logo Background */}
+          <div className="absolute inset-0 opacity-10">
+            <Image
+              src="/logo.png"
+              alt="Mizizzi Background"
+              fill
+              className="object-cover"
+              priority={false}
+              loading="lazy"
+            />
+          </div>
+
+          {/* Center Logo */}
+          <div className="relative z-10 flex flex-col items-center justify-center flex-1">
+            <div className="mb-4 p-6 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
+              <Image
+                src="/logo.png"
+                alt="Mizizzi Store"
+                width={120}
+                height={120}
+                className="rounded-2xl"
+                priority={false}
+                loading="lazy"
+              />
+            </div>
+            <h1 className="text-3xl font-bold text-white text-center mb-2">Mizizzi Store</h1>
+            <p className="text-white/80 text-center text-sm">Premium E-commerce</p>
+          </div>
+
+          <div className="absolute inset-0 bg-gradient-to-br from-black/20 via-transparent to-black/30 flex flex-col justify-end p-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={current}
@@ -77,11 +98,11 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ duration: 0.5 }}
-                className="bg-black/50 backdrop-blur-sm p-3 rounded-lg mb-3 border border-white/10 shadow-lg"
+                className="bg-white/10 backdrop-blur-md p-3 rounded-lg mb-3 border border-white/20 shadow-lg"
               >
                 <blockquote className="text-sm font-medium text-white">"{testimonials[current].quote}"</blockquote>
                 <footer className="text-xs text-white/80 mt-2 flex items-center">
-                  <div className="w-6 h-6 rounded-full bg-white/20 mr-2 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-white/30 mr-2 flex items-center justify-center">
                     <span className="text-white text-xs font-semibold">{testimonials[current].initials}</span>
                   </div>
                   {testimonials[current].name}, {testimonials[current].role}
@@ -96,11 +117,12 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
           <div className="mx-auto w-full max-w-sm">
             <Link href="/" className="mb-4 flex items-center">
               <Image
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
+                src="/logo.png"
                 alt="Mizizzi"
                 width={40}
                 height={40}
                 className="mr-2"
+                loading="eager"
               />
               <span className="text-xl font-bold text-gray-800">Mizizzi Store</span>
             </Link>

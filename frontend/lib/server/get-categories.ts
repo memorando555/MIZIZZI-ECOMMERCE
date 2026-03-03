@@ -1,4 +1,5 @@
 import { cache } from "react"
+import { API_BASE_URL } from "../config"
 
 export interface Category {
   id: number
@@ -18,9 +19,6 @@ export interface CategoryWithSubcategories extends Category {
   subcategories?: Category[]
 }
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"
-
 // Fast image URL normalization - same pattern as flash-sales
 // Returns valid URLs immediately without additional transformation
 function normalizeImageUrl(url: string | undefined | null): string | undefined {
@@ -33,7 +31,7 @@ function normalizeImageUrl(url: string | undefined | null): string | undefined {
   }
   // Relative URL - prepend base URL
   if (url.startsWith("/")) {
-    return `${BASE_URL}${url}`
+    return `${API_BASE_URL}${url}`
   }
   // Return as-is - will be optimized by Cloudinary service on client
   return url
@@ -43,13 +41,13 @@ function normalizeImageUrl(url: string | undefined | null): string | undefined {
 // Fast caching pattern same as flash-sales (60s revalidate + real-time product counts)
 export const getCategories = cache(async (limit = 20): Promise<Category[]> => {
   try {
-    console.log("[v0] getCategories: Fetching from", `${BASE_URL}/api/categories?parent_id=null&per_page=${limit}`)
+    console.log("[v0] getCategories: Fetching from", `${API_BASE_URL}/api/categories?parent_id=null&per_page=${limit}`)
     
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 8000) // 8 second timeout
 
     // Fetch with include_product_count to get real-time item counts
-    const response = await fetch(`${BASE_URL}/api/categories?parent_id=null&per_page=${limit}&include_product_count=true`, {
+    const response = await fetch(`${API_BASE_URL}/api/categories?parent_id=null&per_page=${limit}&include_product_count=true`, {
       signal: controller.signal,
       next: { revalidate: 30, tags: ["categories"] }, // Even faster cache + real-time counts
       headers: {
@@ -112,7 +110,7 @@ export const getCategoriesWithSubcategories = cache(
   async (limit = 15): Promise<CategoryWithSubcategories[]> => {
     try {
       // Fetch top-level categories
-      const response = await fetch(`${BASE_URL}/api/categories?parent_id=null&per_page=${limit}`, {
+      const response = await fetch(`${API_BASE_URL}/api/categories?parent_id=null&per_page=${limit}`, {
         next: { revalidate: 300, tags: ["categories"] },
         headers: { "Content-Type": "application/json" },
       })
@@ -130,7 +128,7 @@ export const getCategoriesWithSubcategories = cache(
       const categoriesWithSubs = await Promise.all(
         categories.slice(0, limit).map(async (category: Category) => {
           try {
-            const subResponse = await fetch(`${BASE_URL}/api/categories?parent_id=${category.id}&per_page=20`, {
+            const subResponse = await fetch(`${API_BASE_URL}/api/categories?parent_id=${category.id}&per_page=20`, {
               next: { revalidate: 300, tags: ["categories"] },
               headers: { "Content-Type": "application/json" },
             })
