@@ -47,12 +47,6 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="fixed inset-0 overflow-hidden">
       <head>
-        {/* Preload critical fonts */}
-        <link
-          rel="preload"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-          as="style"
-        />
         {/* Suppress React DevTools warning in development */}
         {process.env.NODE_ENV === "development" && (
           <script
