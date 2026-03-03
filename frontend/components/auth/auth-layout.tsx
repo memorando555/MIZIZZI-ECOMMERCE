@@ -64,7 +64,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
           {/* Mizizzi Logo Background */}
           <div className="absolute inset-0 opacity-10">
             <Image
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
+              src="/logo.png"
               alt="Mizizzi Background"
               fill
               className="object-cover"
@@ -77,7 +77,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
           <div className="relative z-10 flex flex-col items-center justify-center flex-1">
             <div className="mb-4 p-6 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20">
               <Image
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
+                src="/logo.png"
                 alt="Mizizzi Store"
                 width={120}
                 height={120}
@@ -117,7 +117,7 @@ export function AuthLayout({ children, className }: AuthLayoutProps) {
           <div className="mx-auto w-full max-w-sm">
             <Link href="/" className="mb-4 flex items-center">
               <Image
-                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%20From%202025-02-18%2013-30-22-eJUp6LVMkZ6Y7bs8FJB2hdyxnQdZdc.png"
+                src="/logo.png"
                 alt="Mizizzi"
                 width={40}
                 height={40}
