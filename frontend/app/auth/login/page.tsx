@@ -1,6 +1,7 @@
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthSteps } from "@/components/auth/auth-steps"
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -8,29 +9,28 @@ export const metadata: Metadata = {
   description: "Sign in to your Mizizzi Store account",
 }
 
-// Check if user is already authenticated server-side
-async function getAuthStatus() {
+// Server-side auth check - happens at the edge, not in browser
+async function checkAuthStatus() {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get("mizizzi_token")?.value
     
-    if (!token) {
-      return { isAuthenticated: false, shouldRender: true }
+    // If user has valid token, redirect immediately at the server level (edge redirect)
+    if (token) {
+      redirect("/")
     }
     
-    // If user has token, they shouldn't be on login page - return redirect signal
-    return { isAuthenticated: true, shouldRender: false }
+    return { isAuthenticated: false }
   } catch (error) {
-    return { isAuthenticated: false, shouldRender: true }
+    return { isAuthenticated: false }
   }
 }
 
 export default async function LoginPage() {
-  const authStatus = await getAuthStatus()
+  // Server-side check happens here - blocks render until complete
+  await checkAuthStatus()
   
-  // Note: Redirects should happen at middleware level for better performance
-  // This is a fallback check
-  
+  // Component renders only if not authenticated
   return (
     <AuthLayout>
       <div className="mx-auto w-full max-w-md">
