@@ -160,6 +160,7 @@ class User(db.Model):
     phone_verified = db.Column(db.Boolean, default=False)
     verification_code = db.Column(db.String(10))
     verification_code_expires = db.Column(db.DateTime)
+    last_verification_email_sent = db.Column(db.DateTime)  # Track when last verification email was sent
     is_deleted = db.Column(db.Boolean, default=False)
     deleted_at = db.Column(db.DateTime)
     is_google_user = db.Column(db.Boolean, default=False)

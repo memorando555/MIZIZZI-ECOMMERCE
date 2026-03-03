@@ -354,6 +354,7 @@ def register():
         # Set verification code after user is committed to database
         new_user.verification_code = verification_code
         new_user.verification_code_expires = datetime.utcnow() + timedelta(minutes=20)
+        new_user.last_verification_email_sent = datetime.utcnow()  # Track first verification email
         db.session.commit()
 
         # Log the verification code for debugging
@@ -992,12 +993,24 @@ def resend_verification():
         if not user:
             return jsonify({'msg': 'User not found'}), 404
 
+        # Rate limiting: prevent sending verification emails too frequently (60 second cooldown)
+        if user.last_verification_email_sent:
+            time_since_last_email = datetime.utcnow() - user.last_verification_email_sent
+            if time_since_last_email.total_seconds() < 60:
+                remaining_seconds = int(60 - time_since_last_email.total_seconds())
+                logger.info(f"[v0] Resend verification rate-limited for user {user.id}. Please wait {remaining_seconds} seconds.")
+                return jsonify({
+                    'msg': f'Please wait {remaining_seconds} seconds before requesting another verification email',
+                    'retry_after': remaining_seconds
+                }), 429
+
         # Generate new verification code
         verification_code = generate_otp()
 
         # Set verification code directly with 20 minute expiration
         user.verification_code = verification_code
         user.verification_code_expires = datetime.utcnow() + timedelta(minutes=20)
+        user.last_verification_email_sent = datetime.utcnow()  # Track when email is sent
 
         # Ensure changes are committed
         try:
