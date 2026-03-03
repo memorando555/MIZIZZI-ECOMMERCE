@@ -33,41 +33,64 @@ interface AvailabilityResponse {
 
 class AuthService {
   // Check if email or phone is available (not already registered)
-  async checkAvailability(identifier: string): Promise<AvailabilityResponse> {
-    try {
-      const isEmail = identifier.includes("@")
-      const data = isEmail ? { email: identifier } : { phone: identifier }
+  async checkAvailability(identifier: string, retries = 2): Promise<AvailabilityResponse> {
+    let lastError: any = null
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const isEmail = identifier.includes("@")
+        const data = isEmail ? { email: identifier } : { phone: identifier }
 
-      console.log("[v0] Checking availability for:", { identifier, isEmail, endpoint: "/api/check-availability" })
-      
-      const response = await api.post("/api/check-availability", data)
-      console.log("[v0] Availability check response:", response.data)
-      
-      return response.data
-    } catch (error: any) {
-      console.error("[v0] Check availability error details:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        url: error.config?.url,
-        code: error.code,
-      })
-      
-      // Provide helpful error message based on error type
-      let errorMsg = "Failed to check availability"
-      
-      if (error.response?.status === 404) {
-        errorMsg = "Backend endpoint not found. Please ensure the backend is properly configured."
-      } else if (error.response?.status === 500) {
-        errorMsg = error.response?.data?.msg || "Server error while checking availability"
-      } else if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
-        errorMsg = "Backend server is not available. Please ensure it's running at: " + (process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com")
-      } else if (error.code === "ECONNREFUSED") {
-        errorMsg = "Could not connect to the backend server. Is it running?"
+        console.log(`[v0] Checking availability (attempt ${attempt + 1}/${retries + 1}):`, { identifier, isEmail, endpoint: "/api/check-availability" })
+        
+        // Use axios with timeout for this request
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"}/api/check-availability`,
+          data,
+          { timeout: 8000 } // 8 second timeout per request
+        )
+        
+        console.log("[v0] Availability check response:", response.data)
+        return response.data
+      } catch (error: any) {
+        lastError = error
+        console.error(`[v0] Check availability error (attempt ${attempt + 1}):`, {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          code: error.code,
+          attempt: attempt + 1,
+          totalAttempts: retries + 1,
+        })
+        
+        // If it's the last attempt, throw the error
+        if (attempt === retries) {
+          break
+        }
+        
+        // Wait before retrying (exponential backoff)
+        const waitTime = Math.min(1000 * Math.pow(2, attempt), 4000)
+        console.log(`[v0] Retrying in ${waitTime}ms...`)
+        await new Promise(resolve => setTimeout(resolve, waitTime))
       }
-      
-      throw new Error(errorMsg)
     }
+    
+    // All retries exhausted, throw error with helpful message
+    let errorMsg = "Failed to check availability"
+    
+    if (lastError?.response?.status === 404) {
+      errorMsg = "Backend endpoint not found. Please ensure the backend is properly configured."
+    } else if (lastError?.response?.status === 500) {
+      errorMsg = lastError.response.data?.msg || "Server error while checking availability"
+    } else if (lastError?.code === "ERR_NETWORK" || lastError?.message === "Network Error") {
+      errorMsg = "Backend server is not responding. Please ensure it's running at: " + (process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com")
+    } else if (lastError?.code === "ECONNREFUSED") {
+      errorMsg = "Could not connect to the backend server. Is it running?"
+    } else if (lastError?.code === "ECONNABORTED") {
+      errorMsg = "Request timed out. The backend server may be slow to respond."
+    }
+    
+    throw new Error(errorMsg)
   }
 
   // Send verification code for registration

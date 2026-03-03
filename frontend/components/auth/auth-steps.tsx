@@ -103,10 +103,8 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
     console.log("[v0] Starting identifier check:", { trimmedIdentifier, isEmail })
 
     try {
-      const [response] = await Promise.all([
-        authService.checkAvailability(trimmedIdentifier),
-        new Promise((resolve) => setTimeout(resolve, 1000)),
-      ])
+      // Remove the fixed 1 second delay - let the actual check determine timing
+      const response = await authService.checkAvailability(trimmedIdentifier)
 
       console.log("[v0] Availability check completed:", response)
 
@@ -133,9 +131,16 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
     } catch (error: any) {
       console.error("[v0] Identifier check error:", error)
       console.error("[v0] Error stack:", error.stack)
+      
+      // Show more helpful message if backend timeout
+      let description = error.message || "Failed to process your request"
+      if (error.message?.includes("timed out")) {
+        description = "The server is taking too long to respond. Please check your internet connection and try again."
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to process your request",
+        description,
         variant: "destructive",
       })
     } finally {
