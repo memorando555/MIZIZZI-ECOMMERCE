@@ -1,6 +1,5 @@
 import { cache } from "react"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
+import { API_BASE_URL } from "../config"
 
 export interface FooterSettingsData {
   colors: {

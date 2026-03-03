@@ -1,7 +1,6 @@
 import type { Product } from "@/types"
 import { productService } from "@/services/product"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"
+import { API_BASE_URL } from "../config"
 
 // Default seller information
 const defaultSeller = {

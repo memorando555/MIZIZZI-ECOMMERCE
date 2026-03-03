@@ -1,6 +1,5 @@
 import { cache } from "react";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com";
+import { API_BASE_URL } from "../config";
 
 // ISR configuration for optimal performance
 // 60-second revalidation window ensures instant first load with fresh data on page rebuild
