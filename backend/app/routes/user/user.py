@@ -353,7 +353,7 @@ def register():
 
         # Set verification code after user is committed to database
         new_user.verification_code = verification_code
-        new_user.verification_code_expires = datetime.utcnow() + timedelta(minutes=10)
+        new_user.verification_code_expires = datetime.utcnow() + timedelta(minutes=20)
         db.session.commit()
 
         # Log the verification code for debugging
@@ -868,8 +868,16 @@ def verify_code():
             logger.error(f"No verification code set for user {user_id}")
             return jsonify({'msg': 'No verification code set for this user'}), 400
 
-        if datetime.utcnow() > user.verification_code_expires:
-            logger.error(f"Verification code expired for user {user_id}. Expired at: {user.verification_code_expires}")
+        # Check expiration with better debugging
+        current_time = datetime.utcnow()
+        expires_at = user.verification_code_expires
+        logger.info(f"[v0] Verification check for user {user_id}:")
+        logger.info(f"[v0]   Current UTC time: {current_time}")
+        logger.info(f"[v0]   Code expires at: {expires_at}")
+        logger.info(f"[v0]   Time remaining: {expires_at - current_time if expires_at > current_time else 'EXPIRED'}")
+        
+        if current_time > expires_at:
+            logger.error(f"Verification code expired for user {user_id}. Expired at: {expires_at}, Current: {current_time}")
             return jsonify({'msg': 'Verification code has expired. Please request a new one.'}), 400
 
         if user.verification_code != code:
@@ -987,9 +995,9 @@ def resend_verification():
         # Generate new verification code
         verification_code = generate_otp()
 
-        # Set verification code directly
+        # Set verification code directly with 20 minute expiration
         user.verification_code = verification_code
-        user.verification_code_expires = datetime.utcnow() + timedelta(minutes=10)
+        user.verification_code_expires = datetime.utcnow() + timedelta(minutes=20)
 
         # Ensure changes are committed
         try:
