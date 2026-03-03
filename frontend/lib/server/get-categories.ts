@@ -1,5 +1,5 @@
 import { cache } from "react"
-import { API_API_BASE_URL } from "../config"
+import { API_BASE_URL } from "../config"
 
 export interface Category {
   id: number
