@@ -11,18 +11,16 @@ import { SuccessScreen } from "./success-screen"
 import { authService } from "@/services/auth"
 import { useAuth } from "@/contexts/auth/auth-context"
 import { VerificationStep } from "./verification-step"
+import { AppleSpinner } from "./apple-spinner"
+import { motion } from "framer-motion"
 
 export type AuthFlow = "login" | "register"
 
-interface AuthStepsProps {
-  initialFlow?: AuthFlow
-}
-
-export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
+export function AuthSteps() {
   const [step, setStep] = useState<
     "identifier" | "password" | "register" | "verification" | "welcome" | "success" | "loading"
   >("identifier")
-  const [flow, setFlow] = useState<AuthFlow>(initialFlow)
+  const [flow, setFlow] = useState<AuthFlow>("login")
   const [identifier, setIdentifier] = useState("")
   const [userId, setUserId] = useState<string | null>(null)
   const [isVerified, setIsVerified] = useState(false)
@@ -32,21 +30,23 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
   const { refreshAuthState, isAuthenticated, isLoading: authLoading } = useAuth()
 
   const [resendCountdown, setResendCountdown] = useState(0)
-  const refreshAuthStateInProgressRef = useRef(false)
-  const authCheckCompleted = useRef(false)
 
-  // Fast auth check - use existing context state without delays
+  const refreshAuthStateInProgressRef = useRef(false)
+
   useEffect(() => {
-    if (!authLoading && !isAuthenticated && step === "loading") {
-      setStep("identifier")
-      authCheckCompleted.current = true
-    } else if (!authLoading && isAuthenticated) {
+    if (authLoading) {
+      setStep("loading")
+    } else if (isAuthenticated) {
       console.log("[v0] User is already authenticated, redirecting to home")
       router.push("/")
+    } else {
+      // Only show the identifier step once we confirm user is not authenticated
+      if (step === "loading") {
+        setStep("identifier")
+      }
     }
-  }, [authLoading, isAuthenticated, step, router])
+  }, [isAuthenticated, authLoading, router])
 
-  // Restore verification state if it exists
   useEffect(() => {
     const storedState = localStorage.getItem("auth_verification_state")
     if (storedState) {
@@ -57,7 +57,6 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
           setUserId(state.userId)
           setFlow("register")
           setStep("verification")
-          authCheckCompleted.current = true
         }
       } catch (e) {
         localStorage.removeItem("auth_verification_state")
@@ -100,18 +99,14 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
     const trimmedIdentifier = value.trim()
     setIdentifier(trimmedIdentifier)
 
-    console.log("[v0] Starting identifier check:", { trimmedIdentifier, isEmail })
-
     try {
-      // Remove the fixed 1 second delay - let the actual check determine timing
-      const response = await authService.checkAvailability(trimmedIdentifier)
-
-      console.log("[v0] Availability check completed:", response)
+      const [response] = await Promise.all([
+        authService.checkAvailability(trimmedIdentifier),
+        new Promise((resolve) => setTimeout(resolve, 1000)),
+      ])
 
       const emailExists = isEmail && response.email_available === false
       const phoneExists = !isEmail && response.phone_available === false
-
-      console.log("[v0] Account existence check:", { emailExists, phoneExists })
 
       if (emailExists || phoneExists) {
         setFlow("login")
@@ -130,17 +125,9 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
       }
     } catch (error: any) {
       console.error("[v0] Identifier check error:", error)
-      console.error("[v0] Error stack:", error.stack)
-      
-      // Show more helpful message if backend timeout
-      let description = error.message || "Failed to process your request"
-      if (error.message?.includes("timed out")) {
-        description = "The server is taking too long to respond. Please check your internet connection and try again."
-      }
-      
       toast({
         title: "Error",
-        description,
+        description: error.message || "Failed to process your request",
         variant: "destructive",
       })
     } finally {
@@ -322,15 +309,15 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
         toastDuration = 10000
 
         toast({
-          title: "Account created with issue",
-          description: "Your account was created successfully, but we couldn't send the verification email. You can request a new verification code after login.",
+          title: "Account created with issues",
+          description: errorMessage,
           variant: "default",
           duration: toastDuration,
         })
 
         setTimeout(() => {
-          setStep("verification")
-        }, 2000)
+          setStep("identifier")
+        }, 3000)
         return
       } else if (error.message?.includes("email") && error.message?.includes("exists")) {
         errorMessage = "This email is already registered. Please use a different email."
@@ -462,9 +449,26 @@ export function AuthSteps({ initialFlow = "login" }: AuthStepsProps) {
     }
   }
 
-  // Show identifier immediately instead of loading state
   if (step === "loading") {
-    return <IdentifierStep onSubmit={handleIdentifierSubmit} isLoading={false} />
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <motion.div
+          className="text-center space-y-4"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+        >
+          <AppleSpinner size="lg" />
+          <motion.p
+            className="text-sm text-muted-foreground"
+            animate={{ opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+          >
+            Initializing...
+          </motion.p>
+        </motion.div>
+      </div>
+    )
   }
 
   if (step === "identifier") {
