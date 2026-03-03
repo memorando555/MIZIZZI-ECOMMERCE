@@ -1,6 +1,6 @@
 import { AuthLayout } from "@/components/auth/auth-layout"
 import { AuthSteps } from "@/components/auth/auth-steps"
-import { cookies } from "next/headers"
+import { getServerAuthStatus } from "@/lib/server/auth-actions"
 import { redirect } from "next/navigation"
 import type { Metadata } from "next"
 
@@ -9,32 +9,23 @@ export const metadata: Metadata = {
   description: "Sign in to your Mizizzi Store account",
 }
 
-// Server-side auth check - happens at the edge, not in browser
-async function checkAuthStatus() {
-  try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get("mizizzi_token")?.value
-    
-    // If user has valid token, redirect immediately at the server level (edge redirect)
-    if (token) {
-      redirect("/")
-    }
-    
-    return { isAuthenticated: false }
-  } catch (error) {
-    return { isAuthenticated: false }
-  }
-}
-
 export default async function LoginPage() {
-  // Server-side check happens here - blocks render until complete
-  await checkAuthStatus()
-  
+  // Server-side auth check using new utility
+  // This executes at edge level before any client rendering
+  const authStatus = await getServerAuthStatus()
+
+  // If user is already authenticated, redirect immediately (edge redirect - 300ms)
+  if (authStatus.isAuthenticated) {
+    console.log("[v0] Server: User already authenticated, redirecting to home")
+    redirect("/")
+  }
+
   // Component renders only if not authenticated
   return (
     <AuthLayout>
       <div className="mx-auto w-full max-w-md">
         <h1 className="text-3xl font-bold text-center mb-6">Sign In</h1>
+        {/* Pass auth status as prop to avoid context re-initialization on client */}
         <AuthSteps initialFlow="login" />
         <div className="mt-6 text-center text-sm text-gray-600">
           <p>
