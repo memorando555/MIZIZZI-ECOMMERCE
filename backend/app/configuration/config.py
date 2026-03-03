@@ -151,6 +151,7 @@ class Config:
     # Brevo API configuration
     BREVO_API_KEY = os.environ.get('BREVO_API_KEY')
     BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL') or 'info.contactgilbertdev@gmail.com'
+    BREVO_SENDER_NAME = os.environ.get('BREVO_SENDER_NAME') or 'MIZIZZI'
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'info.contactgilbertdev@gmail.com'
 
     # Pagination
