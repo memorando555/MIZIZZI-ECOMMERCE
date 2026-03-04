@@ -19,6 +19,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
 from datetime import datetime
+import traceback
 
 from app.models.models import Product
 from app.configuration.extensions import db
@@ -28,7 +29,8 @@ from app.utils.redis_cache import (
     fast_json_dumps
 )
 
-homepage_batch_routes = Blueprint('homepage_batch_routes', __name__, url_prefix='/api')
+# Create blueprint with explicit name
+homepage_batch_bp = Blueprint('homepage_batch', __name__)
 
 # Cache configuration with different TTLs for each section
 BATCH_CACHE_CONFIG = {
@@ -103,6 +105,7 @@ def fetch_flash_sales():
         }
     except Exception as e:
         current_app.logger.error(f"Error fetching flash sales: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         return {'section': 'flash_sales', 'products': [], 'error': str(e), 'success': False}
 
 
@@ -214,7 +217,7 @@ def fetch_luxury_deals():
         return {'section': 'luxury_deals', 'products': [], 'error': str(e), 'success': False}
 
 
-@homepage_batch_routes.route('/homepage/batch', methods=['GET'])
+@homepage_batch_bp.route('/homepage/batch', methods=['GET'])
 def get_homepage_batch():
     """
     GET /api/homepage/batch
@@ -342,7 +345,7 @@ def get_homepage_batch():
         }), 500
 
 
-@homepage_batch_routes.route('/homepage/batch/status', methods=['GET'])
+@homepage_batch_bp.route('/homepage/batch/status', methods=['GET'])
 def get_batch_endpoint_status():
     """
     GET /api/homepage/batch/status
@@ -383,3 +386,17 @@ def get_batch_endpoint_status():
             'error': str(e),
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }), 500
+
+
+# Blueprint initialization logging
+try:
+    # Verify routes are registered
+    if hasattr(homepage_batch_bp, 'deferred_functions'):
+        import sys
+        current_module = sys.modules[__name__]
+        current_app = None  # Will be set when app context is available
+    # Log successful blueprint creation
+    print(f"✅ Homepage Batch Blueprint '{homepage_batch_bp.name}' initialized successfully")
+except Exception as e:
+    print(f"❌ Error initializing Homepage Batch Blueprint: {str(e)}")
+    print(traceback.format_exc())

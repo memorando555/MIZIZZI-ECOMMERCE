@@ -819,10 +819,10 @@ def create_app(config_name=None, enable_socketio=True):
             ('backend.routes.products.featured_routes', 'featured_bp'),
         ],
         'homepage_batch_routes': [
-            ('app.routes.products.homepage_batch_routes', 'homepage_batch_routes'),
-            ('routes.products.homepage_batch_routes', 'homepage_batch_routes'),
-            ('backend.app.routes.products.homepage_batch_routes', 'homepage_batch_routes'),
-            ('backend.routes.products.homepage_batch_routes', 'homepage_batch_routes'),
+            ('app.routes.products.homepage_batch_routes', 'homepage_batch_bp'),
+            ('routes.products.homepage_batch_routes', 'homepage_batch_bp'),
+            ('backend.app.routes.products.homepage_batch_routes', 'homepage_batch_bp'),
+            ('backend.routes.products.homepage_batch_routes', 'homepage_batch_bp'),
         ],
         'meilisearch_routes': [
             ('app.routes.meilisearch', 'meilisearch_routes'),
