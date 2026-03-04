@@ -443,7 +443,7 @@ export default function ReturnOrderPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-neutral-200/60 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl backdrop-blur-sm bg-white/80 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[400ms]">
+          <Card className="overflow-hidden border-neutral-200/60 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl backdrop-blur-sm bg-white/80 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-&lsqb;400ms&rsqb;">
             <CardContent className="p-6 sm:p-7">
               <h2 className="text-xl font-light text-neutral-900 mb-5 tracking-tight">Refund Method</h2>
 
@@ -500,7 +500,7 @@ export default function ReturnOrderPage() {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden border-neutral-200/60 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl bg-gradient-to-br from-white via-neutral-50 to-stone-50 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[600ms]">
+          <Card className="overflow-hidden border-neutral-200/60 shadow-lg hover:shadow-xl transition-all duration-300 rounded-2xl bg-gradient-to-br from-white via-neutral-50 to-stone-50 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-4 duration-700 delay-&lsqb;600ms&rsqb;">
             <CardContent className="p-6 sm:p-8">
               <h2 className="text-xl font-light text-neutral-900 mb-6 tracking-tight">Return Summary</h2>
 
