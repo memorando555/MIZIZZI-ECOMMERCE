@@ -2,154 +2,131 @@ import { NextResponse } from 'next/server'
 import type { Product } from '@/types'
 import { API_BASE_URL } from '@/lib/config'
 
+/**
+ * UNIFIED HOMEPAGE BATCH ENDPOINT
+ * 
+ * This is a PROXY that forwards requests to the backend's high-performance
+ * /api/homepage/batch endpoint which uses parallel ThreadPoolExecutor execution.
+ * 
+ * The backend endpoint returns all homepage sections in a single optimized request:
+ * - Flash Sales
+ * - Trending
+ * - Top Picks
+ * - New Arrivals
+ * - Daily Finds
+ * - Luxury Deals
+ * 
+ * Backend handles the heavy lifting with parallel queries (~150ms total execution)
+ * Frontend just proxies and caches the response
+ */
+
+interface BackendBatchResponse {
+  timestamp: string
+  total_execution_ms: number
+  cached: boolean
+  sections: {
+    flash_sales?: { products: Product[]; count: number; success: boolean }
+    trending?: { products: Product[]; count: number; success: boolean }
+    top_picks?: { products: Product[]; count: number; success: boolean }
+    new_arrivals?: { products: Product[]; count: number; success: boolean }
+    daily_finds?: { products: Product[]; count: number; success: boolean }
+    luxury_deals?: { products: Product[]; count: number; success: boolean }
+  }
+  meta?: {
+    total_products: number
+    sections_fetched: number
+    parallel_execution: boolean
+  }
+}
+
 interface HomepageBatchResponse {
-  flashSales: { products: Product[]; event: any } | null
-  trending: Product[] | null
-  topPicks: Product[] | null
-  newArrivals: Product[] | null
-  dailyDeals: Product[] | null
-  luxuryDeals: Product[] | null
-  categories: any[] | null
-  error?: string
+  flashSaleProducts: Product[]
+  flashSaleEvent: any | null
+  trendingProducts: Product[]
+  topPicksProducts: Product[]
+  newArrivalsProducts: Product[]
+  dailyFindsProducts: Product[]
+  luxuryDealsProducts: Product[]
   timestamp: number
   duration: number
-}
-
-// Helper to extract products from various response formats
-function extractProducts(payload: any): Product[] {
-  const data = payload?.data ?? payload
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data?.items)) return data.items
-  if (Array.isArray(data?.products)) return data.products
-  if (Array.isArray(data?.data)) return data.data
-  return []
-}
-
-// Fetch a single featured section
-async function fetchFeaturedSection(
-  sectionName: string,
-  query: string,
-  limit: number = 20,
-  timeout: number = 5000
-): Promise<Product[] | null> {
-  try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeout)
-
-    const url = `${API_BASE_URL}/api/products/${query}`
-    
-    const response = await fetch(url, {
-      signal: controller.signal,
-      next: { revalidate: 60, tags: [sectionName] },
-      headers: { 'Content-Type': 'application/json' },
-    })
-
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      console.error(`[BATCH] Failed to fetch ${sectionName}: ${response.status}`)
-      return null
-    }
-
-    let products = extractProducts(await response.json())
-    return products.slice(0, limit)
-  } catch (error) {
-    console.error(`[BATCH] Error fetching ${sectionName}:`, error)
-    return null
-  }
+  cached: boolean
+  backendExecutionMs: number
 }
 
 export async function GET(request: Request) {
   const startTime = performance.now()
 
   try {
-    // Parse query parameters
     const { searchParams } = new URL(request.url)
-    const flashSaleLimit = parseInt(searchParams.get('flashSaleLimit') || '12')
-    const trendingLimit = parseInt(searchParams.get('trendingLimit') || '15')
-    const topPicksLimit = parseInt(searchParams.get('topPicksLimit') || '12')
-    const newArrivalsLimit = parseInt(searchParams.get('newArrivalsLimit') || '12')
-    const dailyDealsLimit = parseInt(searchParams.get('dailyDealsLimit') || '12')
-    const luxuryDealsLimit = parseInt(searchParams.get('luxuryDealsLimit') || '12')
-    const categoriesLimit = parseInt(searchParams.get('categoriesLimit') || '8')
+    
+    // Forward cache parameter to backend
+    const cacheParam = searchParams.get('cache') ?? 'true'
+    
+    // Call the backend's unified batch endpoint with parallel execution
+    const backendUrl = `${API_BASE_URL}/api/homepage/batch?cache=${cacheParam}`
+    
+    console.log('[v0] Calling backend batch endpoint:', backendUrl)
+    
+    const backendResponse = await fetch(backendUrl, {
+      next: { revalidate: 60, tags: ['homepage-batch'] },
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    })
 
-    // Execute all queries in PARALLEL using Promise.all
-    // This is the key optimization: all queries run simultaneously, not sequentially
-    const [
-      flashSalesResult,
-      trendingResult,
-      topPicksResult,
-      newArrivalsResult,
-      dailyDealsResult,
-      luxuryDealsResult,
-      categoriesResult,
-    ] = await Promise.all([
-      // Flash Sales: is_flash_sale=true
-      fetchFeaturedSection('flash-sales', `?is_flash_sale=true&per_page=${flashSaleLimit}`, flashSaleLimit),
-      // Trending: is_trending=true
-      fetchFeaturedSection('trending', `?is_trending=true&per_page=${trendingLimit}`, trendingLimit),
-      // Top Picks: is_top_pick=true
-      fetchFeaturedSection('top-picks', `?is_top_pick=true&per_page=${topPicksLimit}`, topPicksLimit),
-      // New Arrivals: is_new_arrival=true
-      fetchFeaturedSection('new-arrivals', `?is_new_arrival=true&per_page=${newArrivalsLimit}`, newArrivalsLimit),
-      // Daily Deals: is_daily_deal=true
-      fetchFeaturedSection('daily-deals', `?is_daily_deal=true&per_page=${dailyDealsLimit}`, dailyDealsLimit),
-      // Luxury Deals: is_luxury_deal=true
-      fetchFeaturedSection('luxury-deals', `?is_luxury_deal=true&per_page=${luxuryDealsLimit}`, luxuryDealsLimit),
-      // Categories: GET /api/categories
-      (async () => {
-        try {
-          const url = `${API_BASE_URL}/api/categories?per_page=${categoriesLimit}`
-          const response = await fetch(url, {
-            next: { revalidate: 3600, tags: ['categories'] },
-            headers: { 'Content-Type': 'application/json' },
-          })
-          if (!response.ok) return null
-          const data = await response.json()
-          return Array.isArray(data?.data) ? data.data.slice(0, categoriesLimit) : null
-        } catch {
-          return null
-        }
-      })(),
-    ])
+    if (!backendResponse.ok) {
+      console.error(`[v0] Backend batch failed: ${backendResponse.status}`)
+      return getDefaultResponse(performance.now() - startTime)
+    }
 
+    const backendData: BackendBatchResponse = await backendResponse.json()
+    
+    // Transform backend response to frontend format
     const duration = performance.now() - startTime
-
+    
     const response: HomepageBatchResponse = {
-      flashSales: flashSalesResult ? { products: flashSalesResult, event: null } : null,
-      trending: trendingResult,
-      topPicks: topPicksResult,
-      newArrivals: newArrivalsResult,
-      dailyDeals: dailyDealsResult,
-      luxuryDeals: luxuryDealsResult,
-      categories: categoriesResult,
+      flashSaleProducts: backendData.sections.flash_sales?.products ?? [],
+      flashSaleEvent: null,
+      trendingProducts: backendData.sections.trending?.products ?? [],
+      topPicksProducts: backendData.sections.top_picks?.products ?? [],
+      newArrivalsProducts: backendData.sections.new_arrivals?.products ?? [],
+      dailyFindsProducts: backendData.sections.daily_finds?.products ?? [],
+      luxuryDealsProducts: backendData.sections.luxury_deals?.products ?? [],
       timestamp: Date.now(),
       duration,
+      cached: backendData.cached,
+      backendExecutionMs: backendData.total_execution_ms,
     }
 
     return NextResponse.json(response, {
       headers: {
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
         'X-Response-Time': `${duration.toFixed(2)}ms`,
+        'X-Backend-Execution': `${backendData.total_execution_ms}ms`,
+        'X-Cache': backendData.cached ? 'HIT' : 'MISS',
       },
     })
   } catch (error) {
-    const duration = performance.now() - startTime
-    console.error('[BATCH] Unexpected error:', error)
-    return NextResponse.json(
-      {
-        flashSales: null,
-        trending: null,
-        topPicks: null,
-        newArrivals: null,
-        dailyDeals: null,
-        luxuryDeals: null,
-        categories: null,
-        error: 'Failed to fetch homepage data',
-        timestamp: Date.now(),
-        duration,
-      },
-      { status: 500 }
-    )
+    console.error('[v0] Batch endpoint error:', error)
+    return getDefaultResponse(performance.now() - startTime)
   }
+}
+
+function getDefaultResponse(duration: number) {
+  return NextResponse.json(
+    {
+      flashSaleProducts: [],
+      flashSaleEvent: null,
+      trendingProducts: [],
+      topPicksProducts: [],
+      newArrivalsProducts: [],
+      dailyFindsProducts: [],
+      luxuryDealsProducts: [],
+      timestamp: Date.now(),
+      duration,
+      cached: false,
+      backendExecutionMs: 0,
+      error: 'Failed to fetch homepage data',
+    },
+    { status: 500 }
+  )
 }

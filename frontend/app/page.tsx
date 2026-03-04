@@ -12,27 +12,20 @@ export const revalidate = 60
 interface BatchResponse {
   flashSaleProducts: any[]
   flashSaleEvent: any | null
-  luxuryProducts: any[]
-  newArrivals: any[]
-  topPicks: any[]
+  luxuryDealsProducts: any[]
+  newArrivalsProducts: any[]
+  topPicksProducts: any[]
   trendingProducts: any[]
-  dailyFinds: any[]
-  allProducts: any[]
-  allProductsHasMore: boolean
-  categories: any[]
-  carouselItems: any[]
-  premiumExperiences: any[]
-  productShowcase: any[]
-  contactCTASlides: any[]
-  featureCards: any[]
+  dailyFindsProducts: any[]
+  backendExecutionMs: number
+  cached: boolean
 }
 
 async function LoadAllContent(): Promise<BatchResponse> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-  
   try {
+    // Use our frontend batch endpoint which proxies to the backend
     const batchResponse = await fetch(
-      `${apiUrl}/api/homepage/batch`,
+      '/api/homepage/batch',
       {
         cache: 'no-store',
         headers: {
@@ -43,23 +36,17 @@ async function LoadAllContent(): Promise<BatchResponse> {
 
     if (batchResponse.ok) {
       const batchData = await batchResponse.json()
-      console.log('[v0] Homepage batch API loaded successfully')
+      console.log('[v0] Homepage batch loaded successfully in', batchData.backendExecutionMs, 'ms')
       return {
         flashSaleProducts: batchData.flashSaleProducts || [],
         flashSaleEvent: batchData.flashSaleEvent || null,
-        luxuryProducts: batchData.luxuryProducts || [],
-        newArrivals: batchData.newArrivals || [],
-        topPicks: batchData.topPicks || [],
+        luxuryDealsProducts: batchData.luxuryDealsProducts || [],
+        newArrivalsProducts: batchData.newArrivalsProducts || [],
+        topPicksProducts: batchData.topPicksProducts || [],
         trendingProducts: batchData.trendingProducts || [],
-        dailyFinds: batchData.dailyFinds || [],
-        allProducts: batchData.allProducts || [],
-        allProductsHasMore: batchData.allProductsHasMore || false,
-        categories: batchData.categories || [],
-        carouselItems: batchData.carouselItems || [],
-        premiumExperiences: batchData.premiumExperiences || [],
-        productShowcase: batchData.productShowcase || [],
-        contactCTASlides: batchData.contactCTASlides || [],
-        featureCards: batchData.featureCards || [],
+        dailyFindsProducts: batchData.dailyFindsProducts || [],
+        backendExecutionMs: batchData.backendExecutionMs || 0,
+        cached: batchData.cached || false,
       }
     } else {
       console.warn(`[v0] Batch API returned ${batchResponse.status}`)
@@ -75,19 +62,13 @@ function getDefaultData(): BatchResponse {
   return {
     flashSaleProducts: [],
     flashSaleEvent: null,
-    luxuryProducts: [],
-    newArrivals: [],
-    topPicks: [],
+    luxuryDealsProducts: [],
+    newArrivalsProducts: [],
+    topPicksProducts: [],
     trendingProducts: [],
-    dailyFinds: [],
-    allProducts: [],
-    allProductsHasMore: false,
-    categories: [],
-    carouselItems: [],
-    premiumExperiences: [],
-    productShowcase: [],
-    contactCTASlides: [],
-    featureCards: [],
+    dailyFindsProducts: [],
+    backendExecutionMs: 0,
+    cached: false,
   }
 }
 
@@ -96,21 +77,21 @@ export default async function Home() {
 
   return (
     <HomeContent
-      categories={data.categories}
-      carouselItems={data.carouselItems}
-      premiumExperiences={data.premiumExperiences}
-      productShowcase={data.productShowcase}
-      contactCTASlides={data.contactCTASlides}
-      featureCards={data.featureCards}
+      categories={[]}
+      carouselItems={[]}
+      premiumExperiences={[]}
+      productShowcase={[]}
+      contactCTASlides={[]}
+      featureCards={[]}
       flashSaleProducts={data.flashSaleProducts}
       flashSaleEvent={data.flashSaleEvent}
-      luxuryProducts={data.luxuryProducts}
-      newArrivals={data.newArrivals}
-      topPicks={data.topPicks}
+      luxuryProducts={data.luxuryDealsProducts}
+      newArrivals={data.newArrivalsProducts}
+      topPicks={data.topPicksProducts}
       trendingProducts={data.trendingProducts}
-      dailyFinds={data.dailyFinds}
-      allProducts={data.allProducts}
-      allProductsHasMore={data.allProductsHasMore}
+      dailyFinds={data.dailyFindsProducts}
+      allProducts={[]}
+      allProductsHasMore={false}
     />
   )
 }
