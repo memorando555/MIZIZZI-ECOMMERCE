@@ -75,7 +75,7 @@ export function IdentifierStep({ onSubmit, isLoading }: IdentifierStepProps) {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Checking...
+                  Continue
                 </>
               ) : (
                 "Continue"

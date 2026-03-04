@@ -169,10 +169,7 @@ export function AuthSteps() {
     setIsLoading(true)
     const trimmedIdentifier = identifier.trim()
     try {
-      const [response] = await Promise.all([
-        authService.login(trimmedIdentifier, password),
-        new Promise((resolve) => setTimeout(resolve, 1200)),
-      ])
+      const response = await authService.login(trimmedIdentifier, password)
 
       await safeRefreshAuthState()
 
@@ -222,8 +219,16 @@ export function AuthSteps() {
       }
 
       let errorMessage = "Invalid credentials"
+      let showVerificationOption = false
 
-      if (error.message?.includes("not found")) {
+      // Determine the specific error
+      if (error.message) {
+        errorMessage = error.message
+        // Check if this might be a verification issue
+        if (errorMessage.includes("verified") || errorMessage.includes("verify")) {
+          showVerificationOption = true
+        }
+      } else if (error.message?.includes("not found")) {
         errorMessage = "Account not found. Please check your email or phone number."
       } else if (error.message?.includes("password")) {
         errorMessage = "Incorrect password. Please try again."
@@ -235,10 +240,39 @@ export function AuthSteps() {
         title: "Login failed",
         description: errorMessage,
         variant: "destructive",
+        duration: showVerificationOption ? 8000 : 5000,
       })
-    } finally {
-      setIsLoading(false)
-    }
+
+      // If might be verification issue, offer to resend verification code
+      if (showVerificationOption) {
+        setTimeout(() => {
+          toast({
+            title: "Need verification?",
+            description: "If your account needs verification, click the button below to resend your verification code.",
+            action: {
+              label: "Verify Account",
+              onClick: async () => {
+                try {
+                  await authService.sendVerificationCode(trimmedIdentifier)
+                  setUserId(null)
+                  setStep("verification")
+                  toast({
+                    title: "Verification code sent",
+                    description: `Check your ${identifier.includes("@") ? "email" : "phone"} for the verification code.`,
+                    duration: 5000,
+                  })
+                } catch (err: any) {
+                  toast({
+                    title: "Error",
+                    description: err.message || "Failed to send verification code",
+                    variant: "destructive",
+                  })
+                }
+              },
+            },
+          })
+        }, 500)
+      }
   }
 
   const handleRegisterSubmit = async (name: string, password: string) => {
