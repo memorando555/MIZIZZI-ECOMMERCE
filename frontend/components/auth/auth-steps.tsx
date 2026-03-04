@@ -166,10 +166,8 @@ export function AuthSteps() {
     setIsLoading(true)
     const trimmedIdentifier = identifier.trim()
     try {
-      const [response] = await Promise.all([
-        authService.login(trimmedIdentifier, password),
-        new Promise((resolve) => setTimeout(resolve, 1200)),
-      ])
+      // Removed artificial delay for faster auth
+      const response = await authService.login(trimmedIdentifier, password)
 
       await safeRefreshAuthState()
 
@@ -184,15 +182,16 @@ export function AuthSteps() {
         router.push("/")
       }, 2000)
     } catch (error: any) {
-      if (error.response?.data?.verification_required) {
-        setUserId(error.response.data.user_id || null)
+      // Check if account needs verification (401 detected as unverified)
+      if (error.response?.data?.verification_required || error.message?.includes("verification")) {
+        setUserId(error.response?.data?.user_id || null)
 
         localStorage.setItem(
           "auth_verification_state",
           JSON.stringify({
             identifier: identifier,
             step: "verification",
-            userId: error.response.data.user_id,
+            userId: error.response?.data?.user_id,
             timestamp: new Date().toISOString(),
           }),
         )
@@ -205,34 +204,58 @@ export function AuthSteps() {
         try {
           await authService.sendVerificationCode(trimmedIdentifier)
           toast({
-            title: "Verification required",
-            description: `Please verify your ${identifier.includes("@") ? "email" : "phone"} to continue.`,
+            title: "Account not verified",
+            description: `We've sent a verification code to your ${identifier.includes("@") ? "email" : "phone"}. Please verify your account to continue.`,
           })
         } catch (verificationError: any) {
-          toast({
-            title: "Verification error",
-            description: verificationError.message || "Failed to send verification code",
-            variant: "destructive",
-          })
+          const waitTimeMatch = verificationError.message?.match(/wait\s+(\d+)\s+seconds?/i)
+          if (waitTimeMatch) {
+            const waitSeconds = parseInt(waitTimeMatch[1], 10)
+            setResendCountdown(Math.max(waitSeconds, 1))
+            toast({
+              title: "Too many requests",
+              description: `Please wait ${waitSeconds} seconds before requesting another verification code.`,
+              variant: "destructive",
+            })
+          } else {
+            toast({
+              title: "Verification error",
+              description: verificationError.message || "Failed to send verification code",
+              variant: "destructive",
+            })
+          }
         }
         return
       }
 
-      let errorMessage = "Invalid credentials"
+      let errorMessage = error.message || "Login failed"
 
-      if (error.message?.includes("not found")) {
-        errorMessage = "Account not found. Please check your email or phone number."
-      } else if (error.message?.includes("password")) {
-        errorMessage = "Incorrect password. Please try again."
-      } else if (error.message?.includes("locked")) {
-        errorMessage = "Your account has been locked. Please contact support."
+      // Provide helpful routing suggestions
+      if (errorMessage.includes("not found")) {
+        toast({
+          title: "Account not found",
+          description: "This account doesn't exist yet. Click the back button to create a new account.",
+          variant: "destructive",
+        })
+      } else if (errorMessage.includes("password")) {
+        toast({
+          title: "Incorrect password",
+          description: "Please check your password and try again.",
+          variant: "destructive",
+        })
+      } else if (errorMessage.includes("locked")) {
+        toast({
+          title: "Account locked",
+          description: "Your account has been locked. Please contact support.",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Login failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
       }
-
-      toast({
-        title: "Login failed",
-        description: errorMessage,
-        variant: "destructive",
-      })
     } finally {
       setIsLoading(false)
     }
@@ -273,24 +296,13 @@ export function AuthSteps() {
 
         setStep("verification")
 
-        try {
-          await authService.sendVerificationCode(trimmedIdentifier)
-
-          toast({
-            title: "Verification code sent",
-            description: `Please check your ${trimmedIdentifier.includes("@") ? "email" : "phone"} for the verification code.`,
-            duration: 5000,
-          })
-        } catch (verificationError: any) {
-          console.error("[v0] Verification code sending failed:", verificationError)
-          toast({
-            title: "Account created",
-            description:
-              "Your account was created successfully. Please use the 'Resend Code' button to receive your verification code.",
-            duration: 8000,
-          })
-          setStep("verification")
-        }
+        // Important: The backend already sent verification code during registration
+        // Do NOT send another one - this causes rate limiting
+        toast({
+          title: "Account created",
+          description: `We sent a verification code to your ${trimmedIdentifier.includes("@") ? "email" : "phone"}. Please enter it below to verify your account.`,
+          duration: 6000,
+        })
       } else {
         setStep("welcome")
 

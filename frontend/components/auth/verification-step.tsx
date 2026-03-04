@@ -111,7 +111,7 @@ export function VerificationStep({
           />
 
           <p className="text-xs text-center text-gray-500">
-            Enter the 6-digit code from your {isEmail ? "email" : "text message"}
+            Enter the 6-digit code from your {isEmail ? "email (check spam folder)" : "text message"}
           </p>
         </motion.div>
 
