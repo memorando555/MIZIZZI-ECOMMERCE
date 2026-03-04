@@ -26,12 +26,48 @@ interface VerificationResponse {
   csrf_token?: string
 }
 
-interface AvailabilityResponse {
-  email_available?: boolean
-  phone_available?: boolean
+interface AccountStatusResponse {
+  exists: boolean
+  verified: boolean
+  msg?: string
 }
 
 class AuthService {
+  // Smart account status check - determines if user is registered and verified
+  async checkAccountStatus(identifier: string): Promise<AccountStatusResponse> {
+    try {
+      const isEmail = identifier.includes("@")
+      const data = isEmail ? { email: identifier } : { phone: identifier }
+
+      const response = await api.post("/api/check-account-status", data)
+      console.log("[v0] Account status:", response.data)
+      
+      return {
+        exists: response.data.exists || response.data.account_exists || false,
+        verified: response.data.verified || false,
+        msg: response.data.msg,
+      }
+    } catch (error: any) {
+      // If endpoint doesn't exist, fallback to check-availability
+      try {
+        console.log("[v0] Falling back to check-availability")
+        const isEmail = identifier.includes("@")
+        const data = isEmail ? { email: identifier } : { phone: identifier }
+        const response = await api.post("/api/check-availability", data)
+        
+        // check-availability returns if account is AVAILABLE (not registered)
+        // So if email_available is false, account exists
+        return {
+          exists: response.data.email_available === false || response.data.phone_available === false,
+          verified: false, // Can't determine from this endpoint
+          msg: response.data.msg,
+        }
+      } catch (fallbackError) {
+        throw new Error(error.response?.data?.msg || "Failed to check account status")
+      }
+    }
+  }
+
   // Check if email or phone is available (not already registered)
   async checkAvailability(identifier: string): Promise<AvailabilityResponse> {
     try {

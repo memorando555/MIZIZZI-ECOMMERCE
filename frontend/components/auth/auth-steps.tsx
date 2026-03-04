@@ -184,6 +184,83 @@ export function AuthSteps() {
         router.push("/")
       }, 2000)
     } catch (error: any) {
+      // Handle 401 errors by checking account status
+      if (error.response?.status === 401) {
+        console.log("[v0] Login returned 401, checking account status...")
+        setIsLoading(true)
+        
+        try {
+          // Check if account exists and is verified
+          const accountStatus = await authService.checkAccountStatus(trimmedIdentifier)
+          
+          if (!accountStatus.exists) {
+            // Account doesn't exist - guide to registration
+            toast({
+              title: "Account not found",
+              description: "This email/phone isn't registered. Let's create an account for you.",
+              duration: 5000,
+            })
+            setFlow("register")
+            setStep("register")
+            return
+          }
+          
+          if (accountStatus.exists && !accountStatus.verified) {
+            // Account exists but not verified - guide to verification
+            console.log("[v0] Account exists but not verified, sending verification code...")
+            
+            try {
+              const verificationResponse = await authService.sendVerificationCode(trimmedIdentifier)
+              setUserId(verificationResponse.user_id || null)
+              
+              localStorage.setItem(
+                "auth_verification_state",
+                JSON.stringify({
+                  identifier: trimmedIdentifier,
+                  step: "verification",
+                  userId: verificationResponse.user_id,
+                  timestamp: new Date().toISOString(),
+                }),
+              )
+              
+              setFlow("register")
+              setStep("verification")
+              
+              toast({
+                title: "Account not verified",
+                description: `We sent a verification code to your ${trimmedIdentifier.includes("@") ? "email" : "phone"}. Please verify your account.`,
+                duration: 6000,
+              })
+            } catch (verificationError: any) {
+              toast({
+                title: "Verification setup failed",
+                description: verificationError.message || "Couldn't send verification code",
+                variant: "destructive",
+              })
+            }
+            return
+          }
+          
+          // Account exists and is verified but password is wrong
+          toast({
+            title: "Incorrect password",
+            description: "Please check your password and try again.",
+            variant: "destructive",
+          })
+        } catch (statusCheckError: any) {
+          console.error("[v0] Error checking account status:", statusCheckError)
+          toast({
+            title: "Login failed",
+            description: "Please verify your credentials and try again.",
+            variant: "destructive",
+          })
+        } finally {
+          setIsLoading(false)
+        }
+        return
+      }
+
+      // Handle other verification_required responses
       if (error.response?.data?.verification_required) {
         setUserId(error.response.data.user_id || null)
 
@@ -219,21 +296,12 @@ export function AuthSteps() {
       }
 
       let errorMessage = "Invalid credentials"
-      let showVerificationOption = false
 
       // Determine the specific error
       if (error.message) {
         errorMessage = error.message
-        // Check if this might be a verification issue
-        if (errorMessage.includes("verified") || errorMessage.includes("verify")) {
-          showVerificationOption = true
-        }
-      } else if (error.message?.includes("not found")) {
-        errorMessage = "Account not found. Please check your email or phone number."
-      } else if (error.message?.includes("password")) {
-        errorMessage = "Incorrect password. Please try again."
-      } else if (error.message?.includes("locked")) {
-        errorMessage = "Your account has been locked. Please contact support."
+      } else if (error.response?.data?.msg) {
+        errorMessage = error.response.data.msg
       }
 
       toast({
