@@ -32,56 +32,16 @@ interface AvailabilityResponse {
 }
 
 class AuthService {
-  // Optimized auth flow: Skip availability check and go straight to verification
-  // This is faster because it eliminates an unnecessary API call and lets the backend 
-  // determine if the account exists during verification
-  async checkAndProceedWithAuth(identifier: string): Promise<{ flow: "login" | "register"; userId?: string }> {
-    try {
-      const isEmail = identifier.includes("@")
-      console.log(`[v0] Starting auth flow for ${isEmail ? "email" : "phone"}: ${identifier}`)
-
-      // Always attempt to send verification code - the backend will determine if account exists
-      const verificationResponse = await api.post("/api/resend-verification", { identifier })
-      
-      console.log("[v0] Verification code sent successfully", verificationResponse.data)
-
-      // If we got here without error, proceed to verification step
-      // The user_id in the response tells us if it's an existing account (login) or new account (register)
-      const userId = verificationResponse.data.user_id
-      const accountExists = verificationResponse.data.account_exists ?? false
-
-      return {
-        flow: accountExists ? "login" : "register",
-        userId,
-      }
-    } catch (error: any) {
-      console.error("[v0] Auth flow error:", error)
-      
-      // Check if it's a network error from backend
-      if (error.message?.includes("Network Error") || error.code === "ECONNREFUSED") {
-        throw new Error("Unable to connect to authentication service. Please check your connection and try again.")
-      }
-      
-      throw new Error(error.response?.data?.msg || error.message || "Failed to process authentication")
-    }
-  }
-
-  // Fallback to old API if needed (for backward compatibility)
+  // Check if email or phone is available (not already registered)
   async checkAvailability(identifier: string): Promise<AvailabilityResponse> {
     try {
-      console.log("[v0] Using fallback checkAvailability for:", identifier)
       const isEmail = identifier.includes("@")
       const data = isEmail ? { email: identifier } : { phone: identifier }
 
       const response = await api.post("/api/check-availability", data)
       return response.data
     } catch (error: any) {
-      console.warn("[v0] checkAvailability failed, will proceed with direct verification approach")
-      // Return a permissive response to continue auth flow
-      return {
-        email_available: false,
-        phone_available: false,
-      }
+      throw new Error(error.response?.data?.msg || "Failed to check availability")
     }
   }
 
