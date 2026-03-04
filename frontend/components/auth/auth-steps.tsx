@@ -273,38 +273,14 @@ export function AuthSteps() {
 
         setStep("verification")
 
-        try {
-          await authService.sendVerificationCode(trimmedIdentifier)
-
-          toast({
-            title: "Verification code sent",
-            description: `Please check your ${trimmedIdentifier.includes("@") ? "email" : "phone"} for the verification code.`,
-            duration: 5000,
-          })
-        } catch (verificationError: any) {
-          console.error("[v0] Verification code sending failed:", verificationError)
-          
-          // Extract wait time from rate limit errors
-          const waitTimeMatch = verificationError.message?.match(/wait\s+(\d+)\s+seconds?/i)
-          if (waitTimeMatch) {
-            const waitSeconds = parseInt(waitTimeMatch[1], 10)
-            setResendCountdown(waitSeconds)
-            toast({
-              title: "Rate limited",
-              description: `Too many requests. Please wait ${waitSeconds} seconds before resending the code.`,
-              variant: "destructive",
-              duration: 5000,
-            })
-          } else {
-            toast({
-              title: "Account created",
-              description:
-                "Your account was created successfully. Please use the 'Resend Code' button to receive your verification code.",
-              duration: 8000,
-            })
-          }
-          setStep("verification")
-        }
+        // Important: The backend already sent a verification code during registration.
+        // Do NOT send another one here to avoid rate limiting.
+        // The user should enter the code they received, and can use "Resend code" if needed.
+        toast({
+          title: "Account created successfully",
+          description: `We sent a verification code to your ${trimmedIdentifier.includes("@") ? "email" : "phone"}. Please enter it below to verify your account.`,
+          duration: 6000,
+        })
       } else {
         setStep("welcome")
 
