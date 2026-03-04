@@ -247,6 +247,21 @@ class AuthService {
         throw error
       }
 
+      // Handle 401 Unauthorized - likely account not verified
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.msg || ""
+        
+        // Create a verification_required error so the UI handles it properly
+        const verificationError: any = new Error("Account verification required")
+        verificationError.response = {
+          data: {
+            verification_required: true,
+            msg: "Your account needs to be verified before you can log in.",
+          },
+        }
+        throw verificationError
+      }
+
       // Check if this is a 403 error for admin access
       if (error.response?.status === 403) {
         const errorMessage = error.response?.data?.msg || "Access forbidden"
