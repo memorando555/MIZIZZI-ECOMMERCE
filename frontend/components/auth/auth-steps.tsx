@@ -221,10 +221,15 @@ export function AuthSteps() {
       }
 
       let errorMessage = "Invalid credentials"
+      let showResendOption = false
 
       // Use the full error message from the service if available
       if (error.message) {
         errorMessage = error.message
+        // Check if this is a verification error
+        if (errorMessage.includes("verified") || errorMessage.includes("verify")) {
+          showResendOption = true
+        }
       } else if (error.response?.data?.msg) {
         errorMessage = error.response.data.msg
       }
@@ -233,7 +238,25 @@ export function AuthSteps() {
         title: "Login failed",
         description: errorMessage,
         variant: "destructive",
+        duration: showResendOption ? 8000 : 5000,
       })
+
+      // If account needs verification, offer to go back and resend code
+      if (showResendOption) {
+        setTimeout(() => {
+          toast({
+            title: "Need verification code?",
+            description: "Click 'Back' to return to the identifier screen where you can resend your verification code.",
+            action: {
+              label: "Go Back",
+              onClick: () => {
+                setStep("identifier")
+                setIdentifier("")
+              },
+            },
+          })
+        }, 500)
+      }
     } finally {
       setIsLoading(false)
     }

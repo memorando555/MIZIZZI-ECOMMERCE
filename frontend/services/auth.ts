@@ -272,17 +272,21 @@ class AuthService {
       if (error.response?.status === 401) {
         const errorMessage = error.response?.data?.msg || "Unauthorized"
         
-        if (errorMessage.includes("verified") || errorMessage.includes("not verified")) {
-          throw new Error("Your account hasn't been verified yet. Please check your email or phone for the verification code.")
-        } else if (errorMessage.includes("not found")) {
+        // Check if account needs verification
+        if (errorMessage.includes("verified") || errorMessage.includes("not verified") || errorMessage.includes("verify")) {
+          throw new Error("Your account needs to be verified first. Please check your email or phone for the verification code.")
+        } else if (errorMessage.includes("not found") || errorMessage.includes("does not exist")) {
           throw new Error("This account doesn't exist. Please create an account first.")
-        } else if (errorMessage.includes("password")) {
+        } else if (errorMessage.includes("password") || errorMessage.includes("incorrect")) {
           throw new Error("Incorrect password. Please try again.")
         } else if (errorMessage.includes("invalid")) {
           throw new Error("Invalid credentials. Please check your email and password.")
+        } else if (errorMessage.includes("inactive") || errorMessage.includes("disabled")) {
+          throw new Error("This account is inactive. Please contact support.")
         }
         
-        throw new Error("Login failed. Please check your credentials and try again.")
+        // Generic unauthorized message
+        throw new Error("Login failed. Please verify your account has been registered and verified.")
       }
 
       const errorMessage = error.response?.data?.msg || "Login failed"
