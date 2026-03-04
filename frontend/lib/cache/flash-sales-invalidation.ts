@@ -13,9 +13,9 @@ import { revalidateTag } from 'next/cache'
 export async function invalidateFlashSalesCache() {
   try {
     // Server-side cache invalidation (Next.js)
-    revalidateTag('flash-sales')
-    revalidateTag('flash-sale-event')
-    
+    revalidateTag('flash-sales', 'manual')
+    revalidateTag('flash-sale-event', 'manual')
+
     console.log('[v0] Flash sales cache invalidated at server level')
   } catch (error) {
     console.warn('[v0] Failed to invalidate server cache:', error)
@@ -32,10 +32,10 @@ export async function handleFlashSalesWebhook(event: string, productIds?: number
   try {
     // Invalidate server-side cache
     invalidateFlashSalesCache()
-    
+
     // Next.js will automatically clear the cache for the next request
     console.log('[v0] Flash sales webhook processed:', { event, productCount: productIds?.length })
-    
+
     return {
       success: true,
       message: 'Flash sales cache invalidated',
@@ -86,9 +86,9 @@ export async function handleFlashSalesWebhook(event: string, productIds?: number
  */
 export async function manualClearFlashSalesCache() {
   try {
-    revalidateTag('flash-sales')
-    revalidateTag('flash-sale-event')
-    
+    revalidateTag('flash-sales', 'manual')
+    revalidateTag('flash-sale-event', 'manual')
+
     return {
       success: true,
       message: 'Manual cache clear successful',
