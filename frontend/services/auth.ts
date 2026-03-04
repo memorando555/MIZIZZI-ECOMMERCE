@@ -1,6 +1,7 @@
 import api from "@/lib/api"
 import type { User } from "@/types/auth"
 import axios from "axios"
+import { validateLoginResponse, clearAuthTokens } from "@/lib/token-validator"
 
 // Define the response types
 interface LoginResponse {
@@ -200,26 +201,28 @@ class AuthService {
     try {
       const response = await api.post("/api/login", { identifier, password })
 
+      // Validate that we got proper tokens back
+      const validation = validateLoginResponse(response.data)
+      if (!validation.isValid) {
+        console.error("[v0] Login token validation failed:", validation.message)
+        clearAuthTokens()
+        throw new Error(validation.message)
+      }
+
       // Store tokens in localStorage
       if (response.data.access_token) {
         localStorage.setItem("mizizzi_token", response.data.access_token)
-        console.log("Access token stored:", response.data.access_token.substring(0, 10) + "...")
-      } else {
-        console.error("No access token received from server")
+        console.log("[v0] Access token stored successfully")
       }
 
       if (response.data.refresh_token) {
         localStorage.setItem("mizizzi_refresh_token", response.data.refresh_token)
-        console.log("Refresh token stored")
-      } else {
-        console.error("No refresh token received from server")
+        console.log("[v0] Refresh token stored")
       }
 
       if (response.data.csrf_token) {
         localStorage.setItem("mizizzi_csrf_token", response.data.csrf_token)
-        console.log("CSRF token stored:", response.data.csrf_token)
-      } else {
-        console.error("No CSRF token received from server")
+        console.log("[v0] CSRF token stored")
       }
 
       // Store user data
@@ -251,14 +254,12 @@ class AuthService {
       if (error.response?.status === 403) {
         const errorMessage = error.response?.data?.msg || "Access forbidden"
 
-        // Check for specific error messages
         if (errorMessage.includes("verified")) {
           throw new Error("This account needs to be verified. Please check your email for a verification link or code.")
         } else if (errorMessage.includes("inactive")) {
           throw new Error("This account is inactive. Please contact the system administrator.")
         }
 
-        // If this is an admin login attempt, provide a more specific error
         if (window.location.pathname.includes("/admin")) {
           throw new Error(
             "You don't have permission to access the admin area. This account doesn't have admin privileges.",

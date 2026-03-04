@@ -222,6 +222,7 @@ export function AuthSteps() {
 
       let errorMessage = "Invalid credentials"
       let showResendOption = false
+      let isVerificationNeeded = false
 
       // Use the full error message from the service if available
       if (error.message) {
@@ -229,6 +230,7 @@ export function AuthSteps() {
         // Check if this is a verification error
         if (errorMessage.includes("verified") || errorMessage.includes("verify")) {
           showResendOption = true
+          isVerificationNeeded = true
         }
       } else if (error.response?.data?.msg) {
         errorMessage = error.response.data.msg
@@ -242,11 +244,11 @@ export function AuthSteps() {
       })
 
       // If account needs verification, offer to go back and resend code
-      if (showResendOption) {
+      if (isVerificationNeeded) {
         setTimeout(() => {
           toast({
-            title: "Need verification code?",
-            description: "Click 'Back' to return to the identifier screen where you can resend your verification code.",
+            title: "Account not verified",
+            description: "Go back to resend your verification code, then use it to verify your account.",
             action: {
               label: "Go Back",
               onClick: () => {
