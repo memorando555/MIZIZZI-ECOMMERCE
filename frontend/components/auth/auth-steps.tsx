@@ -100,31 +100,35 @@ export function AuthSteps() {
     setIdentifier(trimmedIdentifier)
 
     try {
-      const [response] = await Promise.all([
-        authService.checkAvailability(trimmedIdentifier),
-        new Promise((resolve) => setTimeout(resolve, 1000)),
-      ])
-
-      const emailExists = isEmail && response.email_available === false
-      const phoneExists = !isEmail && response.phone_available === false
-
-      if (emailExists || phoneExists) {
-        setFlow("login")
-        setStep("password")
+      // Instant validation - no API call needed here
+      // Just verify email format is valid
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const phoneRegex = /^\d{10,}$/
+      
+      const isValidIdentifier = isEmail ? emailRegex.test(trimmedIdentifier) : phoneRegex.test(trimmedIdentifier)
+      
+      if (!isValidIdentifier) {
         toast({
-          title: "Account found",
-          description: "Please enter your password to continue",
+          title: "Invalid format",
+          description: isEmail ? "Please enter a valid email address" : "Please enter a valid phone number",
+          variant: "destructive",
         })
-      } else {
-        setFlow("register")
-        setStep("register")
-        toast({
-          title: "Create an account",
-          description: "Please complete your registration to continue",
-        })
+        setIsLoading(false)
+        return
       }
+
+      // Fast path: Skip availability check entirely
+      // The backend will determine if account exists during password/registration step
+      // This makes the UI feel instant (no API wait)
+      setFlow("login")
+      setStep("password")
+      
+      toast({
+        title: "Enter your password",
+        description: "We'll check if your account exists next",
+      })
     } catch (error: any) {
-      console.error("[v0] Identifier check error:", error)
+      console.error("[v0] Identifier validation error:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to process your request",
@@ -166,10 +170,8 @@ export function AuthSteps() {
     setIsLoading(true)
     const trimmedIdentifier = identifier.trim()
     try {
-      const [response] = await Promise.all([
-        authService.login(trimmedIdentifier, password),
-        new Promise((resolve) => setTimeout(resolve, 1200)),
-      ])
+      // Remove artificial delay - login should be as fast as possible
+      const response = await authService.login(trimmedIdentifier, password)
 
       await safeRefreshAuthState()
 
@@ -243,15 +245,13 @@ export function AuthSteps() {
     try {
       const trimmedIdentifier = identifier.trim()
 
-      const [response] = await Promise.all([
-        authService.register({
-          name,
-          email: trimmedIdentifier.includes("@") ? trimmedIdentifier : undefined,
-          phone: !trimmedIdentifier.includes("@") ? trimmedIdentifier : undefined,
-          password,
-        }),
-        new Promise((resolve) => setTimeout(resolve, 2000)),
-      ])
+      // Remove artificial delay - registration should complete as fast as API allows
+      const response = await authService.register({
+        name,
+        email: trimmedIdentifier.includes("@") ? trimmedIdentifier : undefined,
+        phone: !trimmedIdentifier.includes("@") ? trimmedIdentifier : undefined,
+        password,
+      })
 
       const userId = response.user_id
 
