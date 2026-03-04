@@ -65,6 +65,7 @@ export function useFlashSalesCache(serverProducts: FlashSaleProduct[], serverEve
             setProducts(parsed.data)
             cacheHit = true
             cacheSource = 'sessionStorage'
+            recordCacheMetric(true, 'sessionStorage', performance.now() - startTime, 'flash-sales')
           }
         } catch (e) {
           // Invalid cached data, continue to next layer
@@ -93,6 +94,7 @@ export function useFlashSalesCache(serverProducts: FlashSaleProduct[], serverEve
                   data: parsed.data,
                   timestamp: parsed.timestamp,
                 }))
+                recordCacheMetric(true, 'localStorage', performance.now() - startTime, 'flash-sales')
               }
             } catch (e) {
               // Invalid cached data, continue
@@ -183,9 +185,9 @@ export function useFlashSalesCache(serverProducts: FlashSaleProduct[], serverEve
       // Record metrics
       if (cacheHit) {
         setIsFromCache(true)
-        recordCacheMetric(true, cacheSource, performance.now() - startTime)
+        recordCacheMetric(true, cacheSource, performance.now() - startTime, 'flash-sales')
       } else {
-        recordCacheMetric(false, 'server', performance.now() - startTime)
+        recordCacheMetric(false, 'server', performance.now() - startTime, 'flash-sales')
       }
 
     } catch (error) {
