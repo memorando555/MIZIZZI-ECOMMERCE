@@ -147,7 +147,16 @@ def send_email(to_email, subject, html_content):
             "replyTo": {
                 "email": sender_email,
                 "name": sender_name
-            }
+            },
+            # Anti-spam headers to prevent emails from going to spam folder
+            "headers": {
+                "X-Mailer": "MIZIZZI/1.0",
+                "List-Unsubscribe": f"<mailto:unsubscribe@mizizzi.com?subject=unsubscribe>",
+                "Precedence": "bulk",
+                "Content-Type": "text/html; charset=UTF-8"
+            },
+            # Email categorization tags for better deliverability
+            "tags": ["transactional", "authentication"]
         }
 
         headers = {
@@ -157,10 +166,17 @@ def send_email(to_email, subject, html_content):
         }
 
         logger.info(f"[v0] Sending email via Brevo API to {to_email}")
+        logger.info(f"[v0] Email headers added for anti-spam: X-Mailer, List-Unsubscribe, Precedence, Content-Type, tags")
         response = requests.post(url, json=payload, headers=headers, timeout=10)
 
         if response.status_code == 201:
             logger.info(f"[v0] Email sent successfully to {to_email}. Status: {response.status_code}")
+            try:
+                response_data = response.json()
+                if 'messageId' in response_data:
+                    logger.info(f"[v0] Brevo Message ID: {response_data['messageId']}")
+            except:
+                pass
             return True
         else:
             logger.error(f"[v0] Brevo API error: Status {response.status_code}")
