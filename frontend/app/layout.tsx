@@ -10,6 +10,7 @@ import Script from "next/script"
 import { ThemeProvider } from "@/contexts/theme-context"
 import type { Viewport } from "next"
 import { getFooterSettings } from "@/lib/server/get-footer-settings"
+import { CacheTestingPanel } from "@/components/debug/cache-testing-panel"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -89,5 +90,10 @@ export default async function RootLayout({
 }
 
 function RootLayoutContent({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      {process.env.NODE_ENV === "development" && <CacheTestingPanel />}
+    </>
+  )
 }
