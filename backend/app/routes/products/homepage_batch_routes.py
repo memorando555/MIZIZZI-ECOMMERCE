@@ -21,13 +21,34 @@ import json
 from datetime import datetime
 import traceback
 
-from app.models.models import Product
-from app.configuration.extensions import db
-from app.utils.redis_cache import (
-    product_cache, 
-    fast_cached_response, 
-    fast_json_dumps
-)
+try:
+    from app.models.models import Product
+    from app.configuration.extensions import db
+except (ImportError, ModuleNotFoundError):
+    from models.models import Product
+    from configuration.extensions import db
+
+try:
+    from app.cache.cache import fast_json_dumps
+    from app.cache.redis_client import redis_client as product_cache
+except ImportError:
+    try:
+        from cache.cache import fast_json_dumps
+        from cache.redis_client import redis_client as product_cache
+    except ImportError:
+        # Fallback implementations if caching is unavailable
+        import json
+        fast_json_dumps = json.dumps
+        
+        class DummyCache:
+            def get(self, key):
+                return None
+            def set(self, key, value, ex=None):
+                return True
+            def delete(self, key):
+                return True
+        
+        product_cache = DummyCache()
 
 # Create blueprint with explicit name
 homepage_batch_bp = Blueprint('homepage_batch', __name__)

@@ -189,6 +189,19 @@ def create_app(config_name=None, enable_socketio=True):
             # leave as-is; init_app will raise a clear error if still absent
             pass
     app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+    
+    # Enhanced database connection pool configuration for reliability
+    app.config.setdefault('SQLALCHEMY_ENGINE_OPTIONS', {
+        'pool_size': 10,
+        'pool_recycle': 300,  # Recycle connections after 5 minutes to prevent "server closed the connection" errors
+        'pool_pre_ping': True,  # Test connections before using them
+        'pool_timeout': 10,  # 10 second timeout for acquiring a connection
+        'max_overflow': 20,  # Allow up to 20 overflow connections
+        'connect_args': {
+            'connect_timeout': 10,
+            'application_name': 'mizizzi-ecommerce'
+        }
+    })
 
     # Initialize extensions
     db.init_app(app)
@@ -488,6 +501,7 @@ def create_app(config_name=None, enable_socketio=True):
         'topbar_routes': Blueprint('topbar_routes', __name__),
         'contact_cta_routes': Blueprint('contact_cta_routes', __name__),
         'featured_routes': Blueprint('featured_routes', __name__),
+        'homepage_batch_routes': Blueprint('homepage_batch_bp', __name__),
         'meilisearch_routes': Blueprint('meilisearch_routes', __name__),
         'admin_meilisearch_routes': Blueprint('admin_meilisearch_routes', __name__),
         'flash_sale_routes': Blueprint('flash_sale_routes', __name__),
@@ -631,6 +645,10 @@ def create_app(config_name=None, enable_socketio=True):
     @fallback_blueprints['flash_sale_routes'].route('/health', methods=['GET'])
     def fallback_flash_sale_health():
         return jsonify({"status": "ok", "message": "Fallback flash sale routes active"}), 200
+    
+    @fallback_blueprints['homepage_batch_routes'].route('/homepage/batch', methods=['GET'])
+    def fallback_homepage_batch():
+        return jsonify({"status": "ok", "message": "Fallback homepage batch routes active"}), 200
     
     # Blueprint import paths dictionary
     blueprint_imports = {
