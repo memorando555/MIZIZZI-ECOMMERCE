@@ -27,6 +27,7 @@ import { useCategoriesCache } from "@/hooks/use-categories-cache"
 
 interface HomeContentProps {
   flashSaleProducts: Product[]
+  flashSaleEvent?: any | null
   luxuryProducts: Product[]
   newArrivals: Product[]
   topPicks: Product[]
@@ -44,6 +45,7 @@ interface HomeContentProps {
 
 export function HomeContent({
   flashSaleProducts,
+  flashSaleEvent,
   luxuryProducts,
   newArrivals,
   topPicks,
@@ -85,7 +87,7 @@ export function HomeContent({
         <div className="mx-auto w-full max-w-[1200px] px-2 sm:px-3 md:px-4">
           <div className="grid gap-3 sm:gap-4 md:gap-8 py-2 sm:py-4">
             <section className="rounded-lg bg-white shadow-sm overflow-hidden">
-              <FlashSales {...({ products: flashSaleProducts } as any)} />
+              <FlashSales products={flashSaleProducts} event={flashSaleEvent} />
             </section>
 
             <section className="rounded-lg bg-white shadow-sm overflow-hidden">
