@@ -296,24 +296,13 @@ export function AuthSteps() {
 
         setStep("verification")
 
-        try {
-          await authService.sendVerificationCode(trimmedIdentifier)
-
-          toast({
-            title: "Verification code sent",
-            description: `Please check your ${trimmedIdentifier.includes("@") ? "email" : "phone"} for the verification code.`,
-            duration: 5000,
-          })
-        } catch (verificationError: any) {
-          console.error("[v0] Verification code sending failed:", verificationError)
-          toast({
-            title: "Account created",
-            description:
-              "Your account was created successfully. Please use the 'Resend Code' button to receive your verification code.",
-            duration: 8000,
-          })
-          setStep("verification")
-        }
+        // Important: The backend already sent verification code during registration
+        // Do NOT send another one - this causes rate limiting
+        toast({
+          title: "Account created",
+          description: `We sent a verification code to your ${trimmedIdentifier.includes("@") ? "email" : "phone"}. Please enter it below to verify your account.`,
+          duration: 6000,
+        })
       } else {
         setStep("welcome")
 
