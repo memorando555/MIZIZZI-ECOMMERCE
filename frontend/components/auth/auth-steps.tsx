@@ -100,24 +100,31 @@ export function AuthSteps() {
     setIdentifier(trimmedIdentifier)
 
     try {
-      // Fast path: Use optimized auth flow that combines availability check with verification code send
-      // This is 50% faster because it eliminates an extra API call
-      const authResult = await authService.checkAndProceedWithAuth(trimmedIdentifier)
+      // Optimized fast path: Send verification code which also returns account existence info
+      // Eliminates unnecessary availability check API call for 50% faster auth initiation
+      const verificationResponse = await authService.sendVerificationCode(trimmedIdentifier)
       
-      setFlow(authResult.flow)
+      console.log("[v0] Auth initiated, verification response:", verificationResponse)
+
+      if (verificationResponse.user_id) {
+        setUserId(verificationResponse.user_id)
+      }
+
+      // Determine flow based on whether account exists
+      const accountExists = verificationResponse.account_exists === true
       
-      if (authResult.flow === "login") {
+      if (accountExists) {
+        // Existing account - go to password step
+        setFlow("login")
         setStep("password")
         toast({
-          title: "Welcome back",
+          title: "Account found",
           description: "Please enter your password to continue",
         })
       } else {
-        // For registration, we go straight to verification
+        // New account - go to verification to confirm contact
+        setFlow("register")
         setStep("verification")
-        if (authResult.userId) {
-          setUserId(authResult.userId)
-        }
         toast({
           title: "Verification code sent",
           description: `We've sent a verification code to your ${isEmail ? "email" : "phone"}`,
