@@ -6,7 +6,7 @@ import os
 import sys
 import logging
 from datetime import datetime, timezone, timedelta
-from flask import Flask, jsonify, request, send_from_directory, g, abort
+from flask import Flask, jsonify, Blueprint, request, send_from_directory, g, abort
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, get_jwt_identity, create_access_token, jwt_required, verify_jwt_in_request
@@ -1008,7 +1008,22 @@ def create_app(config_name=None, enable_socketio=True):
         app.register_blueprint(final_blueprints['topbar_routes'], url_prefix='/api/topbar')
         app.register_blueprint(final_blueprints['contact_cta_routes'], url_prefix='/api/contact-cta')
         app.register_blueprint(final_blueprints['featured_routes'], url_prefix='/api/products/featured')
-        app.register_blueprint(final_blueprints['homepage_batch_routes'], url_prefix='/api')
+        
+        # Register homepage batch routes if available
+        if 'homepage_batch_routes' in final_blueprints:
+            try:
+                app.register_blueprint(final_blueprints['homepage_batch_routes'], url_prefix='/api')
+                app.logger.info("✅ Homepage batch routes registered at /api/homepage/batch")
+            except Exception as e:
+                app.logger.error(f"Error registering homepage batch routes: {str(e)}")
+                fallback_batch = Blueprint('homepage_batch_routes', __name__)
+                
+                @fallback_batch.route('/homepage/batch', methods=['GET'])
+                def fallback_batch():
+                    return jsonify({'error': 'Homepage batch endpoint unavailable'}), 503
+                
+                app.register_blueprint(fallback_batch, url_prefix='/api')
+                app.logger.warning("⚠️ Using fallback homepage batch routes")
 
         app.register_blueprint(final_blueprints['meilisearch_routes'], url_prefix='/api/meilisearch')
         app.register_blueprint(final_blueprints['admin_meilisearch_routes'], url_prefix='/api/admin/meilisearch')
