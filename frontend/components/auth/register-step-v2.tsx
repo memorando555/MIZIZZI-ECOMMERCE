@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, ArrowLeft } from "lucide-react"
-import { PasswordStrength } from "./password-strength"
 import { checkPasswordStrength } from "@/lib/validations/auth"
 import { AuthContainerLoader } from "./auth-container-loader"
 
@@ -26,7 +25,6 @@ export function RegisterStepV2({ identifier, onSubmit, isLoading, onBack }: Regi
     terms: false,
   })
   const [showPassword, setShowPassword] = useState(false)
-  const [passwordStrength, setPasswordStrength] = useState(0)
   const [error, setError] = useState("")
   const [stepTransitionLoading, setStepTransitionLoading] = useState(false)
 
@@ -272,7 +270,6 @@ export function RegisterStepV2({ identifier, onSubmit, isLoading, onBack }: Regi
                       onChange={(e) => {
                         const password = e.target.value
                         setFormData((prev) => ({ ...prev, password }))
-                        setPasswordStrength(checkPasswordStrength(password))
                         setError("")
                       }}
                       onKeyPress={(e) => e.key === "Enter" && handlePasswordNext()}
@@ -292,8 +289,6 @@ export function RegisterStepV2({ identifier, onSubmit, isLoading, onBack }: Regi
                   </div>
                   {error && <p className="text-sm text-destructive">{error}</p>}
                 </div>
-
-                <PasswordStrength strength={passwordStrength} />
 
                 <Button
                   onClick={handlePasswordNext}
