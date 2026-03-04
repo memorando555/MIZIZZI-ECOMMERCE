@@ -1,12 +1,6 @@
-// Prefetch critical home page data for instant loading
+// Prefetch critical home page data using batch API for instant loading
 import { prefetchFlashSales } from "@/hooks/use-swr-flash-sales"
-import { prefetchLuxuryDeals } from "@/hooks/use-swr-luxury-deals"
-import { prefetchNewArrivals } from "@/hooks/use-swr-new-arrivals"
-import { prefetchDailyFinds } from "@/hooks/use-swr-daily-finds"
-import { prefetchTopPicks } from "@/hooks/use-swr-top-picks"
-import { prefetchTrending } from "@/hooks/use-swr-trending"
 import { prefetchProductGrid } from "@/hooks/use-swr-product-grid"
-import { eagerPrefetchProducts } from "@/lib/cache/products-quick-fetch"
 
 let prefetchPromise: Promise<void> | null = null
 
@@ -18,23 +12,30 @@ export async function prefetchHomeData(): Promise<void> {
 
   prefetchPromise = (async () => {
     try {
-      // Run ALL prefetches in parallel for fastest loading
-      // This ensures Top Picks, Trending, New Arrivals, and Daily Finds
-      // load just as fast as Flash Sales and Luxury Deals
+      // Prefetch homepage batch API which contains all product sections
+      // This single prefetch covers: flash sales, trending, top picks, new arrivals, daily finds, luxury deals
+      const batchPrefetch = fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/homepage/batch`,
+        {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      ).catch(() => {
+        console.warn('[v0] Batch API prefetch failed')
+      })
+
+      // Also prefetch product grid as fallback
+      const gridPrefetch = prefetchProductGrid(12)
+
+      // Run all prefetches in parallel
       await Promise.all([
-        prefetchFlashSales(),
-        eagerPrefetchProducts({ flash_sale: true, limit: 50 }),
-        prefetchLuxuryDeals(),
-        prefetchTopPicks(),
-        prefetchNewArrivals(),
-        prefetchTrending(),
-        prefetchDailyFinds(),
-        prefetchProductGrid(12), // Prefetch product grid with default limit
+        batchPrefetch,
+        gridPrefetch,
       ])
 
-      console.log("[v0] All home data prefetched successfully")
+      console.log("[v0] Homepage batch data prefetched successfully")
     } catch (error) {
-      console.warn("[v0] Failed to prefetch home data:", error)
+      console.warn("[v0] Failed to prefetch homepage data:", error)
     }
   })()
 
