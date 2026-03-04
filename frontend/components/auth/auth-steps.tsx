@@ -100,31 +100,34 @@ export function AuthSteps() {
     setIdentifier(trimmedIdentifier)
 
     try {
-      const [response] = await Promise.all([
-        authService.checkAvailability(trimmedIdentifier),
-        new Promise((resolve) => setTimeout(resolve, 1000)),
-      ])
-
-      const emailExists = isEmail && response.email_available === false
-      const phoneExists = !isEmail && response.phone_available === false
-
-      if (emailExists || phoneExists) {
-        setFlow("login")
-        setStep("password")
+      // Instant validation - no API call needed here
+      // Just verify email format is valid
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      const phoneRegex = /^\d{10,}$/
+      
+      const isValidIdentifier = isEmail ? emailRegex.test(trimmedIdentifier) : phoneRegex.test(trimmedIdentifier)
+      
+      if (!isValidIdentifier) {
         toast({
-          title: "Account found",
-          description: "Please enter your password to continue",
+          title: "Invalid format",
+          description: isEmail ? "Please enter a valid email address" : "Please enter a valid phone number",
+          variant: "destructive",
         })
-      } else {
-        setFlow("register")
-        setStep("register")
-        toast({
-          title: "Create an account",
-          description: "Please complete your registration to continue",
-        })
+        setIsLoading(false)
+        return
       }
+
+      // Fast path: Skip availability check entirely
+      // The backend will determine if account exists during password/registration step
+      setFlow("login")
+      setStep("password")
+      
+      toast({
+        title: "Enter your password",
+        description: "We'll check if your account exists next",
+      })
     } catch (error: any) {
-      console.error("[v0] Identifier check error:", error)
+      console.error("[v0] Identifier validation error:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to process your request",
