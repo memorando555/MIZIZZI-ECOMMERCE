@@ -4,9 +4,9 @@
   "description": "Mizizzi E-commerce Platform",
   "main": "index.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --no-turbo",
     "dev:turbo": "next dev --turbo",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
