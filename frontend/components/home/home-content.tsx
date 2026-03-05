@@ -28,10 +28,10 @@ interface HomeContentProps {
   flashSaleProducts: Product[]
   flashSaleEvent?: any | null
   luxuryProducts: Product[]
-  newArrivals: Product[]
-  topPicks: Product[]
+  newArrivalsProducts: Product[]
+  topPicksProducts: Product[]
   trendingProducts: Product[]
-  dailyFinds: Product[]
+  dailyFindsProducts: Product[]
   allProducts: Product[]
   allProductsHasMore: boolean
   categories?: Category[]
@@ -46,10 +46,10 @@ export function HomeContent({
   flashSaleProducts,
   flashSaleEvent,
   luxuryProducts,
-  newArrivals,
-  topPicks,
+  newArrivalsProducts,
+  topPicksProducts,
   trendingProducts,
-  dailyFinds,
+  dailyFindsProducts,
   allProducts,
   allProductsHasMore,
   categories = [],
@@ -92,11 +92,11 @@ export function HomeContent({
             </section>
 
             <section className="rounded-lg bg-white shadow-sm overflow-hidden">
-              <TopPicks products={topPicks} />
+              <TopPicks products={topPicksProducts} />
             </section>
 
             <section className="rounded-lg bg-white shadow-sm overflow-hidden">
-              <NewArrivals products={newArrivals} />
+              <NewArrivals products={newArrivalsProducts} />
             </section>
 
             <section className="rounded-lg bg-white shadow-sm overflow-hidden">
@@ -104,7 +104,7 @@ export function HomeContent({
             </section>
 
             <section className="rounded-lg bg-white shadow-sm overflow-hidden">
-              <DailyFinds products={dailyFinds} />
+              <DailyFinds products={dailyFindsProducts} />
             </section>
 
             <section className="rounded-lg bg-white shadow-sm overflow-hidden">
