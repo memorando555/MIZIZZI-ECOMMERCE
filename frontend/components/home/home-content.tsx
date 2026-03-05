@@ -15,37 +15,14 @@ import { TrendingNow } from "@/components/features/trending-now"
 import { DailyFinds } from "@/components/features/daily-finds"
 import { BrandShowcase } from "@/components/features/brand-showcase"
 import type { Product } from "@/types"
-
-// Inline type definitions (lib/server files not available for homepage batch)
-interface Category {
-  id: string
-  [key: string]: any
-}
-
-interface CarouselItem {
-  id: string
-  [key: string]: any
-}
-
-interface PremiumExperience {
-  id: string
-  [key: string]: any
-}
-
-interface ContactCTASlide {
-  id: string
-  [key: string]: any
-}
-
-interface FeatureCard {
-  id: string
-  [key: string]: any
-}
-
-interface ProductShowcaseCategory {
-  id: string
-  [key: string]: any
-}
+import type { Category } from "@/lib/server/get-categories"
+import type {
+  CarouselItem,
+  PremiumExperience,
+  ContactCTASlide,
+  FeatureCard,
+  ProductShowcaseCategory,
+} from "@/lib/server/get-carousel-data"
 
 interface HomeContentProps {
   flashSaleProducts: Product[]
