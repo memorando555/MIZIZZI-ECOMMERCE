@@ -23,8 +23,6 @@ import type {
   FeatureCard,
   ProductShowcaseCategory,
 } from "@/lib/server/get-carousel-data"
-import { useCategoriesCache } from "@/hooks/use-categories-cache"
-
 interface HomeContentProps {
   flashSaleProducts: Product[]
   luxuryProducts: Product[]
@@ -58,8 +56,8 @@ export function HomeContent({
   featureCards = [],
   productShowcase = [],
 }: HomeContentProps) {
-  // Apply 3-layer cache strategy: sessionStorage > localStorage > server data
-  const { categories: cachedCategories } = useCategoriesCache(categories)
+  // Use server-provided categories directly (already cached at server level)
+  const cachedCategories = categories
   return (
     <>
       <div className="page-root flex flex-col pb-8 w-full" style={{ backgroundColor: "var(--color-background)" }}>

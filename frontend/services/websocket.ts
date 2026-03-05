@@ -24,9 +24,10 @@ class WebSocketService {
   private readonly CONNECTION_ATTEMPT_COOLDOWN = 5000 // 5 seconds between connection attempts
 
   constructor() {
-    this.enableWebsocket = process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET !== "false"
+    this.enableWebsocket = process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === "true" || process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET !== "false"
 
     if (typeof window !== "undefined" && this.enableWebsocket) {
+      console.log("[v0] WebSocket enabled, attempting connection...")
       this.connect()
     }
 

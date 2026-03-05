@@ -91,7 +91,9 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
 
   // Check if WebSocket is enabled
   const isWebSocketEnabled = useCallback(() => {
-    const enabled = process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === "true"
+    // Enable if explicitly set to "true" or if not explicitly set to "false"
+    const enabled = process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET !== "false"
+    console.log("[v0] WebSocket enabled check:", enabled, "env:", process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET)
     return enabled
   }, [])
 
