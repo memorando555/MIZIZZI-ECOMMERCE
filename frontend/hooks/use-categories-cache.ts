@@ -1,8 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { Category } from '@/lib/server/get-categories'
-import { recordCacheMetric } from '@/lib/performance-metrics'
+
+// Type definition (inline since it's no longer in lib/server)
+interface Category {
+  id: string
+  [key: string]: any
+}
 
 const CACHE_KEY = 'mizizzi_categories_cache'
 const CACHE_EXPIRY_KEY = 'mizizzi_categories_cache_expiry'
@@ -46,7 +50,6 @@ export function useCategoriesCache(serverData: Category[]) {
         if (Array.isArray(parsed.data) && parsed.data.length > 0) {
           setCategories(parsed.data)
           setIsFromCache(true)
-          recordCacheMetric(true, 'sessionStorage', performance.now() - startTime, 'categories')
           return
         }
       }
@@ -71,7 +74,6 @@ export function useCategoriesCache(serverData: Category[]) {
               data: parsed.data,
               timestamp: parsed.timestamp,
             }))
-            recordCacheMetric(true, 'localStorage', performance.now() - startTime, 'categories')
             return
           }
         } else {
@@ -92,7 +94,6 @@ export function useCategoriesCache(serverData: Category[]) {
         sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry))
         localStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry))
         localStorage.setItem(CACHE_EXPIRY_KEY, (Date.now() + CACHE_TTL).toString())
-        recordCacheMetric(false, 'server', performance.now() - startTime, 'categories')
       }
     } catch (error) {
       // Gracefully handle storage errors (quota exceeded, etc)

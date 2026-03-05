@@ -1,13 +1,32 @@
 "use client"
 
 import useSWR, { type SWRConfiguration, mutate as globalMutate } from "swr"
-import type {
-  CarouselItem,
-  PremiumExperience,
-  ContactCTASlide,
-  FeatureCard,
-  ProductShowcaseCategory,
-} from "@/lib/server/get-carousel-data"
+
+// Type definitions (inline since they're no longer in lib/server)
+interface CarouselItem {
+  id: string
+  [key: string]: any
+}
+
+interface PremiumExperience {
+  id: string
+  [key: string]: any
+}
+
+interface ContactCTASlide {
+  id: string
+  [key: string]: any
+}
+
+interface FeatureCard {
+  id: string
+  [key: string]: any
+}
+
+interface ProductShowcaseCategory {
+  id: string
+  [key: string]: any
+}
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || "https://mizizzi-ecommerce-1.onrender.com"

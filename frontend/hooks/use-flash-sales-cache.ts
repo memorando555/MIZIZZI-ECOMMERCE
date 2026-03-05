@@ -1,8 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { FlashSaleProduct, FlashSaleEvent } from '@/lib/server/get-flash-sale-products'
-import { recordCacheMetric } from '@/lib/performance-metrics'
+
+// Type definitions (inline since they're no longer in lib/server)
+interface FlashSaleProduct {
+  id: string
+  [key: string]: any
+}
+
+interface FlashSaleEvent {
+  id: string
+  [key: string]: any
+}
 
 const CACHE_KEY = 'mizizzi_flash_sales_cache'
 const EVENT_CACHE_KEY = 'mizizzi_flash_sale_event_cache'
@@ -65,7 +74,6 @@ export function useFlashSalesCache(serverProducts: FlashSaleProduct[], serverEve
             setProducts(parsed.data)
             cacheHit = true
             cacheSource = 'sessionStorage'
-            recordCacheMetric(true, 'sessionStorage', performance.now() - startTime, 'flash-sales')
           }
         } catch (e) {
           // Invalid cached data, continue to next layer
@@ -94,7 +102,6 @@ export function useFlashSalesCache(serverProducts: FlashSaleProduct[], serverEve
                   data: parsed.data,
                   timestamp: parsed.timestamp,
                 }))
-                recordCacheMetric(true, 'localStorage', performance.now() - startTime, 'flash-sales')
               }
             } catch (e) {
               // Invalid cached data, continue
@@ -182,12 +189,8 @@ export function useFlashSalesCache(serverProducts: FlashSaleProduct[], serverEve
         localStorage.setItem(EVENT_EXPIRY_KEY, (Date.now() + EVENT_CACHE_TTL).toString())
       }
 
-      // Record metrics
       if (cacheHit) {
         setIsFromCache(true)
-        recordCacheMetric(true, cacheSource, performance.now() - startTime, 'flash-sales')
-      } else {
-        recordCacheMetric(false, 'server', performance.now() - startTime, 'flash-sales')
       }
 
     } catch (error) {
