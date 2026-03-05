@@ -82,8 +82,6 @@ export function HomeContent({
   featureCards = [],
   productShowcase = [],
 }: HomeContentProps) {
-  // Apply 3-layer cache strategy: sessionStorage > localStorage > server data
-  const { categories: cachedCategories } = useCategoriesCache(categories)
   return (
     <>
       <div className="page-root flex flex-col pb-8 w-full" style={{ backgroundColor: "var(--color-background)" }}>
@@ -102,7 +100,7 @@ export function HomeContent({
 
         <div className="mx-auto w-full max-w-[1200px] px-0 sm:px-3 md:px-4 mt-3 sm:mt-4">
           <div className="mb-3 sm:rounded-lg bg-white overflow-hidden shadow-sm">
-            <CategoryGrid categories={cachedCategories} />
+            <CategoryGrid categories={categories} />
           </div>
         </div>
 
