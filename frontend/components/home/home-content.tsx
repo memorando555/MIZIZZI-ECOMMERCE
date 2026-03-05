@@ -14,6 +14,7 @@ import { NewArrivals } from "@/components/features/new-arrivals"
 import { TrendingNow } from "@/components/features/trending-now"
 import { DailyFinds } from "@/components/features/daily-finds"
 import { BrandShowcase } from "@/components/features/brand-showcase"
+import { useCategoriesCache } from "@/hooks/use-categories-cache"
 import type { Product } from "@/types"
 import type { Category } from "@/lib/server/get-categories"
 import type {
@@ -56,8 +57,8 @@ export function HomeContent({
   featureCards = [],
   productShowcase = [],
 }: HomeContentProps) {
-  // Use server-provided categories directly (already cached at server level)
-  const cachedCategories = categories
+  // Use 3-layer caching: sessionStorage → localStorage → server data
+  const { categories: cachedCategories } = useCategoriesCache(categories)
   return (
     <>
       <div className="page-root flex flex-col pb-8 w-full" style={{ backgroundColor: "var(--color-background)" }}>
