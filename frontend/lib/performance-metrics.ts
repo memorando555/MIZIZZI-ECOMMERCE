@@ -1,7 +1,5 @@
 'use client'
 
-import { cacheMonitor } from '@/lib/services/cache-monitor'
-
 /**
  * Performance monitoring utility for categories and flash sales caching
  * Log performance metrics to admin dashboard and identify optimization benefits
@@ -15,6 +13,21 @@ interface PerformanceMetrics {
 }
 
 let metrics: PerformanceMetrics[] = []
+let cacheMonitor: any = null
+
+// Lazy load cache monitor to avoid circular dependencies
+function getCacheMonitor() {
+  if (!cacheMonitor && typeof window !== 'undefined') {
+    try {
+      const module = require('@/lib/services/cache-monitor')
+      cacheMonitor = module.cacheMonitor
+    } catch (e) {
+      // Gracefully fail if cache monitor is not available
+      return null
+    }
+  }
+  return cacheMonitor
+}
 
 export function recordCacheMetric(
   isCached: boolean,
@@ -31,12 +44,15 @@ export function recordCacheMetric(
 
   // Record event in cache monitor for admin dashboard
   try {
-    cacheMonitor.recordEvent({
-      type: isCached ? 'hit' : 'miss',
-      source: cacheType,
-      layer: source === 'server' ? 'server' : (source as 'sessionStorage' | 'localStorage'),
-      responseTime: time,
-    })
+    const monitor = getCacheMonitor()
+    if (monitor) {
+      monitor.recordEvent({
+        type: isCached ? 'hit' : 'miss',
+        source: cacheType,
+        layer: source === 'server' ? 'server' : (source as 'sessionStorage' | 'localStorage'),
+        responseTime: time,
+      })
+    }
   } catch (error) {
     // Silently fail if monitor service has issues
   }

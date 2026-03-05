@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useSocket } from '@/contexts/socket-context'
 
 /**
@@ -9,10 +9,17 @@ import { useSocket } from '@/contexts/socket-context'
  */
 export function SocketInitializer() {
   const { connect, isConnected, isConnecting } = useSocket()
+  const initializedRef = useRef(false)
 
   useEffect(() => {
-    // Only initialize if not already connecting or connected
-    if (isConnected || isConnecting) return
+    // Prevent multiple initialization attempts
+    if (initializedRef.current) return
+    if (isConnected || isConnecting) {
+      initializedRef.current = true
+      return
+    }
+
+    initializedRef.current = true
 
     // Set up handlers for user interaction
     const handleUserInteraction = () => {
@@ -25,10 +32,8 @@ export function SocketInitializer() {
 
     // Also try connecting after a short delay (2 seconds)
     const timer = setTimeout(() => {
-      if (!isConnected && !isConnecting) {
-        console.log('[v0] Timeout reached, initiating WebSocket connection...')
-        connect()
-      }
+      console.log('[v0] Timeout reached, initiating WebSocket connection...')
+      connect()
     }, 2000)
 
     // Listen for user interactions

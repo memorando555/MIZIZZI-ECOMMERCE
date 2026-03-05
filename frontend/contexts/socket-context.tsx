@@ -101,7 +101,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
   const send = useCallback(
     (event: string, data: any) => {
       if (mockModeRef.current) {
-        console.log(`[MOCK] Sending ${event} event:`, data)
+        console.log(`[v0] [MOCK] Sending ${event} event:`, data)
 
         // For echo events, simulate a response
         if (event === "echo") {
@@ -123,12 +123,13 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
           const messageData = adminToken ? { type: event, ...data, token: adminToken } : { type: event, ...data }
 
           socket.send(JSON.stringify(messageData))
+          console.log(`[v0] Sent ${event} message`)
         } catch (error) {
-          console.error(`Error sending ${event} message:`, error)
+          console.error(`[v0] Error sending ${event} message:`, error)
           setLastError(`Failed to send message: ${error instanceof Error ? error.message : String(error)}`)
         }
       } else {
-        console.warn(`Cannot send ${event} message: WebSocket is not connected`)
+        console.warn(`[v0] Cannot send ${event} message: WebSocket is not connected (connected: ${isConnected}, has socket: ${!!socket})`)
       }
     },
     [socket, isConnected],
@@ -154,7 +155,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
   const startMockMode = useCallback(() => {
     if (mockModeRef.current) return
 
-    console.log("[v0] Starting WebSocket mock mode")
+    console.log("[v0] [EVENTING] Starting WebSocket mock mode (fallback)")
     mockModeRef.current = true
     setIsConnected(true)
     setIsConnecting(false)
@@ -202,24 +203,29 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
   }, [toast])
 
   const connect = useCallback(() => {
+    console.log("[v0] [EVENTING] Connect called")
+    
     // If WebSocket is disabled, use mock mode
     if (!isWebSocketEnabled()) {
       if (!mockModeRef.current) {
-        console.log("[v0] WebSocket disabled, using mock mode")
+        console.log("[v0] [EVENTING] WebSocket disabled, using mock mode")
         startMockMode()
       }
       return
     }
 
     if (mockModeRef.current) {
+      console.log("[v0] [EVENTING] Already in mock mode")
       return
     }
 
     if (connectionAttemptRef.current) {
+      console.log("[v0] [EVENTING] Connection attempt already in progress")
       return
     }
 
     if (socket) {
+      console.log("[v0] [EVENTING] Socket already exists")
       return
     }
 
@@ -228,7 +234,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
       connectionAttemptRef.current = true
       setLastError(null)
 
-      console.log(`[v0] Socket context connecting to WebSocket server at ${url}...`)
+      console.log(`[v0] [EVENTING] Socket context connecting to WebSocket server at ${url}...`)
 
       const connectionTimeout = setTimeout(() => {
         if (!fallbackInitiatedRef.current) {
@@ -245,7 +251,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
 
       ws.onopen = () => {
         clearTimeout(connectionTimeout)
-        console.log("[v0] WebSocket connection established")
+        console.log("[v0] [EVENTING] WebSocket connection established ✓")
         setSocket(ws)
         setIsConnected(true)
         setIsConnecting(false)
@@ -255,10 +261,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({
 
         const adminToken = localStorage.getItem("admin_token") || localStorage.getItem("mizizzi_token")
         if (adminToken) {
-          console.log("[v0] Authenticating WebSocket with admin token")
+          console.log("[v0] [EVENTING] Authenticating WebSocket with admin token")
           send("authenticate", { token: adminToken })
         } else if (isAuthenticated && token) {
-          console.log("[v0] Authenticating WebSocket with user token")
+          console.log("[v0] [EVENTING] Authenticating WebSocket with user token")
           send("authenticate", { token })
         }
       }
