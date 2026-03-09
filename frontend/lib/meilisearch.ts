@@ -138,9 +138,11 @@ export { meilisearchClient }
 export async function checkMeilisearchHealth(): Promise<boolean> {
   try {
     const health = await meilisearchClient.health()
-    return health.status === "available"
+    const isHealthy = health.status === "available"
+    console.log("[v0] Meilisearch health check:", { status: health.status, available: isHealthy })
+    return isHealthy
   } catch (error) {
-    console.error("[Meilisearch] Health check failed:", error)
+    console.log("[v0] Meilisearch health check failed - will use database fallback")
     return false
   }
 }

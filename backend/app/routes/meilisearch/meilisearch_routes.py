@@ -214,7 +214,7 @@ def search_products():
         client = get_meilisearch_client()
         
         if not client.is_available():
-            logger.warning("Meilisearch not available, falling back to database search")
+            logger.info("[v0] Meilisearch not available - using database fallback for search")
             return fallback_database_search(query, limit, offset, category_id, min_price, max_price)
         
         # Build filter array
@@ -270,7 +270,7 @@ def search_products():
         )
         
         if 'error' in result and not result.get('hits'):
-            logger.error(f"Meilisearch search error: {result.get('error')}")
+            logger.info(f"[v0] Meilisearch search returned error, using database fallback: {result.get('error')}")
             return fallback_database_search(query, limit, offset, category_id, min_price, max_price)
         
         # Transform results to match frontend expectations
@@ -365,7 +365,8 @@ def get_search_suggestions():
         client = get_meilisearch_client()
         
         if not client.is_available():
-            return jsonify({'suggestions': [], 'query': query, 'fallback': True}), 200
+            logger.info("[v0] Meilisearch not available for suggestions - using database fallback")
+            return fallback_suggestions_search(query, limit)
         
         result = client.search_products(query=query, limit=limit)
         
@@ -383,6 +384,10 @@ def get_search_suggestions():
                     'slug': hit.get('slug', '')
                 })
                 seen_names.add(name.lower())
+        
+        # If no results, try database fallback
+        if not suggestions:
+            return fallback_suggestions_search(query, limit)
         
         return jsonify({
             'suggestions': suggestions,
@@ -422,9 +427,14 @@ def search_categories():
         
         if not client.is_available():
             # Fallback to database
+            logger.info("[v0] Meilisearch not available for category search - using database fallback")
             return fallback_category_search(query, limit)
         
         result = client.search_categories(query, limit=limit)
+        
+        # If no results, try database fallback
+        if not result.get('hits'):
+            return fallback_category_search(query, limit)
         
         return jsonify({
             'success': True,
@@ -443,6 +453,44 @@ def search_categories():
             'results': [],
             'total': 0
         }), 500
+
+
+def fallback_suggestions_search(query: str, limit: int):
+    """Fallback to database for suggestions if Meilisearch is unavailable."""
+    try:
+        from sqlalchemy import or_
+        
+        search_term = f"%{query}%"
+        
+        # Search for products by name
+        products = Product.query.filter(
+            Product.is_active == True,
+            Product.name.ilike(search_term)
+        ).limit(limit).all()
+        
+        suggestions = []
+        seen_names = set()
+        
+        for product in products:
+            if product.name and product.name.lower() not in seen_names:
+                suggestions.append({
+                    'id': product.id,
+                    'name': product.name,
+                    'image': getattr(product, 'thumbnail_url', '') or '',
+                    'price': float(product.price) if product.price else 0,
+                    'slug': getattr(product, 'slug', '') or f'/product/{product.id}'
+                })
+                seen_names.add(product.name.lower())
+        
+        return jsonify({
+            'suggestions': suggestions,
+            'query': query,
+            'fallback': True
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Fallback suggestions error: {str(e)}")
+        return jsonify({'suggestions': [], 'query': query, 'error': str(e)}), 200
 
 
 def fallback_database_search(query: str, limit: int, offset: int, category_id=None, min_price=None, max_price=None):
