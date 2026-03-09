@@ -102,6 +102,7 @@ class SearchService {
           "Content-Type": "application/json",
         },
         credentials: "include",
+        signal: AbortSignal.timeout(5000),
       })
 
       if (!response.ok) {
@@ -110,8 +111,26 @@ class SearchService {
 
       return await response.json()
     } catch (error) {
-      console.error("Error searching products:", error)
-      throw error
+      // Return empty response if API is unavailable
+      return {
+        success: false,
+        products: [],
+        pagination: {
+          page: 1,
+          per_page: 0,
+          total_pages: 0,
+          total_items: 0,
+          has_next: false,
+          has_prev: false,
+        },
+        search_metadata: {
+          query: params.q || "",
+          filters_applied: 0,
+          sort_by: params.sort_by || "relevance",
+          sort_order: params.sort_order || "desc",
+          search_time: "0ms",
+        },
+      }
     }
   }
 
@@ -130,6 +149,7 @@ class SearchService {
           "Content-Type": "application/json",
         },
         credentials: "include",
+        signal: AbortSignal.timeout(5000),
       })
 
       if (!response.ok) {
@@ -139,7 +159,7 @@ class SearchService {
       const data = await response.json()
       return data.suggestions || []
     } catch (error) {
-      console.error("Error getting search suggestions:", error)
+      // Silently return empty suggestions if API is unavailable
       return []
     }
   }
@@ -179,6 +199,7 @@ class SearchService {
           "Content-Type": "application/json",
         },
         credentials: "include",
+        signal: AbortSignal.timeout(5000),
       })
 
       if (!response.ok) {
@@ -187,8 +208,8 @@ class SearchService {
 
       return await response.json()
     } catch (error) {
-      console.error("Error getting popular searches:", error)
-      throw error
+      // Return empty response if API is unavailable
+      return { popular_searches: [], trending_products: [] }
     }
   }
 

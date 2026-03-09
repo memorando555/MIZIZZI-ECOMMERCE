@@ -68,8 +68,10 @@ export function SearchBar({
       setSuggestions(suggestions)
       setShowSuggestionsList(suggestions.length > 0)
     } catch (error) {
-      console.error("Error fetching suggestions:", error)
+      console.error("[v0] Error fetching suggestions:", error)
+      // Silently fail - don't show suggestions if API is unavailable
       setSuggestions([])
+      setShowSuggestionsList(false)
     } finally {
       setIsLoading(false)
     }

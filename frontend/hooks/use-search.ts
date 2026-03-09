@@ -168,7 +168,9 @@ export function useSearch({ initialQuery = "", delay = 50, onSearch }: UseSearch
 
   const fetchRecentSearches = useCallback(async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/products/recent-searches?limit=8`)
+      const response = await fetch(`${BACKEND_URL}/api/products/recent-searches?limit=8`, {
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      })
 
       if (response.ok) {
         const data = await response.json()
@@ -187,7 +189,7 @@ export function useSearch({ initialQuery = "", delay = 50, onSearch }: UseSearch
         setRecentSearches(recent.slice(0, 8))
       }
     } catch (error) {
-      console.error("[v0] Failed to fetch recent searches:", error)
+      // Silently fall back to localStorage - backend may be down
       const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]")
       setRecentSearches(recent.slice(0, 8))
     }
@@ -197,20 +199,34 @@ export function useSearch({ initialQuery = "", delay = 50, onSearch }: UseSearch
     try {
       await fetchRecentSearches()
 
-      const productsResponse = await fetch(`${BACKEND_URL}/api/products?limit=10&sort_by=popularity&sort_order=desc`)
+      try {
+        const productsResponse = await fetch(`${BACKEND_URL}/api/products?limit=10&sort_by=popularity&sort_order=desc`, {
+          signal: AbortSignal.timeout(5000),
+        })
 
-      if (productsResponse.ok) {
-        const data = await productsResponse.json()
-        setTrendingProducts(data.items || data || [])
+        if (productsResponse.ok) {
+          const data = await productsResponse.json()
+          setTrendingProducts(data.items || data || [])
+        }
+      } catch (error) {
+        // Silently fail if products endpoint is down
+        setTrendingProducts([])
       }
 
-      const categoriesResponse = await fetch(`${BACKEND_URL}/api/categories`)
-      if (categoriesResponse.ok) {
-        const data = await categoriesResponse.json()
-        setCategories(data.items || data || [])
+      try {
+        const categoriesResponse = await fetch(`${BACKEND_URL}/api/categories`, {
+          signal: AbortSignal.timeout(5000),
+        })
+        if (categoriesResponse.ok) {
+          const data = await categoriesResponse.json()
+          setCategories(data.items || data || [])
+        }
+      } catch (error) {
+        // Silently fail if categories endpoint is down
+        setCategories([])
       }
     } catch (error) {
-      console.error("[v0] Failed to fetch initial search data:", error)
+      // Silently handle any other errors
     }
   }, [fetchRecentSearches])
 

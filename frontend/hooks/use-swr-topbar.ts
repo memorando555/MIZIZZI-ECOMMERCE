@@ -59,6 +59,9 @@ const topbarFetcher = async (): Promise<TopBarSlide[]> => {
   try {
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL || "https://mizizzi-ecommerce-1.onrender.com"}/api/topbar/slides`,
+      {
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      },
     )
 
     if (!response.ok) {
@@ -77,24 +80,20 @@ const topbarFetcher = async (): Promise<TopBarSlide[]> => {
 
     throw new Error("No slides in response")
   } catch (error) {
-    console.error("[v0] Error fetching topbar slides:", error)
-
     // First try in-memory cache
     if (topbarCache && topbarCache.length > 0) {
-      console.log("[v0] Using in-memory topbar cache")
       return topbarCache
     }
 
     // Fall back to localStorage
     const localCache = getLocalStorageCache()
     if (localCache && localCache.slides && localCache.slides.length > 0) {
-      console.log("[v0] Using localStorage topbar cache")
       topbarCache = localCache.slides
       return localCache.slides
     }
 
-    // Re-throw if no cached data available
-    throw error
+    // Return empty array as last resort (no cached data available)
+    return []
   }
 }
 
@@ -159,7 +158,7 @@ export async function prefetchTopBar(): Promise<void> {
     const data = await topbarFetcher()
     await globalMutate("topbar-slides", data, false)
   } catch (error) {
-    console.warn("[v0] Failed to prefetch topbar:", error)
+    // Silently handle prefetch errors - cache will be used as fallback
   }
 }
 
